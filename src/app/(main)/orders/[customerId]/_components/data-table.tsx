@@ -21,10 +21,9 @@ export function DataTable({ data: initialData }: { data: Channel[] }) {
 
   const stats = React.useMemo(() => {
     const totalOrders = (data ?? []).length;
-    const totalTienHang = (data ?? []).reduce((s, r) => s + (Number(r.tien_hang) || 0), 0);
-    const totalThanhTien = (data ?? []).reduce((s, r) => s + (Number(r.thanh_tien) || 0), 0);
-    const totalQuantity = (data ?? []).reduce((s, r) => s + (Number(r.quantity) || 0), 0);
-    return { totalOrders, totalTienHang, totalThanhTien, totalQuantity };
+    const totalMoney = (data ?? []).reduce((s, r) => s + (Number(r.money) || 0), 0);
+    const totalMoneyVAT = (data ?? []).reduce((s, r) => s + (Number(r.money_VAT) || 0), 0);
+    return { totalOrders, totalMoney, totalMoneyVAT };
   }, [data]);
 
   const filteredData = React.useMemo(() => {
@@ -32,19 +31,19 @@ export function DataTable({ data: initialData }: { data: Channel[] }) {
     const term = searchTerm.toLowerCase();
     return (data ?? []).filter(
       (item) =>
-        String(item.order_ID ?? "")
+        String(item.orderCode ?? "")
           .toLowerCase()
           .includes(term) ||
-        String(item.name_customer ?? "")
+        String(item.name ?? "")
           .toLowerCase()
           .includes(term) ||
         String(item.phone ?? "")
           .toLowerCase()
           .includes(term) ||
-        String(item.seller ?? "")
+        String(item.email ?? "")
           .toLowerCase()
           .includes(term) ||
-        String(item.name_pro ?? "")
+        String(item.class ?? "")
           .toLowerCase()
           .includes(term),
     );
@@ -54,7 +53,7 @@ export function DataTable({ data: initialData }: { data: Channel[] }) {
   const table = useDataTableInstance({
     data: filteredData,
     columns,
-    getRowId: (row) => String(row.order_ID ?? "").toString(),
+    getRowId: (row) => `${row.orderCode || row.phone || ""}-${row.create_at?.toString() ?? ""}`,
   });
 
   return (

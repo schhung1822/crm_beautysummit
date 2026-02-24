@@ -6,9 +6,8 @@ import { Card, CardAction, CardDescription, CardFooter, CardHeader, CardTitle } 
 type SectionCardsProps = {
   stats: {
     totalOrders: number;
-    totalTienHang: number;
-    totalThanhTien: number;
-    totalQuantity: number;
+    totalMoney: number;
+    totalMoneyVAT: number;
   };
 };
 
@@ -30,10 +29,10 @@ export function SectionCards({ stats }: SectionCardsProps) {
 
       <Card className="@container/card">
         <CardHeader>
-          <CardDescription>Tổng tiền hàng</CardDescription>
+          <CardDescription>Tổng tiền</CardDescription>
           <div className="flex items-baseline">
             <CardTitle className="text-2xl font-semibold tabular-nums @[250px]/card:text-3xl">
-              {fmt(stats.totalTienHang)}
+              {fmt(stats.totalMoney)}
             </CardTitle>
           </div>
         </CardHeader>
@@ -41,10 +40,10 @@ export function SectionCards({ stats }: SectionCardsProps) {
 
       <Card className="@container/card col-span-1 @xl/main:col-span-2 @5xl/main:col-span-4">
         <CardHeader>
-          <CardDescription>Tổng thành tiền</CardDescription>
+          <CardDescription>Tổng tiền (VAT)</CardDescription>
           <div className="flex items-baseline">
             <CardTitle className="text-2xl font-semibold tabular-nums @[250px]/card:text-3xl">
-              {fmt(stats.totalThanhTien)}
+              {fmt(stats.totalMoneyVAT)}
             </CardTitle>
           </div>
         </CardHeader>

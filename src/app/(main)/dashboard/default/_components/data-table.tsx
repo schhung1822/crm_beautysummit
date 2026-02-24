@@ -57,17 +57,17 @@ export function DataTable({ data: initialData = [], stats }: { data?: Channel[];
     const term = searchTerm.toLowerCase();
     return data.filter(
       (item) =>
-        item.name_customer.toLowerCase().includes(term) ||
-        item.order_ID.toLowerCase().includes(term) ||
+        item.name.toLowerCase().includes(term) ||
+        item.orderCode.toLowerCase().includes(term) ||
         (item.phone ? item.phone.toLowerCase().includes(term) : false) ||
-        (item.seller ? item.seller.toLowerCase().includes(term) : false),
+        (item.email ? item.email.toLowerCase().includes(term) : false),
     );
   }, [data, searchTerm]);
 
   const table = useDataTableInstance({
     data: filteredData,
     columns,
-    getRowId: (row) => row.order_ID.toString(),
+    getRowId: (row) => `${row.orderCode || row.phone || ""}-${row.create_at?.toString() ?? ""}`,
   });
 
   return (
@@ -76,7 +76,7 @@ export function DataTable({ data: initialData = [], stats }: { data?: Channel[];
         <div className="relative max-w-sm flex-1">
           <Search className="text-muted-foreground absolute top-1/2 left-3 size-4 -translate-y-1/2" />
           <Input
-            placeholder="Tìm kiếm theo tên, mã, SĐT, người tạo..."
+            placeholder="Tìm kiếm theo mã, tên, SĐT, email..."
             className="pl-10"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}

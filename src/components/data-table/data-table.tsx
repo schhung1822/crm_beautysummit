@@ -63,7 +63,11 @@ function renderTableBody<TData, TValue>({
   }
 
   return rows.map((row) => (
-    <TableRow key={row.id} data-state={row.getIsSelected() && "selected"}>
+    <TableRow
+      key={row.id}
+      data-state={row.getIsSelected() && "selected"}
+      className="data-[state=selected]:bg-emerald-500/10"
+    >
       {row.getVisibleCells().map((cell) => (
         <TableCell key={cell.id}>{flexRender(cell.column.columnDef.cell, cell.getContext())}</TableCell>
       ))}
@@ -89,7 +93,7 @@ export function DataTable<TData, TValue>({
   const end = start + pageSize;
   const pageRows = allRows.slice(start, end);
 
-  const dataIds: UniqueIdentifier[] = pageRows.map((row) => Number(row.id) as UniqueIdentifier);
+  const dataIds: UniqueIdentifier[] = pageRows.map((row) => row.id as UniqueIdentifier);
 
   const sortableId = React.useId();
   const sensors = useSensors(useSensor(MouseSensor, {}), useSensor(TouchSensor, {}), useSensor(KeyboardSensor, {}));

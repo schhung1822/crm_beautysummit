@@ -20,10 +20,16 @@ import { TableCellViewer } from "./table-cell-viewer";
 // ---- Stats type ----
 export type Stats = {
   totalOrders: number;
-  totalTienHang: number;
-  totalThanhTien: number;
-  totalQuantity: number;
+  totalMoney: number;
+  totalMoneyVAT: number;
 };
+
+function formatGender(value?: string | null) {
+  const v = String(value ?? "").trim().toLowerCase();
+  if (v === "f" || v === "female" || v === "nữ" || v === "nu") return "Nữ";
+  if (v === "m" || v === "male" || v === "nam") return "Nam";
+  return value ?? "";
+}
 
 // ---- Columns factory (nhận stats) ----
 export const dashboardColumns = (stats: Stats): ColumnDef<Channel>[] => [
@@ -48,23 +54,16 @@ export const dashboardColumns = (stats: Stats): ColumnDef<Channel>[] => [
 
   // Mã đơn (đặt lên cột đầu)
   {
-    accessorKey: "order_ID",
+    accessorKey: "orderCode",
     header: ({ column }) => <DataTableColumnHeader column={column} title="Mã đơn" />,
     cell: ({ row }) => <TableCellViewer item={row.original} stats={stats} />,
     enableSorting: false,
   },
 
   {
-    accessorKey: "brand",
-    header: ({ column }) => <DataTableColumnHeader column={column} title="Thương hiệu" />,
-    cell: ({ row }) => <span>{row.original.brand}</span>,
-    enableSorting: false,
-  },
-
-  {
-    accessorKey: "name_customer",
-    header: ({ column }) => <DataTableColumnHeader column={column} title="Khách hàng" />,
-    cell: ({ row }) => <span className="font-mono">{row.original.name_customer}</span>,
+    accessorKey: "name",
+    header: ({ column }) => <DataTableColumnHeader column={column} title="Họ tên" />,
+    cell: ({ row }) => <span className="font-mono">{row.original.name}</span>,
     enableSorting: false,
   },
 
@@ -76,93 +75,90 @@ export const dashboardColumns = (stats: Stats): ColumnDef<Channel>[] => [
   },
 
   {
-    accessorKey: "address",
-    header: ({ column }) => <DataTableColumnHeader column={column} title="Địa chỉ" />,
-    cell: ({ row }) => <span className="block max-w-[200px] truncate">{row.original.address}</span>,
+    accessorKey: "email",
+    header: ({ column }) => <DataTableColumnHeader column={column} title="Email" />,
+    cell: ({ row }) => <span className="block max-w-[200px] truncate">{row.original.email}</span>,
     enableSorting: false,
   },
 
   {
-    accessorKey: "seller",
-    header: ({ column }) => <DataTableColumnHeader column={column} title="Người bán" />,
-    cell: ({ row }) => <span>{row.original.seller}</span>,
+    accessorKey: "class",
+    header: ({ column }) => <DataTableColumnHeader column={column} title="Lớp" />,
+    cell: ({ row }) => <span>{row.original.class}</span>,
     enableSorting: false,
   },
 
   {
-    accessorKey: "kenh_ban",
-    header: ({ column }) => <DataTableColumnHeader column={column} title="Kênh bán" />,
-    cell: ({ row }) => <span>{row.original.kenh_ban}</span>,
+    accessorKey: "gender",
+    header: ({ column }) => <DataTableColumnHeader column={column} title="Giới tính" />,
+    cell: ({ row }) => <span>{formatGender(row.original.gender)}</span>,
     enableSorting: false,
   },
 
   {
-    accessorKey: "quantity",
-    header: ({ column }) => <DataTableColumnHeader className="w-full text-right" column={column} title="Số lượng" />,
-    cell: ({ row }) => <div className="text-right">{row.original.quantity}</div>,
+    accessorKey: "career",
+    header: ({ column }) => <DataTableColumnHeader column={column} title="Nghề nghiệp" />,
+    cell: ({ row }) => <span>{row.original.career}</span>,
     enableSorting: false,
   },
 
   {
-    accessorKey: "giam_gia",
-    header: ({ column }) => <DataTableColumnHeader className="w-full text-right" column={column} title="Giảm giá" />,
+    accessorKey: "money",
+    header: ({ column }) => <DataTableColumnHeader className="w-full text-right" column={column} title="Tiền" />,
     cell: ({ row }) => (
-      <div className="text-right tabular-nums">{(row.original.giam_gia || 0).toLocaleString("vi-VN")}</div>
+      <div className="text-right tabular-nums">{(row.original.money || 0).toLocaleString("vi-VN")}</div>
     ),
     enableSorting: false,
   },
 
   {
-    accessorKey: "tien_hang",
-    header: ({ column }) => <DataTableColumnHeader className="w-full text-right" column={column} title="Tiền hàng" />,
+    accessorKey: "money_VAT",
+    header: ({ column }) => <DataTableColumnHeader className="w-full text-right" column={column} title="Tiền (VAT)" />,
     cell: ({ row }) => (
-      <div className="text-right tabular-nums">{(row.original.tien_hang || 0).toLocaleString("vi-VN")}</div>
+      <div className="text-right tabular-nums">{(row.original.money_VAT || 0).toLocaleString("vi-VN")}</div>
     ),
     enableSorting: false,
   },
 
   {
-    accessorKey: "thanh_tien",
-    header: ({ column }) => <DataTableColumnHeader className="w-full text-right" column={column} title="Thành tiền" />,
-    cell: ({ row }) => (
-      <div className="text-right tabular-nums">{(row.original.thanh_tien || 0).toLocaleString("vi-VN")}</div>
-    ),
-    enableSorting: false,
-  },
-
-  {
-    accessorKey: "status",
-    header: ({ column }) => <DataTableColumnHeader column={column} title="Trạng thái" />,
+    accessorKey: "trang_thai_thanh_toan",
+    header: ({ column }) => <DataTableColumnHeader column={column} title="Thanh toán" />,
     cell: ({ row }) => {
-      const s = String(row.original.status ?? "").toLowerCase();
+      const s = String(row.original.trang_thai_thanh_toan ?? "").toLowerCase();
       let className = "bg-muted/20 text-muted-foreground";
-      if (s.includes("Hoành thành")) className = "bg-emerald-600 text-white";
-      else if (s.includes("Đang xử lý") || s.includes("Đã xác nhận")) className = "bg-amber-400 text-black";
-      else if (s.includes("Không giao được") || s.includes("Đã hủy")) className = "bg-red-600 text-white";
-      else if (s.includes("Phiếu tạm")) className = "bg-sky-600 text-white";
-
-      return <Badge className={className}>{row.original.status}</Badge>;
+      if (s.includes("hoàn thành") || s.includes("thành công") || s.includes("đã thanh toán")) {
+        className = "bg-green-600 text-white";
+      } else if (s.includes("đang xử lý") || s.includes("chờ")) {
+        className = "bg-yellow-500 text-black";
+      } else if (s.includes("hủy") || s.includes("không") || s.includes("thất bại")) {
+        className = "bg-red-600 text-white";
+      }
+      return <Badge className={className}>{row.original.trang_thai_thanh_toan}</Badge>;
     },
     enableSorting: false,
   },
 
   {
-    accessorKey: "create_time",
-    header: ({ column }) => <DataTableColumnHeader column={column} title="Ngày tạo" />,
-    cell: ({ row }) => (
-      <span className="text-sm">
-        {row.original.create_time instanceof Date
-          ? row.original.create_time.toLocaleDateString("vi-VN")
-          : row.original.create_time}
-      </span>
-    ),
+    accessorKey: "status_checkin",
+    header: ({ column }) => <DataTableColumnHeader column={column} title="Check-in" />,
+    cell: ({ row }) => <Badge variant="secondary">{row.original.status_checkin}</Badge>,
     enableSorting: false,
   },
 
   {
-    accessorKey: "note",
-    header: ({ column }) => <DataTableColumnHeader column={column} title="Ghi chú" />,
-    cell: ({ row }) => <span className="block max-w-[200px] truncate">{row.original.note}</span>,
+    accessorKey: "create_at",
+    header: ({ column }) => <DataTableColumnHeader column={column} title="Ngày tạo" />,
+    cell: ({ row }) => (
+      <span className="text-sm">
+        {row.original.create_at ? (
+          row.original.create_at instanceof Date
+            ? row.original.create_at.toLocaleDateString("vi-VN")
+            : row.original.create_at
+        ) : (
+          ""
+        )}
+      </span>
+    ),
     enableSorting: false,
   },
 

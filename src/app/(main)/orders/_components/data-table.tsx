@@ -14,28 +14,61 @@ import { Input } from "@/components/ui/input";
 import { useDataTableInstance } from "@/hooks/use-data-table-instance";
 import { exportData, filterDataByDateRange } from "@/lib/export-utils";
 
-// ⬇️ import thêm Stats + columns factory
 import { dashboardColumns as makeColumns, type Stats } from "./columns";
 import type { Channel } from "./schema";
 
+function toOrderRowKey(item: Pick<Channel, "orderCode" | "phone" | "create_at">) {
+  return `${item.orderCode || item.phone || ""}-${item.create_at?.toString() ?? ""}`;
+}
+
 export function DataTable({ data: initialData = [] }: { data?: Channel[] }) {
   const [data, setData] = React.useState<Channel[]>(() => initialData);
+  const [searchTerm, setSearchTerm] = React.useState("");
   const [exportDialogOpen, setExportDialogOpen] = React.useState(false);
   const [isExporting, setIsExporting] = React.useState(false);
-  // compute summary stats (used by columns factory)
+  const [isDeleting, setIsDeleting] = React.useState(false);
+
   const stats: Stats = React.useMemo(
     () => ({
       totalOrders: initialData.length,
-      totalTienHang: initialData.reduce((s, c) => s + (Number(c.tien_hang) || 0), 0),
-      totalThanhTien: initialData.reduce((s, c) => s + (Number(c.thanh_tien) || 0), 0),
-      totalQuantity: initialData.reduce((s, c) => s + (Number(c.quantity) || 0), 0),
+      totalMoney: initialData.reduce((sum, item) => sum + Number(item.money), 0),
+      totalMoneyVAT: initialData.reduce((sum, item) => sum + Number(item.money_VAT), 0),
     }),
     [initialData],
   );
 
-  // build columns from factory
-  const columns = React.useMemo(() => withDndColumn(makeColumns(stats)), [stats]);
-  const [searchTerm, setSearchTerm] = React.useState("");
+  const handleRowUpdated = React.useCallback((updated: Channel, originalOrderCode: string) => {
+    setData((prev) => prev.map((item) => (item.orderCode === originalOrderCode ? updated : item)));
+  }, []);
+
+  const handleDeleteRow = React.useCallback(async (row: Channel) => {
+    try {
+      if (!row.orderCode) {
+        throw new Error("Bản ghi không có mã đơn để xóa");
+      }
+
+      const response = await fetch("/api/orders", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ orderCodes: [row.orderCode] }),
+      });
+
+      if (!response.ok) {
+        const result = await response.json().catch(() => ({}));
+        throw new Error(result?.error ?? "Không thể xóa bản ghi");
+      }
+
+      setData((prev) => prev.filter((item) => item.orderCode !== row.orderCode));
+      toast.success("Đã xóa bản ghi");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Không thể xóa bản ghi");
+    }
+  }, []);
+
+  const columns = React.useMemo(
+    () => withDndColumn(makeColumns(stats, handleRowUpdated, handleDeleteRow)),
+    [handleDeleteRow, handleRowUpdated, stats],
+  );
 
   const filteredData = React.useMemo(() => {
     if (!searchTerm.trim()) return data;
@@ -43,67 +76,83 @@ export function DataTable({ data: initialData = [] }: { data?: Channel[] }) {
     const term = searchTerm.toLowerCase();
     return data.filter(
       (item) =>
-        String(item.kenh_ban ?? "")
-          .toLowerCase()
-          .includes(term) ||
-        String(item.order_ID ?? "")
-          .toLowerCase()
-          .includes(term) ||
-        (item.phone ? String(item.phone).toLowerCase().includes(term) : false) ||
-        ("created_by" in item
-          ? String((item as any).created_by)
-              .toLowerCase()
-              .includes(term)
-          : false),
+        String(item.orderCode).toLowerCase().includes(term) ||
+        String(item.name).toLowerCase().includes(term) ||
+        String(item.phone).toLowerCase().includes(term) ||
+        String(item.email).toLowerCase().includes(term) ||
+        String(item.class).toLowerCase().includes(term),
     );
   }, [data, searchTerm]);
 
   const table = useDataTableInstance({
     data: filteredData,
     columns,
-    getRowId: (row) => row.order_ID.toString(),
+    getRowId: (row) => toOrderRowKey(row),
   });
+
+  const selectedRows = table.getFilteredSelectedRowModel().rows;
+  const selectedItems = selectedRows.map((row) => row.original);
+
+  const handleDeleteSelected = React.useCallback(async () => {
+    if (!selectedItems.length) {
+      toast.warning("Vui lòng chọn bản ghi cần xóa");
+      return;
+    }
+
+    setIsDeleting(true);
+    try {
+      const orderCodes = selectedItems.map((item) => item.orderCode).filter((value): value is string => Boolean(value));
+
+      const response = await fetch("/api/orders", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ orderCodes }),
+      });
+
+      if (!response.ok) {
+        const result = await response.json().catch(() => ({}));
+        throw new Error(result?.error ?? "Không thể xóa bản ghi đã chọn");
+      }
+
+      const selectedSet = new Set(orderCodes);
+      setData((prev) => prev.filter((item) => !selectedSet.has(item.orderCode)));
+      table.resetRowSelection();
+      toast.success(`Đã xóa ${orderCodes.length} bản ghi`);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Có lỗi xảy ra khi xóa dữ liệu");
+    } finally {
+      setIsDeleting(false);
+    }
+  }, [selectedItems, table]);
 
   const handleExport = React.useCallback(
     (format: ExportFormat, dateRange: DateRange) => {
       setIsExporting(true);
 
       try {
-        let dataToExport = filteredData;
-
-        if (dateRange.from || dateRange.to) {
-          dataToExport = filterDataByDateRange(filteredData, "create_time", dateRange);
-        }
-
-        const headers = {
-          brand: "Thương hiệu",
-          order_ID: "Mã đơn hàng",
-          create_time: "Thời gian tạo",
-          customer_ID: "Mã khách hàng",
-          name_customer: "Tên khách hàng",
-          phone: "Số điện thoại",
-          address: "Địa chỉ",
-          seller: "Người bán",
-          kenh_ban: "Kênh bán",
-          note: "Ghi chú",
-          tien_hang: "Tiền hàng",
-          giam_gia: "Giảm giá",
-          thanh_tien: "Thành tiền",
-          status: "Trạng thái",
-          quantity: "Số lượng",
-          pro_ID: "Mã sản phẩm",
-          name_pro: "Tên sản phẩm",
-          brand_pro: "Thương hiệu sản phẩm",
-        };
-
-        const dateStr = new Date().toISOString().split("T")[0];
-        const filename = `orders_${dateStr}`;
+        const dataToExport =
+          dateRange.from || dateRange.to ? filterDataByDateRange(filteredData, "create_at", dateRange) : filteredData;
 
         exportData({
           format,
           data: dataToExport,
-          headers,
-          filename,
+          headers: {
+            orderCode: "Mã đơn",
+            name: "Họ tên",
+            phone: "Số điện thoại",
+            email: "Email",
+            class: "Lớp",
+            money: "Tiền",
+            money_VAT: "Tiền (VAT)",
+            trang_thai_thanh_toan: "Trạng thái thanh toán",
+            update_time: "Cập nhật",
+            create_at: "Ngày tạo",
+            gender: "Giới tính",
+            career: "Nghề nghiệp",
+            status_checkin: "Trạng thái check-in",
+            date_checkin: "Ngày check-in",
+          },
+          filename: `orders_${new Date().toISOString().split("T")[0]}`,
         });
 
         toast.success(`Xuất ${dataToExport.length} đơn hàng thành công!`);
@@ -124,13 +173,21 @@ export function DataTable({ data: initialData = [] }: { data?: Channel[] }) {
         <div className="relative max-w-sm flex-1">
           <Search className="text-muted-foreground absolute top-1/2 left-3 size-4 -translate-y-1/2" />
           <Input
-            placeholder="Tìm kiếm theo tên, mã, SĐT, người tạo..."
+            placeholder="Tìm kiếm theo mã, tên, SĐT, email, lớp..."
             className="pl-10"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
           />
         </div>
         <div className="flex items-center gap-2">
+          <Button
+            size="sm"
+            variant="destructive"
+            onClick={handleDeleteSelected}
+            disabled={selectedItems.length === 0 || isDeleting}
+          >
+            {isDeleting ? "Đang xóa..." : `Xóa đã chọn (${selectedItems.length})`}
+          </Button>
           <DataTableViewOptions table={table} />
           <Button
             variant="outline"
@@ -143,6 +200,7 @@ export function DataTable({ data: initialData = [] }: { data?: Channel[] }) {
           </Button>
         </div>
       </div>
+
       <div className="nice-scroll overflow-x-auto rounded-lg">
         <DataTableNew dndEnabled table={table} columns={columns} onReorder={setData} />
       </div>

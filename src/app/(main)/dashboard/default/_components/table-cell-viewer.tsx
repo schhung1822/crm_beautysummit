@@ -4,8 +4,7 @@ import * as React from "react";
 
 import Link from "next/link";
 
-import { Calendar, MapPin, Phone, Package, User2, Tag, UserCheck, FileText } from "lucide-react";
-import { ShoppingBag } from "lucide-react";
+import { Calendar, Mail, Phone, User2, Briefcase, CheckCircle2, Wallet } from "lucide-react";
 import { z } from "zod";
 
 import { Badge } from "@/components/ui/badge";
@@ -27,9 +26,8 @@ import { channelSchema } from "./schema";
 
 type Stats = {
   totalOrders: number;
-  totalTienHang: number;
-  totalThanhTien: number;
-  totalQuantity: number;
+  totalMoney: number;
+  totalMoneyVAT: number;
 };
 
 function formatDateVN(v: unknown) {
@@ -37,6 +35,12 @@ function formatDateVN(v: unknown) {
   const d = v instanceof Date ? v : new Date(String(v));
   if (Number.isNaN(d.getTime())) return String(v);
   return d.toLocaleDateString("vi-VN");
+}
+function formatGender(value?: string | null) {
+  const v = String(value ?? "").trim().toLowerCase();
+  if (v === "f" || v === "female" || v === "nữ" || v === "nu") return "Nữ";
+  if (v === "m" || v === "male" || v === "nam") return "Nam";
+  return value ?? "";
 }
 function money(v: unknown) {
   const n = typeof v === "number" ? v : Number(String(v ?? 0).replaceAll(",", ""));
@@ -80,17 +84,18 @@ function Block({ title, children }: { title: string; children: React.ReactNode }
 export function TableCellViewer({ item, stats }: { item: z.infer<typeof channelSchema>; stats: Stats }) {
   const isMobile = useIsMobile();
 
-  const createdAt = formatDateVN(item.create_time);
+  const createdAt = item.create_at ? formatDateVN(item.create_at) : "";
+  const updatedAt = item.update_time ? formatDateVN(item.update_time) : "";
+  const checkinAt = item.date_checkin ? formatDateVN(item.date_checkin) : "";
 
-  const tienHang = money(item.tien_hang || 0);
-  const giamGia = money(item.giam_gia || 0);
-  const thanhTien = money(item.thanh_tien || 0);
+  const moneyValue = money(item.money || 0);
+  const moneyVatValue = money(item.money_VAT || 0);
 
   return (
     <Drawer direction={isMobile ? "bottom" : "right"}>
       <DrawerTrigger asChild>
         <Button variant="link" className="text-foreground w-fit px-0 text-left">
-          {item.order_ID}
+          {item.orderCode}
         </Button>
       </DrawerTrigger>
 
@@ -101,13 +106,13 @@ export function TableCellViewer({ item, stats }: { item: z.infer<typeof channelS
           <div className="min-w-0">
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0">
-                <DrawerTitle className="truncate">Mã đơn: {item.order_ID}</DrawerTitle>
-                <DrawerDescription className="truncate">{item.brand ? <>• {item.brand}</> : null}</DrawerDescription>
+                <DrawerTitle className="truncate">Mã đơn: {item.orderCode}</DrawerTitle>
+                <DrawerDescription className="truncate">{item.class ? <>• {item.class}</> : null}</DrawerDescription>
               </div>
 
-              {item.status ? (
+              {item.trang_thai_thanh_toan ? (
                 <Badge variant="secondary" className="shrink-0 rounded-full">
-                  {String(item.status)}
+                  {String(item.trang_thai_thanh_toan)}
                 </Badge>
               ) : null}
             </div>
@@ -119,68 +124,40 @@ export function TableCellViewer({ item, stats }: { item: z.infer<typeof channelS
           {/* KPI */}
           <div className="grid gap-3">
             <Block title="Khách hàng">
-              <Row icon={<User2 className="h-4 w-4" />} label="Tên khách" value={item.name_customer} />
+              <Row icon={<User2 className="h-4 w-4" />} label="Họ tên" value={item.name} />
               <Row icon={<Phone className="h-4 w-4" />} label="Số điện thoại" value={item.phone ?? "—"} />
-              <Row icon={<MapPin className="h-4 w-4" />} label="Địa chỉ" value={item.address ?? "—"} />
+              <Row icon={<Mail className="h-4 w-4" />} label="Email" value={item.email ?? "—"} />
             </Block>
 
             <div className="mt-2 flex flex-wrap gap-2">
-              {item.seller ? (
-                <Badge variant="outline" className="rounded-full">
-                  <UserCheck className="mr-1 h-3.5 w-3.5" />
-                  {String(item.seller)}
-                </Badge>
-              ) : null}
-
               <Badge variant="outline" className="rounded-full">
                 <Calendar className="mr-1 h-3.5 w-3.5" />
                 {createdAt}
               </Badge>
+              <Badge variant="outline" className="rounded-full">
+                <Calendar className="mr-1 h-3.5 w-3.5" />
+                {updatedAt}
+              </Badge>
+              {item.gender ? (
+                <Badge variant="outline" className="rounded-full">
+                  {formatGender(item.gender)}
+                </Badge>
+              ) : null}
             </div>
 
-            <Block title="Thông tin đơn hàng">
-              {/* Header gọn 2 dòng */}
-              <div className="flex items-start justify-between gap-3">
-                <div className="min-w-0">
-                  <div className="text-muted-foreground text-[11px]">Mã sản phẩm</div>
-                  <div className="text-foreground truncate text-sm font-semibold">{item.pro_ID}</div>
-                </div>
-
-                {item.status ? (
-                  <Badge variant="secondary" className="shrink-0 rounded-full">
-                    {String(item.status)}
-                  </Badge>
-                ) : null}
-              </div>
-
+            <Block title="Thanh toán">
+              <Row icon={<Wallet className="h-4 w-4" />} label="Trạng thái" value={item.trang_thai_thanh_toan} />
               <Separator />
-
-              {/* Sản phẩm + thương hiệu sản phẩm */}
-              <Row icon={<ShoppingBag className="h-4 w-4" />} label="Sản phẩm" value={item.name_pro ?? "—"} />
-              <Row icon={<Package className="h-4 w-4" />} label="Số luợng" value={item.quantity ?? "—"} />
-              <Row icon={<Tag className="h-4 w-4" />} label="Thương hiệu SP" value={item.brand_pro ?? "—"} />
-              <Separator />
-
-              {/* Tóm tắt thanh toán: 3 pill gọn */}
               <div className="grid grid-cols-1 gap-2">
-                <StatPill label="Tiền hàng" value={money(item.tien_hang || 0)} />
-                <StatPill label="Giảm giá" value={money(item.giam_gia || 0)} />
-                <StatPill label="Thành tiền" value={money(item.thanh_tien || 0)} />
+                <StatPill label="Tiền" value={moneyValue} />
+                <StatPill label="Tiền (VAT)" value={moneyVatValue} />
               </div>
             </Block>
 
-            <Block title="Ghi chú">
-              <div className="flex items-start gap-2.5">
-                <div className="text-muted-foreground mt-0.5">
-                  <FileText className="h-4 w-4" />
-                </div>
-                <div className="min-w-0 flex-1">
-                  <div className="text-muted-foreground text-[11px]">Nội dung</div>
-                  <div className="text-foreground/90 mt-0.5 text-sm break-words whitespace-pre-wrap">
-                    {item.note ? String(item.note) : "—"}
-                  </div>
-                </div>
-              </div>
+            <Block title="Check-in">
+              <Row icon={<CheckCircle2 className="h-4 w-4" />} label="Trạng thái" value={item.status_checkin} />
+              <Row icon={<Calendar className="h-4 w-4" />} label="Ngày check-in" value={checkinAt || ""} />
+              <Row icon={<Briefcase className="h-4 w-4" />} label="Nghề nghiệp" value={item.career} />
             </Block>
           </div>
         </div>

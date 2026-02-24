@@ -10,7 +10,6 @@ const sections = [
   { id: "sync", label: "Đồng bộ dữ liệu" },
   { id: "orders", label: "Dữ liệu đơn hàng" },
   { id: "customers", label: "Dữ liệu khách hàng" },
-  { id: "products", label: "Dữ liệu hàng hóa" },
   { id: "events", label: "Dữ liệu sự kiện" },
   { id: "reports", label: "Báo cáo & Dashboard" },
   { id: "permission", label: "Phân quyền & trách nhiệm" },
@@ -47,7 +46,7 @@ export default function Page() {
         <h1 className="text-4xl font-bold uppercase">Quy tắc & Hướng dẫn sử dụng</h1>
         <p className="text-muted-foreground mx-auto max-w-3xl">
           Tài liệu hướng dẫn chính thức về cách vận hành, khai thác và sử dụng hệ thống CRM do Nextgency phát triển cho
-          EAC.
+          Beauty Summit.
         </p>
       </header>
 
@@ -80,7 +79,7 @@ export default function Page() {
               <b>Tác giả:</b> Nextgency
             </div>
             <div>
-              <b>Khách hàng:</b> EAC
+              <b>Khách hàng:</b> Beauty Summit
             </div>
             <div>
               <b>Cập nhật:</b> 15.01.2026
@@ -95,13 +94,13 @@ export default function Page() {
         <main className="flex-1 space-y-28">
           <Section id="overview" title="1. Tổng quan hệ thống">
             <p>
-              CRM EAC được xây dựng nhằm tạo ra một hệ thống dữ liệu trung tâm (Single Source of Truth), giúp ban lãnh
+              CRM Beauty Summit được xây dựng nhằm tạo ra một hệ thống dữ liệu trung tâm (Single Source of Truth), giúp ban lãnh
               đạo và các bộ phận liên quan theo dõi toàn bộ hoạt động kinh doanh trên một nền tảng duy nhất.
             </p>
 
             <p>
               Hệ thống không phát sinh dữ liệu gốc mới mà chỉ tiếp nhận dữ liệu từ các hệ thống vận hành hiện có của
-              EAC, bao gồm KiotViet và Zalo OA.
+              Beauty Summit, bao gồm KiotViet và Zalo OA.
             </p>
 
             <Table
@@ -173,24 +172,7 @@ export default function Page() {
             />
           </Section>
 
-          <Section id="products" title="6. Dữ liệu hàng hóa">
-            <p>
-              Dữ liệu hàng hóa phản ánh toàn bộ danh mục sản phẩm/dịch vụ đang kinh doanh và là nền tảng để phân tích
-              doanh thu, tồn kho và hiệu quả bán hàng.
-            </p>
-
-            <Table
-              headers={["Nhóm dữ liệu", "Mô tả chi tiết"]}
-              rows={[
-                ["Thông tin cơ bản", "Mã hàng, tên hàng, danh mục"],
-                ["Giá bán", "Giá niêm yết, giá thực thu, chiết khấu"],
-                ["Trạng thái", "Đang bán, ngưng bán, hết hàng"],
-                ["Kênh bán", "Online, offline, sự kiện"],
-              ]}
-            />
-          </Section>
-
-          <Section id="events" title="7. Dữ liệu sự kiện">
+          <Section id="events" title="6. Dữ liệu sự kiện">
             <p>
               Dữ liệu sự kiện giúp doanh nghiệp theo dõi hiệu quả các chương trình offline/online và phục vụ hoạt động
               chăm sóc sau sự kiện.
@@ -207,7 +189,7 @@ export default function Page() {
             />
           </Section>
 
-          <Section id="reports" title="8. Hệ thống báo cáo & cách đọc số">
+          <Section id="reports" title="7. Hệ thống báo cáo & cách đọc số">
             <p>Các dashboard trong CRM được thiết kế nhằm phục vụ từng nhóm người dùng với mục tiêu khác nhau.</p>
 
             <Table
@@ -220,7 +202,7 @@ export default function Page() {
             />
           </Section>
 
-          <Section id="permission" title="9. Phân quyền & trách nhiệm">
+          <Section id="permission" title="8. Phân quyền & trách nhiệm">
             <Table
               headers={["Vai trò", "Quyền hạn"]}
               rows={[
@@ -231,7 +213,7 @@ export default function Page() {
             />
           </Section>
 
-          <Section id="audit" title="10. Nhật ký & bảo mật">
+          <Section id="audit" title="9. Nhật ký & bảo mật">
             <ul className="list-disc space-y-2 pl-6">
               <li>Ghi log đăng nhập</li>
               <li>Ghi log xuất dữ liệu</li>

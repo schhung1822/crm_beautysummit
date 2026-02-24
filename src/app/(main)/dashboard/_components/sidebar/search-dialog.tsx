@@ -2,7 +2,7 @@
 import * as React from "react";
 import Link from "next/link";
 
-import { LayoutDashboard, ChartBar, Gauge, ShoppingBag, GraduationCap, Forklift, Search, Calendar, Calendar1, User } from "lucide-react";
+import { LayoutDashboard, ChartBar, Gauge, ShoppingBag, GraduationCap, Forklift, Search, Calendar1 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -22,9 +22,10 @@ const searchItems = [
   // { group: "Báo cáo", icon: Gauge, label: "Phân tích", disabled: true, url: "/dashboard/analytics" },
   // { group: "Báo cáo", icon: ShoppingBag, label: "Trenđing", disabled: true, url: "/dashboard/trending" },
   // { group: "Báo cáo", icon: GraduationCap, label: "Zalo OA", disabled: true, url: "/dashboard/zaloOA" },
-  { group: "Quản lý", icon: LayoutDashboard, label: "Template sự kiện", disabled: true, url: "/admin/templates/edit" },
-  { group: "Quản lý", icon: Calendar1, label: "Thông tin sự kiện", disabled: true, url: "/events" },
-  { group: "Quản lý", icon: User, label: "Zalo OA", disabled: true, url: "/zalo-oa" },
+  { group: "Báo cáo", icon: LayoutDashboard, label: "Tổng quan", disabled: true, url: "/dashboard/default" },
+  { group: "Báo cáo", icon: ChartBar, label: "CRM", disabled: true, url: "/dashboard/crm" },
+  { group: "Quản lý", icon: ShoppingBag, label: "Đơn hàng", disabled: true, url: "/orders" },
+  { group: "Quản lý", icon: Calendar1, label: "Bình chọn", disabled: true, url: "/votes" },
   { group: "Thông tin", label: "Thông báo dịch vụ", url: "/noti/service-notifications" },
   { group: "Thông tin", label: "Thông báo cập nhập", url: "/noti/update-notifications" },
   { group: "Thông tin", label: "Quy tắc", url: "/rules" },

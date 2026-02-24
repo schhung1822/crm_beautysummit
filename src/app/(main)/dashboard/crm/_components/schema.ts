@@ -132,6 +132,9 @@ export const ChannelSummarySchema = z.object({
   tien_hang: z.number(),
   giam_gia: z.number(),
   thanh_tien: z.number(),
+  paydone_count: z.number(),
+  paydone_money: z.number(),
+  paydone_money_vat: z.number(),
 });
 
 export type ChannelSummary = z.infer<typeof ChannelSummarySchema>;

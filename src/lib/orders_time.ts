@@ -31,61 +31,53 @@ export async function getChannels(params: GetChannelsParams = {}): Promise<Chann
   const values: any[] = [];
 
   if (fromDate) {
-    where.push(`create_time >= ?`);
+    where.push(`\`create_at\` >= ?`);
     values.push(fromDate);
   }
   if (toDateNorm) {
-    where.push(`create_time <= ?`);
+    where.push(`\`create_at\` <= ?`);
     values.push(toDateNorm);
   }
 
   const sql = `
     SELECT
-      order_ID,
-      brand,
-      create_time,
-      customer_ID,
-      name_customer,
-      phone,
-      address,
-      seller,
-      kenh_ban,
-      note,
-      tien_hang,
-      giam_gia,
-      thanh_tien,
-      status,
-      quantity,
-      pro_ID,
-      name_pro,
-      brand_pro
-    FROM orders
+      `orderCode`,
+      `name`,
+      `phone`,
+      `email`,
+      `class`,
+      `money`,
+      `money_VAT`,
+      `trang_thai_thanh_toan`,
+      `update_time`,
+      `create_at`,
+      `gender`,
+      `career`,
+      `status_checkin`,
+      `date_checkin`
+    FROM `checkin_orders`
     ${where.length ? `WHERE ${where.join(" AND ")}` : ""}
-    ORDER BY create_time DESC
+    ORDER BY create_at DESC
   `;
 
   const [rows] = await db.query<any[]>(sql, values);
 
   return (rows ?? []).map((r) =>
     channelSchema.parse({
-      order_ID: String(r.order_ID),
-      brand: String(r.brand ?? ""),
-      create_time: r.create_time ? new Date(r.create_time) : new Date(0),
-      customer_ID: String(r.customer_ID ?? ""),
-      name_customer: String(r.name_customer ?? ""),
+      orderCode: String(r.orderCode ?? ""),
+      name: String(r.name ?? ""),
       phone: String(r.phone ?? ""),
-      address: String(r.address ?? ""),
-      seller: String(r.seller ?? ""),
-      kenh_ban: String(r.kenh_ban ?? ""),
-      note: String(r.note ?? ""),
-      tien_hang: Number(r.tien_hang) || 0,
-      giam_gia: Number(r.giam_gia) || 0,
-      thanh_tien: Number(r.thanh_tien) || 0,
-      status: String(r.status ?? ""),
-      quantity: Number(r.quantity) || 0,
-      pro_ID: String(r.pro_ID ?? ""),
-      name_pro: String(r.name_pro ?? ""),
-      brand_pro: String(r.brand_pro ?? ""),
+      email: String(r.email ?? ""),
+      class: String(r.class ?? ""),
+      money: Number(r.money) || 0,
+      money_VAT: Number(r.money_VAT) || 0,
+      trang_thai_thanh_toan: String(r.trang_thai_thanh_toan ?? ""),
+      update_time: r.update_time ? new Date(r.update_time) : null,
+      create_at: r.create_at ? new Date(r.create_at) : r.created_at ? new Date(r.created_at) : null,
+      gender: String(r.gender ?? ""),
+      career: String(r.career ?? ""),
+      status_checkin: String(r.status_checkin ?? ""),
+      date_checkin: r.date_checkin ? new Date(r.date_checkin) : null,
     }),
   );
 }

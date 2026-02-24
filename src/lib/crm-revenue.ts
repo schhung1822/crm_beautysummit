@@ -23,13 +23,13 @@ function buildDateFilter(from?: Date, to?: Date) {
   let clause = "";
 
   if (from && to) {
-    clause = "create_time >= ? AND create_time <= ?";
+    clause = "create_at >= ? AND create_at <= ?";
     params.push(from, to);
   } else if (from) {
-    clause = "create_time >= ?";
+    clause = "create_at >= ?";
     params.push(from);
   } else if (to) {
-    clause = "create_time <= ?";
+    clause = "create_at <= ?";
     params.push(to);
   }
 
@@ -46,11 +46,11 @@ export const getRevenueByChannelChart = unstable_cache(
 
     const [rows] = await db.query<any[]>(
       `
-      SELECT COALESCE(kenh_ban, 'Không rõ') AS name,
-             SUM(COALESCE(thanh_tien, 0)) AS revenue
-      FROM orders
+            SELECT COALESCE(class, 'Không rõ') AS name,
+              SUM(COALESCE(money_VAT, 0)) AS revenue
+            FROM checkin_orders
       WHERE ${whereClause}
-      GROUP BY COALESCE(kenh_ban, 'Không rõ')
+            GROUP BY COALESCE(class, 'Không rõ')
       ORDER BY revenue DESC
       `,
       dateFilter.params,
@@ -71,11 +71,11 @@ export const getRevenueByBranchBarChart = unstable_cache(
 
     const [rows] = await db.query<any[]>(
       `
-      SELECT COALESCE(brand, 'Không rõ') AS name,
-             SUM(COALESCE(thanh_tien, 0)) AS revenue
-      FROM orders
+            SELECT COALESCE(career, 'Không rõ') AS name,
+              SUM(COALESCE(money_VAT, 0)) AS revenue
+            FROM checkin_orders
       WHERE ${whereClause}
-      GROUP BY COALESCE(brand, 'Không rõ')
+            GROUP BY COALESCE(career, 'Không rõ')
       ORDER BY revenue DESC
       LIMIT ?
       `,
@@ -104,11 +104,11 @@ export const getCRMStats = unstable_cache(
     const [rows] = await db.query<any[]>(
       `
       SELECT 
-        COUNT(DISTINCT order_ID) AS totalOrders,
-        SUM(COALESCE(quantity, 0)) AS totalQuantity,
-        SUM(COALESCE(tien_hang, 0)) AS totalTienHang,
-        SUM(COALESCE(thanh_tien, 0)) AS totalThanhTien
-      FROM orders
+        COUNT(DISTINCT orderCode) AS totalOrders,
+        COUNT(*) AS totalQuantity,
+        SUM(COALESCE(money, 0)) AS totalTienHang,
+        SUM(COALESCE(money_VAT, 0)) AS totalThanhTien
+      FROM checkin_orders
       WHERE ${whereClause}
       `,
       dateFilter.params,
@@ -137,12 +137,11 @@ export const getBrandConversionFunnel = unstable_cache(
     const [rows] = await db.query<any[]>(
       `
       SELECT 
-        COALESCE(p.brand, o.brand_pro, 'Không rõ') AS brand,
-        COUNT(DISTINCT o.order_ID) AS orders
-      FROM orders o
-      LEFT JOIN product p ON o.pro_ID = p.pro_ID
-      WHERE ${whereClause.replace("create_time", "o.create_time")}
-      GROUP BY COALESCE(p.brand, o.brand_pro, 'Không rõ')
+        COALESCE(status_checkin, 'Không rõ') AS brand,
+        COUNT(DISTINCT orderCode) AS orders
+      FROM checkin_orders
+      WHERE ${whereClause}
+      GROUP BY COALESCE(status_checkin, 'Không rõ')
       ORDER BY orders DESC
       LIMIT 5
       `,
@@ -171,15 +170,33 @@ export const getChannelSalesSummary = unstable_cache(
     const [rows] = await db.query<any[]>(
       `
       SELECT
-        COALESCE(kenh_ban, 'Không rõ') AS kenh_ban,
-        COUNT(DISTINCT order_ID) AS orders,
-        SUM(COALESCE(quantity, 0)) AS quantity,
-        SUM(COALESCE(tien_hang, 0) * COALESCE(quantity, 0)) AS tien_hang,
-        SUM(COALESCE(giam_gia, 0)) AS giam_gia,
-        SUM(COALESCE(thanh_tien, 0)) AS thanh_tien
-      FROM orders
+        COALESCE(class, 'Không rõ') AS kenh_ban,
+        COUNT(DISTINCT orderCode) AS orders,
+        COUNT(*) AS quantity,
+        SUM(COALESCE(money, 0)) AS tien_hang,
+        0 AS giam_gia,
+        SUM(COALESCE(money_VAT, 0)) AS thanh_tien,
+        SUM(
+          CASE
+            WHEN LOWER(COALESCE(trang_thai_thanh_toan, '')) = 'paydone' THEN 1
+            ELSE 0
+          END
+        ) AS paydone_count,
+        SUM(
+          CASE
+            WHEN LOWER(COALESCE(trang_thai_thanh_toan, '')) = 'paydone' THEN COALESCE(money, 0)
+            ELSE 0
+          END
+        ) AS paydone_money,
+        SUM(
+          CASE
+            WHEN LOWER(COALESCE(trang_thai_thanh_toan, '')) = 'paydone' THEN COALESCE(money_VAT, 0)
+            ELSE 0
+          END
+        ) AS paydone_money_vat
+      FROM checkin_orders
       WHERE ${whereClause}
-      GROUP BY COALESCE(kenh_ban, 'Không rõ')
+      GROUP BY COALESCE(class, 'Không rõ')
       ORDER BY thanh_tien DESC
       `,
       dateFilter.params,
@@ -192,6 +209,9 @@ export const getChannelSalesSummary = unstable_cache(
       tien_hang: Number(r.tien_hang) || 0,
       giam_gia: Number(r.giam_gia) || 0,
       thanh_tien: Number(r.thanh_tien) || 0,
+      paydone_count: Number(r.paydone_count) || 0,
+      paydone_money: Number(r.paydone_money) || 0,
+      paydone_money_vat: Number(r.paydone_money_vat) || 0,
     }));
   },
   ["crm-channel-sales-summary"],
@@ -209,11 +229,11 @@ export const getTopProductsByQuantity = unstable_cache(
     const [rows] = await db.query<any[]>(
       `
       SELECT 
-        COALESCE(name_pro, 'Không rõ') AS product,
-        SUM(COALESCE(quantity, 0)) AS totalQuantity
-      FROM orders
+        COALESCE(career, 'Không rõ') AS product,
+        COUNT(*) AS totalQuantity
+      FROM checkin_orders
       WHERE ${whereClause}
-      GROUP BY COALESCE(name_pro, 'Không rõ')
+      GROUP BY COALESCE(career, 'Không rõ')
       ORDER BY totalQuantity DESC
       LIMIT ?
       `,
@@ -246,12 +266,12 @@ export const getTopSalesByRevenue = unstable_cache(
     const [rows] = await db.query<any[]>(
       `
       SELECT 
-        COALESCE(seller, 'Không rõ') AS seller,
-        SUM(COALESCE(thanh_tien, 0)) AS totalRevenue,
-        COUNT(DISTINCT order_ID) AS totalOrders
-      FROM orders
+        COALESCE(gender, 'Không rõ') AS seller,
+        SUM(COALESCE(money_VAT, 0)) AS totalRevenue,
+        COUNT(DISTINCT orderCode) AS totalOrders
+      FROM checkin_orders
       WHERE ${whereClause}
-      GROUP BY COALESCE(seller, 'Không rõ')
+      GROUP BY COALESCE(gender, 'Không rõ')
       ORDER BY totalRevenue DESC
       LIMIT ?
       `,

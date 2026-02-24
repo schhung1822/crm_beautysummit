@@ -2,24 +2,20 @@
 import { z } from "zod";
 
 export const channelSchema = z.object({
-  order_ID: z.string(),
-  brand: z.string(),
-  create_time: z.date(),
-  customer_ID: z.string(),
-  name_customer: z.string(),
+  orderCode: z.string(),
+  name: z.string(),
   phone: z.string(),
-  address: z.string(),
-  seller: z.string(),
-  kenh_ban: z.string(),
-  note: z.string().nullable().optional(),
-  tien_hang: z.number().nullable().optional(),
-  giam_gia: z.number().nullable().optional(),
-  thanh_tien: z.number().nullable().optional(),
-  status: z.string().nullable().optional(),
-  quantity: z.number().nullable().optional(),
-  name_pro: z.string().nullable().optional(),
-  pro_ID: z.string().nullable().optional(),
-  brand_pro: z.string().nullable().optional(),
+  email: z.string(),
+  class: z.string(),
+  money: z.number(),
+  money_VAT: z.number(),
+  trang_thai_thanh_toan: z.string(),
+  update_time: z.date().nullable(),
+  create_at: z.date().nullable(),
+  gender: z.string(),
+  career: z.string(),
+  status_checkin: z.string(),
+  date_checkin: z.date().nullable(),
 });
 
 export type Channel = z.infer<typeof channelSchema>;

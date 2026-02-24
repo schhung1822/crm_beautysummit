@@ -25,8 +25,8 @@ export async function middleware(request: NextRequest) {
   if (token && isAuthRoute) {
     const payload = await verifyToken(token);
     if (payload) {
-      // Redirect to home if already authenticated
-      return NextResponse.redirect(new URL("/", request.url));
+      // Redirect to default dashboard if already authenticated
+      return NextResponse.redirect(new URL("/dashboard/default", request.url));
     }
   }
 

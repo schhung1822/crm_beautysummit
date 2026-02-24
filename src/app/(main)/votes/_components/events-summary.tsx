@@ -1,7 +1,7 @@
 /* eslint-disable prettier/prettier */
 "use client";
 
-import { Heart, Users } from "lucide-react";
+import { Users } from "lucide-react";
 import { Cell, Pie, PieChart } from "recharts";
 import type { NameType, ValueType } from "recharts/types/component/DefaultTooltipContent";
 
@@ -11,10 +11,9 @@ import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/
 type RatioItem = { name: string; value: number; fill: string };
 
 type EventsSummaryProps = {
-  totalCheckins: number;
-  totalOaInterested: number;
-  nghềData: RatioItem[];
-  eventRatioData: RatioItem[];
+  totalVotes: number;
+  genderData: RatioItem[];
+  brandRatioData: RatioItem[];
 };
 
 function RatioLegend({ items }: { items: RatioItem[] }) {
@@ -36,68 +35,57 @@ function formatTooltip(value: ValueType, _name: NameType, item: { payload?: { na
   return `${displayValue} ${label}`.trim();
 }
 
-export function EventsSummary({ totalCheckins, totalOaInterested, nghềData, eventRatioData }: EventsSummaryProps) {
+export function EventsSummary({ totalVotes, genderData, brandRatioData }: EventsSummaryProps) {
   return (
     <div className="grid grid-cols-1 gap-4 xl:grid-cols-3">
       <div className="grid gap-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between">
-            <CardTitle className="text-sm font-medium">Lượt checkin</CardTitle>
+            <CardTitle className="text-sm font-medium">Lượt vote</CardTitle>
             <Users className="text-muted-foreground size-4" />
           </CardHeader>
           <CardContent>
-            <div className="text-4xl font-bold tabular-nums">{totalCheckins}</div>
+            <div className="text-4xl font-bold tabular-nums">{totalVotes}</div>
             <p className="text-muted-foreground text-xs">Tổng lượt trong bảng</p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between">
-            <CardTitle className="text-sm font-medium">Quan tâm OA</CardTitle>
-            <Heart className="text-muted-foreground size-4" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-4xl font-bold tabular-nums">{totalOaInterested}</div>
-            <p className="text-muted-foreground text-xs">Số lượt quan tâm OA</p>
           </CardContent>
         </Card>
       </div>
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-sm font-medium">Tỷ lệ theo ngành nghề</CardTitle>
+          <CardTitle className="text-sm font-medium">Tỷ lệ theo giới tính</CardTitle>
         </CardHeader>
         <CardContent>
           <ChartContainer config={{ value: { label: "Tỷ lệ" } }} className="h-[220px] w-full">
             <PieChart>
               <ChartTooltip cursor={false} content={<ChartTooltipContent hideLabel formatter={formatTooltip} />} />
-              <Pie data={nghềData} dataKey="value" nameKey="name" innerRadius={50} outerRadius={80} paddingAngle={2}>
-                {nghềData.map((entry) => (
+              <Pie data={genderData} dataKey="value" nameKey="name" innerRadius={50} outerRadius={80} paddingAngle={2}>
+                {genderData.map((entry) => (
                   <Cell key={entry.name} fill={entry.fill} />
                 ))}
               </Pie>
             </PieChart>
           </ChartContainer>
-          <RatioLegend items={nghềData} />
+          <RatioLegend items={genderData} />
         </CardContent>
       </Card>
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-sm font-medium">Tỷ lệ theo sự kiện</CardTitle>
+          <CardTitle className="text-sm font-medium">Tỷ lệ theo thương hiệu</CardTitle>
         </CardHeader>
         <CardContent>
           <ChartContainer config={{ value: { label: "Tỷ lệ" } }} className="h-[220px] w-full">
             <PieChart>
               <ChartTooltip cursor={false} content={<ChartTooltipContent hideLabel formatter={formatTooltip} />} />
-              <Pie data={eventRatioData} dataKey="value" nameKey="name" innerRadius={50} outerRadius={80} paddingAngle={2}>
-                {eventRatioData.map((entry) => (
+              <Pie data={brandRatioData} dataKey="value" nameKey="name" innerRadius={50} outerRadius={80} paddingAngle={2}>
+                {brandRatioData.map((entry) => (
                   <Cell key={entry.name} fill={entry.fill} />
                 ))}
               </Pie>
             </PieChart>
           </ChartContainer>
-          <RatioLegend items={eventRatioData} />
+          <RatioLegend items={brandRatioData} />
         </CardContent>
       </Card>
     </div>

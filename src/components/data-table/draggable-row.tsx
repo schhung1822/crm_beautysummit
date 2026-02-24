@@ -6,7 +6,7 @@ import { TableCell, TableRow } from "@/components/ui/table";
 
 export function DraggableRow<TData>({ row }: { row: Row<TData> }) {
   const { transform, transition, setNodeRef, isDragging } = useSortable({
-    id: (row.original as { id: number }).id,
+    id: row.id,
   });
   return (
     <TableRow

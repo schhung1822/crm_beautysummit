@@ -74,7 +74,7 @@ export default function Page() {
               <b>Tác giả:</b> Nextgency
             </div>
             <div>
-              <b>Khách hàng:</b> EAC
+              <b>Khách hàng:</b> Beauty Summit
             </div>
             <div>
               <b>Cập nhật:</b> 15.01.2026

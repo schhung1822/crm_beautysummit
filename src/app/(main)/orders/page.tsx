@@ -17,9 +17,8 @@ export default async function Page() {
 
   const stats = {
     totalOrders: channels.length,
-    totalTienHang: channels.reduce((s, c) => s + (Number(c.tien_hang) || 0), 0),
-    totalThanhTien: channels.reduce((s, c) => s + (Number(c.thanh_tien) || 0), 0),
-    totalQuantity: channels.reduce((s, c) => s + (Number(c.quantity) || 0), 0),
+    totalMoney: channels.reduce((s, c) => s + (Number(c.money) || 0), 0),
+    totalMoneyVAT: channels.reduce((s, c) => s + (Number(c.money_VAT) || 0), 0),
   };
 
   return <DataTable data={channels} />;

@@ -15,7 +15,7 @@ export default async function Page({ params }: { params: Promise<{ customerId: s
   if (!customerId) {
     return (
       <div className="@container/main flex flex-col gap-4 md:gap-6">
-        <h1 className="text-xl font-semibold">Thiếu customer ID</h1>
+        <h1 className="text-xl font-semibold">Thiếu số điện thoại</h1>
         <pre className="text-muted-foreground mt-2 text-xs">
           {JSON.stringify({ rawCustomerId, customerId, resolvedParams }, null, 2)}
         </pre>
@@ -33,12 +33,12 @@ export default async function Page({ params }: { params: Promise<{ customerId: s
       <div className="bg-card/50 rounded-lg border p-4">
         <div className="flex items-center justify-between">
           <div>
-            <div className="text-lg font-semibold">{customer?.name_customer ?? "Khách hàng không xác định"}</div>
-            <div className="text-muted-foreground text-sm">Mã khách: {customerId}</div>
+            <div className="text-lg font-semibold">{customer?.name ?? "Khách hàng không xác định"}</div>
+            <div className="text-muted-foreground text-sm">SĐT: {customerId}</div>
           </div>
           <div className="text-right text-sm">
-            <div>SĐT: {customer?.phone ?? "—"}</div>
-            <div>Địa chỉ: {customer?.address ?? "—"}</div>
+            <div>Email: {customer?.email ?? "—"}</div>
+            <div>Lớp: {customer?.class ?? "—"}</div>
           </div>
         </div>
       </div>

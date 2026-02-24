@@ -50,13 +50,11 @@ export const sidebarItems: NavGroup[] = [
         title: "Tổng quan",
         url: "/dashboard/default",
         icon: LayoutDashboard,
-        comingSoon: true,
       },
       {
         title: "CRM",
         url: "/dashboard/crm",
         icon: ChartBar,
-        comingSoon: true,
       },
       {
         title: "Tài chính",
@@ -80,7 +78,11 @@ export const sidebarItems: NavGroup[] = [
         title: "Đơn hàng",
         url: "/orders",
         icon: ShoppingBagIcon,
-        comingSoon: true,
+      },
+      {
+        title: "Bình chọn",
+        url: "/votes",
+        icon: Calendar1Icon,
       },
       {
         title: "Khách hàng",
@@ -89,20 +91,10 @@ export const sidebarItems: NavGroup[] = [
         comingSoon: true,
       },
       {
-        title: "Hàng hóa",
-        url: "/products",
-        icon: PackageIcon,
-        comingSoon: true,
-      },
-      {
-        title: "Sự kiện",
-        url: "/events",
-        icon: Calendar1Icon,
-      },
-      {
         title: "Zalo OA",
         url: "/zalo-oa",
         icon: User,
+        comingSoon: true,
       },
       {
         title: "Thông báo",

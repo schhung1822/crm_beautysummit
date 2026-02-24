@@ -28,7 +28,7 @@ export const channelColumns: ColumnDef<z.infer<typeof ChannelSummarySchema>>[] =
   },
   {
     accessorKey: "kenh_ban",
-    header: ({ column }) => <DataTableColumnHeader column={column} title="Kênh bán" />,
+    header: ({ column }) => <DataTableColumnHeader column={column} title="Hạng vé" />,
     cell: ({ row }) => (
       <div className="flex items-center gap-2">
         <span className="text-base font-semibold">{row.original.kenh_ban}</span>
@@ -37,17 +37,8 @@ export const channelColumns: ColumnDef<z.infer<typeof ChannelSummarySchema>>[] =
     enableHiding: false,
   },
   {
-    accessorKey: "order_count",
-    header: ({ column }) => <DataTableColumnHeader column={column} title="Số đơn" />,
-    cell: ({ row }) => (
-      <div className="text-left">
-        <span className="text-sm font-medium tabular-nums">{fmtNumber(row.original.order_count)}</span>
-      </div>
-    ),
-  },
-  {
     accessorKey: "quantity",
-    header: ({ column }) => <DataTableColumnHeader column={column} title="Sản phẩm bán ra" />,
+    header: ({ column }) => <DataTableColumnHeader column={column} title="Vé đăng ký" />,
     cell: ({ row }) => (
       <div className="text-left">
         <span className="text-sm font-medium tabular-nums">{fmtNumber(row.original.quantity)}</span>
@@ -55,29 +46,29 @@ export const channelColumns: ColumnDef<z.infer<typeof ChannelSummarySchema>>[] =
     ),
   },
   {
-    accessorKey: "tien_hang",
-    header: ({ column }) => <DataTableColumnHeader column={column} title="Tiền hàng" />,
+    accessorKey: "paydone_count",
+    header: ({ column }) => <DataTableColumnHeader column={column} title="Vé hoàn thành" />,
     cell: ({ row }) => (
       <div className="text-left">
-        <span className="text-sm font-semibold tabular-nums">{fmtNumber(row.original.tien_hang)} ₫</span>
+        <span className="text-sm font-medium tabular-nums">{fmtNumber(row.original.paydone_count)}</span>
       </div>
     ),
   },
   {
-    accessorKey: "giam_gia",
-    header: ({ column }) => <DataTableColumnHeader column={column} title="Giảm giá" />,
+    accessorKey: "paydone_money",
+    header: ({ column }) => <DataTableColumnHeader column={column} title="Doanh thu" />,
     cell: ({ row }) => (
       <div className="text-left">
-        <span className="text-sm font-semibold tabular-nums">{fmtNumber(row.original.giam_gia)} ₫</span>
+        <span className="text-sm font-semibold tabular-nums">{fmtNumber(row.original.paydone_money)} ₫</span>
       </div>
     ),
   },
   {
-    accessorKey: "thanh_tien",
-    header: ({ column }) => <DataTableColumnHeader column={column} title="Thành tiền" />,
+    accessorKey: "paydone_money_vat",
+    header: ({ column }) => <DataTableColumnHeader column={column} title="Doanh thu (VAT)" />,
     cell: ({ row }) => (
       <div className="text-left">
-        <span className="text-base font-bold tabular-nums">{fmtNumber(row.original.thanh_tien)} ₫</span>
+        <span className="text-base font-bold tabular-nums">{fmtNumber(row.original.paydone_money_vat)} ₫</span>
       </div>
     ),
     enableHiding: false,

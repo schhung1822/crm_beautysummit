@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
@@ -23,6 +23,7 @@ const FormSchema = z.object({
 
 export function LoginForm() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { refreshUser } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
 
@@ -60,8 +61,13 @@ export function LoginForm() {
         // Refresh user data in AuthProvider
         await refreshUser();
 
-        // Redirect to home page
-        router.push("/");
+        const redirectParam = searchParams.get("redirect");
+        const redirectTo =
+          redirectParam && redirectParam.startsWith("/") && !redirectParam.startsWith("//")
+            ? redirectParam
+            : "/dashboard/default";
+
+        router.push(redirectTo);
         router.refresh();
       } else {
         toast.error("Login failed", {

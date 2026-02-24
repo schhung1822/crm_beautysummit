@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <title>Hóa đơn GTGT</title>
+
+  <!-- Font tiếng Việt an toàn -->
+  <link href="https://fonts.googleapis.com/css2?family=Roboto:ital,wght@0,400;0,500;0,700;1,400&display=swap" rel="stylesheet">
+
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      padding: 24px;
+      font-family: "Roboto", Arial, sans-serif;
+      font-size: 13px;
+      color: #000;
+    }
+
+    .invoice {
+      width: 740px; /* chuẩn A4 khi render */
+      margin: auto;
+      border: 1px solid #000;
+      padding: 16px;
+    }
+
+    .text-center { text-align: center; }
+    .text-right { text-align: right; }
+    .bold { font-weight: 700; }
+    .italic { font-style: italic; }
+
+    /* ===== HEADER ===== */
+    .header-top {
+      text-align: center;
+      font-size: 12px;
+    }
+
+    .header-main {
+      display: flex;
+      align-items: center;
+      margin-top: 8px;
+    }
+
+    .logo {
+      width: 140px;
+    }
+
+    .title {
+      flex: 1;
+      text-align: center;
+    }
+
+    .title h1 {
+      margin: 4px 0;
+      font-size: 20px;
+      letter-spacing: 1px;
+    }
+
+    .invoice-meta {
+      width: 200px;
+      font-size: 12px;
+    }
+
+    .line {
+      border-bottom: 1px dashed #000;
+      margin: 6px 0;
+    }
+
+    /* ===== INFO BLOCK ===== */
+    .info {
+      margin-top: 10px;
+    }
+
+    .info-row {
+      display: flex;
+      gap: 10px;
+      margin: 4px 0;
+      padding: 4px 0 ;
+    }
+
+    .info-label {
+      min-width: 160px;
+    }
+
+    .info-value {
+      flex: 1;
+      border-bottom: 1px dotted #000;
+    }
+
+    /* ===== TABLE ===== */
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 12px;
+      font-size: 12px;
+    }
+
+    table, th, td {
+      border: 1px solid #000;
+    }
+
+    th, td {
+      padding: 4px 6px;
+      text-align: center;
+      vertical-align: middle;
+    }
+
+    th {
+      font-weight: 700;
+    }
+
+    .td-left {
+      text-align: left;
+    }
+
+    /* ===== SUMMARY ===== */
+    .summary {
+      margin-top: 10px;
+      font-size: 12px;
+    }
+
+    .summary-row {
+      display: flex;
+      justify-content: space-between;
+      border-bottom: 1px solid #000;
+      padding: 4px 0;
+    }
+
+    /* ===== FOOTER ===== */
+    .footer {
+      margin-top: 16px;
+      font-size: 12px;
+    }
+
+    .sign-area {
+      display: flex;
+      justify-content: space-between;
+      margin-top: 32px;
+    }
+
+    .sign-box {
+      width: 45%;
+      text-align: center;
+    }
+
+    .seller-note {
+      border: 1px solid #000;
+      padding: 6px;
+      margin-top: 6px;
+      color: #d00000;
+      font-size: 11px;
+    }
+
+  </style>
+</head>
+
+<body>
+<div class="invoice">
+
+  <!-- HEADER -->
+  <div class="header-top">
+    Đơn vị cung cấp dịch vụ Hóa đơn điện tử: <b>CÔNG TY CỔ PHẦN TẬP ĐOÀN HOÀNG TÚ HOLDINGS </b> – MST: 0302712571
+  </div>
+
+  <div class="header-main">
+    <div class="logo">
+      <img src="./images/LOGO-BEAUTY-SUMMIT.png" alt="Beauty Summit" style="max-width:100%" />
+    </div>
+
+    <div class="title">
+      <h1>HÓA ĐƠN GIÁ TRỊ GIA TĂNG</h1>
+      Ngày {{day}} tháng {{month}} năm {{year}}
+    </div>
+
+    <div class="invoice-meta">
+      Ký hiệu: <b>{{ky_hieu}}</b><br/>
+      Số: <b>{{so_hoa_don}}</b>
+    </div>
+  </div>
+
+  <div class="line"></div>
+
+  <!-- SELLER -->
+  <div class="info">
+    <div><b>Đơn vị bán hàng:</b> CÔNG TY CỔ PHẦN TẬP ĐOÀN HOÀNG TÚ HOLDINGS</div>
+    <div>Mã số thuế: 0110844486</div>
+    <div>Địa chỉ: Số 44-TTB, Khu nhà ở 319 Bồ Đề, tổ 10, Phường Bồ Đề, Thành phố Hà Nội, Việt Nam</div>
+    <div>Điện thoại: 0925936666 </div>
+    <div>Số tài khoản: 93956886</div>
+    <div>Ngân hàng: ACB</div>
+  </div>
+
+  <div class="line"></div>
+
+  <!-- BUYER -->
+  <div class="info">
+    <div class="info-row">
+      <div class="info-label">Họ tên người mua:</div>
+      <div class="info-value">{{buyer_name}}</div>
+    </div>
+
+    <div class="info-row">
+      <div class="info-label">Tên đơn vị:</div>
+      <div class="info-value">{{buyer_company}}</div>
+    </div>
+
+    <div class="info-row">
+      <div class="info-label">Mã số thuế:</div>
+      <div class="info-value">{{buyer_tax}}</div>
+    </div>
+
+    <div class="info-row">
+      <div class="info-label">Địa chỉ:</div>
+      <div class="info-value">{{buyer_address}}</div>
+    </div>
+
+    <div class="info-row">
+      <div class="info-label">Hình thức thanh toán:</div>
+      <div class="info-value">{{payment_method}}</div>
+    </div>
+
+    <div class="info-row">
+      <div class="info-label">Đơn vị tiền tệ:</div>
+      <div class="info-value">VND</div>
+    </div>
+  </div>
+
+  <!-- TABLE -->
+  <table>
+    <thead>
+      <tr>
+        <th>STT</th>
+        <th>Tên hàng hóa, dịch vụ</th>
+        <th>Đơn vị</th>
+        <th>Số lượng</th>
+        <th>Đơn giá</th>
+        <th>Thành tiền</th>
+        <th>Thuế suất (%)</th>
+        <th>Tiền thuế</th>
+        <th>Tổng cộng</th>
+      </tr>
+    </thead>
+    <tbody>
+      {{items}}
+    </tbody>
+  </table>
+
+  <!-- TOTAL -->
+  <div class="summary">
+    <div class="summary-row">
+      <div>Cộng tiền hàng, dịch vụ:</div>
+      <div>{{total_before_tax}}</div>
+    </div>
+
+    <div class="summary-row">
+      <div>Thuế GTGT:</div>
+      <div>{{vat_amount}}</div>
+    </div>
+
+    <div class="summary-row bold">
+      <div>Tổng cộng tiền thanh toán:</div>
+      <div>{{total_payment}}</div>
+    </div>
+
+    <div class="summary-row italic">
+      Số tiền viết bằng chữ: {{total_text}}
+    </div>
+  </div>
+
+  <!-- SIGN -->
+  <div class="sign-area">
+    <div class="sign-box">
+      <b>Bên mua hàng</b><br/>
+      (Ký, ghi rõ họ tên)
+    </div>
+
+    <div class="sign-box">
+      <b>Bên bán hàng</b>
+
+      <div class="seller-note">
+        Chữ ký số hợp lệ<br/>
+        Ký bởi: {{seller_name}}<br/>
+        Ký ngày: {{sign_date}}
+      </div>
+    </div>
+  </div>
+
+  <div style="margin-top:10px; font-size:11px">
+    Tra cứu hóa đơn điện tử mã: {{invoice_code}} –
+    {{lookup_url}}
+  </div>
+
+</div>
+</body>
+</html>

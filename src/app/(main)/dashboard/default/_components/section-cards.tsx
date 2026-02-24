@@ -7,10 +7,9 @@ import { Card, CardAction, CardDescription, CardFooter, CardHeader, CardTitle } 
 
 type SectionCardsProps = {
   stats: {
-    totalOrders: number;
-    totalTienHang: number;
-    totalThanhTien: number;
-    totalQuantity: number;
+    registeredCount: number;
+    completedCount: number;
+    totalVat: number;
   };
 };
 
@@ -21,14 +20,14 @@ export const SectionCards = memo(function SectionCards({ stats }: SectionCardsPr
     <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
       <Card className="@container/card">
         <CardHeader>
-          <CardDescription>Tổng đơn</CardDescription>
+          <CardDescription>Vé đăng ký</CardDescription>
           <CardTitle className="text-2xl font-semibold tabular-nums @[250px]/card:text-3xl">
-            {formatNumber(stats.totalOrders)}
+            {formatNumber(stats.registeredCount)}
           </CardTitle>
           <CardAction>
             <Badge variant="outline">
               <TrendingUp />
-              Đơn
+              Vé
             </Badge>
           </CardAction>
         </CardHeader>
@@ -36,14 +35,14 @@ export const SectionCards = memo(function SectionCards({ stats }: SectionCardsPr
 
       <Card className="@container/card">
         <CardHeader>
-          <CardDescription>Tổng sản phẩm bán ra</CardDescription>
+          <CardDescription>Vé hoàn thành</CardDescription>
           <CardTitle className="text-2xl font-semibold tabular-nums @[250px]/card:text-3xl">
-            {formatNumber(stats.totalQuantity)}
+            {formatNumber(stats.completedCount)}
           </CardTitle>
           <CardAction>
             <Badge variant="outline">
               <TrendingUp />
-              Sản phẩm
+              Vé
             </Badge>
           </CardAction>
         </CardHeader>
@@ -51,9 +50,9 @@ export const SectionCards = memo(function SectionCards({ stats }: SectionCardsPr
 
       <Card className="@container/card">
         <CardHeader>
-          <CardDescription>Tổng thành tiền</CardDescription>
+          <CardDescription>Tổng thành tiền (VAT)</CardDescription>
           <CardTitle className="text-2xl font-semibold tabular-nums @[250px]/card:text-3xl">
-            {formatNumber(stats.totalThanhTien)}
+            {formatNumber(stats.totalVat)}
           </CardTitle>
           <CardAction>
             <Badge variant="outline">

@@ -1,4 +1,4 @@
-import { getChannelSalesSummary, getCRMStats } from "@/lib/crm-revenue";
+import { getChannelSalesSummary } from "@/lib/crm-revenue";
 import { getChannels } from "@/lib/orders";
 
 import { TableCards } from "../crm/_components/table-cards";
@@ -19,31 +19,40 @@ export default async function Page({ searchParams }: { searchParams: Promise<Rec
 
   let channels: any[] = [];
   let channelSummary: any[] = [];
-  let stats: any = {};
   try {
     const res = await getChannels({ from, to, limit: 10000 });
     channels = Array.isArray(res) ? res : [];
-    [channelSummary, stats] = await Promise.all([getChannelSalesSummary(from, to), getCRMStats(from, to)]);
+    channelSummary = await getChannelSalesSummary(from, to);
   } catch (e) {
     console.error("getChannels error:", e);
     channels = [];
     channelSummary = [];
-    stats = {
-      totalOrders: 0,
-      totalQuantity: 0,
-      totalThanhTien: 0,
-      totalTienHang: 0,
-    };
   }
+
+  const totals = channelSummary.reduce(
+    (acc, cur) => {
+      acc.registeredCount += Number(cur.quantity) || 0;
+      acc.completedCount += Number(cur.paydone_count) || 0;
+      acc.totalVat += Number(cur.paydone_money_vat) || 0;
+      return acc;
+    },
+    { registeredCount: 0, completedCount: 0, totalVat: 0 },
+  );
+
+  const stats = {
+    registeredCount: totals.registeredCount,
+    completedCount: totals.completedCount,
+    totalVat: totals.totalVat,
+  };
 
   // Build chart data (group by date)
   const chartMap: Record<string, { orders: number; revenue: number }> = {};
   for (const c of channels) {
-    const d = c.create_time instanceof Date ? c.create_time : new Date(c.create_time);
+    const d = c.create_at instanceof Date ? c.create_at : new Date(c.create_at);
     const key = d.toISOString().slice(0, 10); // YYYY-MM-DD
     chartMap[key] ??= { orders: 0, revenue: 0 };
     chartMap[key].orders += 1;
-    chartMap[key].revenue += Number(c.thanh_tien) || 0;
+    chartMap[key].revenue += Number(c.money_VAT) || 0;
   }
 
   const chartData = Object.keys(chartMap)

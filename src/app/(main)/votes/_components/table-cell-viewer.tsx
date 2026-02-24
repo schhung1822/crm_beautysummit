@@ -1,6 +1,6 @@
 "use client";
 
-import { Phone, CircleHelp, User, Ticket, Fingerprint, ShieldCheck, Mail } from "lucide-react";
+import { Calendar, Link as LinkIcon, Mail, Phone, Tag, User } from "lucide-react";
 import { z } from "zod";
 
 import { Badge } from "@/components/ui/badge";
@@ -42,17 +42,32 @@ function Block({ title, children }: { title: string; children: React.ReactNode }
   );
 }
 
+function formatGender(value?: string | null) {
+  const v = String(value ?? "").trim().toLowerCase();
+  if (v === "f" || v === "female" || v === "nữ" || v === "nu") return "Nữ";
+  if (v === "m" || v === "male" || v === "nam") return "Nam";
+  return value ?? "";
+}
+
 /* ---------- Component ---------- */
 // eslint-disable-next-line complexity
-export function TableCellViewer({ item }: { item: z.infer<typeof academySchema> }) {
+export function TableCellViewer({
+  item,
+  triggerElement,
+}: {
+  item: z.infer<typeof academySchema>;
+  triggerElement?: React.ReactElement;
+}) {
   const isMobile = useIsMobile();
 
   return (
     <Drawer direction={isMobile ? "bottom" : "right"}>
       <DrawerTrigger asChild>
-        <Button variant="link" className="text-foreground hover:text-foreground w-fit px-0 text-left">
-          {item.name}
-        </Button>
+        {triggerElement ?? (
+          <Button variant="link" className="text-foreground hover:text-foreground w-fit px-0 text-left">
+            {item.name}
+          </Button>
+        )}
       </DrawerTrigger>
 
       {/* Drawer 400px – full height desktop */}
@@ -63,17 +78,16 @@ export function TableCellViewer({ item }: { item: z.infer<typeof academySchema> 
             <div className="flex items-start justify-between gap-3">
               <DrawerTitle className="truncate text-base">{item.name}</DrawerTitle>
 
-              {item.event_name && (
+              {item.brand_name && (
                 <Badge variant="secondary" className="shrink-0 rounded-full">
-                  <ShieldCheck className="mr-1 h-3.5 w-3.5" />
-                  {item.event_name}
+                  <Tag className="mr-1 h-3.5 w-3.5" />
+                  {item.brand_name}
                 </Badge>
               )}
             </div>
 
             <DrawerDescription className="mt-1 flex items-center gap-2 truncate">
-              <Fingerprint className="h-3.5 w-3.5" />
-              User ID: {item.user_id || "N/A"}
+              Mã đơn: {item.ordercode || "N/A"}
             </DrawerDescription>
           </div>
         </DrawerHeader>
@@ -86,59 +100,27 @@ export function TableCellViewer({ item }: { item: z.infer<typeof academySchema> 
               <InfoRow icon={<User className="h-4 w-4" />} label="Họ và tên" value={item.name} />
               <InfoRow icon={<Phone className="h-4 w-4" />} label="Điện thoại" value={item.phone} />
               <InfoRow icon={<Mail className="h-4 w-4" />} label="Email" value={item.email} />
+              <InfoRow icon={<Tag className="h-4 w-4" />} label="Giới tính" value={formatGender(item.gender)} />
+              <InfoRow
+                icon={<Calendar className="h-4 w-4" />}
+                label="Thời gian vote"
+                value={
+                  item.time_vote
+                    ? item.time_vote instanceof Date
+                      ? item.time_vote.toLocaleString("vi-VN")
+                      : item.time_vote
+                    : ""
+                }
+              />
             </Block>
 
-            {/* Câu hỏi */}
-            {(item.q1 || item.q2 || item.q3 || item.q4 || item.q5) && (
-              <Block title="Câu hỏi">
-                {item.q1 && (
-                  <InfoRow
-                    icon={<CircleHelp className="h-4 w-4" />}
-                    label={item.title_q1 || "Câu hỏi 1"}
-                    value={item.q1}
-                  />
-                )}
-                {item.q2 && (
-                  <InfoRow
-                    icon={<CircleHelp className="h-4 w-4" />}
-                    label={item.title_q2 || "Câu hỏi 2"}
-                    value={item.q2}
-                  />
-                )}
-                {item.q3 && (
-                  <InfoRow
-                    icon={<CircleHelp className="h-4 w-4" />}
-                    label={item.title_q3 || "Câu hỏi 3"}
-                    value={item.q3}
-                  />
-                )}
-                {item.q4 && (
-                  <InfoRow
-                    icon={<CircleHelp className="h-4 w-4" />}
-                    label={item.title_q4 || "Câu hỏi 4"}
-                    value={item.q4}
-                  />
-                )}
-                {item.q5 && (
-                  <InfoRow
-                    icon={<CircleHelp className="h-4 w-4" />}
-                    label={item.title_q5 || "Câu hỏi 5"}
-                    value={item.q5}
-                  />
-                )}
-              </Block>
-            )}
-
-            {/* Voucher */}
-            {item.voucher && (
-              <Block title="Mã Voucher">
-                <InfoRow
-                  icon={<Ticket className="h-4 w-4" />}
-                  label="Voucher"
-                  value={<span className="text-primary font-mono text-base font-semibold">{item.voucher}</span>}
-                />
-              </Block>
-            )}
+            <Block title="Thông tin thương hiệu">
+              <InfoRow icon={<Tag className="h-4 w-4" />} label="Thương hiệu" value={item.brand_name} />
+              <InfoRow icon={<Tag className="h-4 w-4" />} label="Danh mục" value={item.category} />
+              <InfoRow icon={<Tag className="h-4 w-4" />} label="Sản phẩm" value={item.product} />
+              <InfoRow icon={<Tag className="h-4 w-4" />} label="Vote" value={item.voted} />
+              <InfoRow icon={<LinkIcon className="h-4 w-4" />} label="Link" value={item.link} />
+            </Block>
 
             <Separator />
           </div>

@@ -1,10 +1,11 @@
 import { useSortable } from "@dnd-kit/sortable";
+import type { UniqueIdentifier } from "@dnd-kit/core";
 import { ColumnDef } from "@tanstack/react-table";
 import { GripVertical } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 
-function DragHandle({ id }: { id: number }) {
+function DragHandle({ id }: { id: UniqueIdentifier }) {
   const { attributes, listeners } = useSortable({
     id,
   });
@@ -26,7 +27,7 @@ function DragHandle({ id }: { id: number }) {
 export const dragColumn: ColumnDef<any> = {
   id: "drag",
   header: () => null,
-  cell: ({ row }) => <DragHandle id={row.original.id} />,
+  cell: ({ row }) => <DragHandle id={row.id} />,
   enableSorting: false,
   enableHiding: false,
 };

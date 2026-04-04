@@ -17,8 +17,8 @@ import { exportData, filterDataByDateRange } from "@/lib/export-utils";
 import { dashboardColumns as makeColumns, type Stats } from "./columns";
 import type { Channel } from "./schema";
 
-function toOrderRowKey(item: Pick<Channel, "orderCode" | "phone" | "create_at">) {
-  return `${item.orderCode || item.phone || ""}-${item.create_at?.toString() ?? ""}`;
+function toOrderRowKey(item: Pick<Channel, "ordercode" | "phone" | "create_time">) {
+  return `${item.ordercode || item.phone || ""}-${item.create_time?.toString() ?? ""}`;
 }
 
 export function DataTable({ data: initialData = [] }: { data?: Channel[] }) {
@@ -30,27 +30,31 @@ export function DataTable({ data: initialData = [] }: { data?: Channel[] }) {
 
   const stats: Stats = React.useMemo(
     () => ({
-      totalOrders: initialData.length,
-      totalMoney: initialData.reduce((sum, item) => sum + Number(item.money), 0),
-      totalMoneyVAT: initialData.reduce((sum, item) => sum + Number(item.money_VAT), 0),
+      totalOrders: data.length,
+      totalMoney: data.reduce((sum, item) => sum + Number(item.money), 0),
+      totalMoneyVAT: data.reduce((sum, item) => sum + Number(item.money_VAT), 0),
     }),
-    [initialData],
+    [data],
   );
 
+  React.useEffect(() => {
+    setData(initialData);
+  }, [initialData]);
+
   const handleRowUpdated = React.useCallback((updated: Channel, originalOrderCode: string) => {
-    setData((prev) => prev.map((item) => (item.orderCode === originalOrderCode ? updated : item)));
+    setData((prev) => prev.map((item) => (item.ordercode === originalOrderCode ? updated : item)));
   }, []);
 
   const handleDeleteRow = React.useCallback(async (row: Channel) => {
     try {
-      if (!row.orderCode) {
+      if (!row.ordercode) {
         throw new Error("Bản ghi không có mã đơn để xóa");
       }
 
       const response = await fetch("/api/orders", {
         method: "DELETE",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ orderCodes: [row.orderCode] }),
+        body: JSON.stringify({ orderCodes: [row.ordercode] }),
       });
 
       if (!response.ok) {
@@ -58,7 +62,7 @@ export function DataTable({ data: initialData = [] }: { data?: Channel[] }) {
         throw new Error(result?.error ?? "Không thể xóa bản ghi");
       }
 
-      setData((prev) => prev.filter((item) => item.orderCode !== row.orderCode));
+      setData((prev) => prev.filter((item) => item.ordercode !== row.ordercode));
       toast.success("Đã xóa bản ghi");
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Không thể xóa bản ghi");
@@ -76,7 +80,7 @@ export function DataTable({ data: initialData = [] }: { data?: Channel[] }) {
     const term = searchTerm.toLowerCase();
     return data.filter(
       (item) =>
-        String(item.orderCode).toLowerCase().includes(term) ||
+        String(item.ordercode).toLowerCase().includes(term) ||
         String(item.name).toLowerCase().includes(term) ||
         String(item.phone).toLowerCase().includes(term) ||
         String(item.email).toLowerCase().includes(term) ||
@@ -101,7 +105,7 @@ export function DataTable({ data: initialData = [] }: { data?: Channel[] }) {
 
     setIsDeleting(true);
     try {
-      const orderCodes = selectedItems.map((item) => item.orderCode).filter((value): value is string => Boolean(value));
+      const orderCodes = selectedItems.map((item) => item.ordercode).filter((value): value is string => Boolean(value));
 
       const response = await fetch("/api/orders", {
         method: "DELETE",
@@ -115,7 +119,7 @@ export function DataTable({ data: initialData = [] }: { data?: Channel[] }) {
       }
 
       const selectedSet = new Set(orderCodes);
-      setData((prev) => prev.filter((item) => !selectedSet.has(item.orderCode)));
+      setData((prev) => prev.filter((item) => !selectedSet.has(item.ordercode)));
       table.resetRowSelection();
       toast.success(`Đã xóa ${orderCodes.length} bản ghi`);
     } catch (error) {
@@ -131,26 +135,26 @@ export function DataTable({ data: initialData = [] }: { data?: Channel[] }) {
 
       try {
         const dataToExport =
-          dateRange.from || dateRange.to ? filterDataByDateRange(filteredData, "create_at", dateRange) : filteredData;
+          dateRange.from || dateRange.to ? filterDataByDateRange(filteredData, "create_time", dateRange) : filteredData;
 
         exportData({
           format,
           data: dataToExport,
           headers: {
-            orderCode: "Mã đơn",
+            ordercode: "Mã đơn",
             name: "Họ tên",
             phone: "Số điện thoại",
             email: "Email",
             class: "Lớp",
             money: "Tiền",
             money_VAT: "Tiền (VAT)",
-            trang_thai_thanh_toan: "Trạng thái thanh toán",
+            status: "Trạng thái thanh toán",
             update_time: "Cập nhật",
-            create_at: "Ngày tạo",
+            create_time: "Ngày tạo",
             gender: "Giới tính",
             career: "Nghề nghiệp",
             status_checkin: "Trạng thái check-in",
-            date_checkin: "Ngày check-in",
+            checkin_time: "Ngày check-in",
           },
           filename: `orders_${new Date().toISOString().split("T")[0]}`,
         });

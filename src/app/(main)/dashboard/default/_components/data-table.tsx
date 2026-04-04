@@ -4,16 +4,12 @@ import * as React from "react";
 
 import { useSearchParams } from "next/navigation";
 
-import { Plus, Search } from "lucide-react";
+import { Search } from "lucide-react";
 
 import { DataTable as DataTableNew } from "@/components/data-table/data-table";
 import { DataTableViewOptions } from "@/components/data-table/data-table-view-options";
 import { withDndColumn } from "@/components/data-table/table-utils";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Tabs, TabsContent } from "@/components/ui/tabs";
 import { useDataTableInstance } from "@/hooks/use-data-table-instance";
 import { fetchChannelsByDateRange } from "@/server/server-actions";
 
@@ -35,7 +31,7 @@ export function DataTable({ data: initialData = [], stats }: { data?: Channel[];
 
     if (from || to) {
       setIsLoading(true);
-      fetchChannelsByDateRange(from || undefined, to || undefined)
+      fetchChannelsByDateRange(from ?? undefined, to ?? undefined)
         .then((filteredData) => {
           setData(filteredData);
         })
@@ -58,7 +54,7 @@ export function DataTable({ data: initialData = [], stats }: { data?: Channel[];
     return data.filter(
       (item) =>
         item.name.toLowerCase().includes(term) ||
-        item.orderCode.toLowerCase().includes(term) ||
+        item.ordercode.toLowerCase().includes(term) ||
         (item.phone ? item.phone.toLowerCase().includes(term) : false) ||
         (item.email ? item.email.toLowerCase().includes(term) : false),
     );
@@ -67,7 +63,7 @@ export function DataTable({ data: initialData = [], stats }: { data?: Channel[];
   const table = useDataTableInstance({
     data: filteredData,
     columns,
-    getRowId: (row) => `${row.orderCode || row.phone || ""}-${row.create_at?.toString() ?? ""}`,
+    getRowId: (row) => `${row.ordercode || row.phone || ""}-${row.create_time?.toString() ?? ""}`,
   });
 
   return (

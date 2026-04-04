@@ -48,6 +48,7 @@ export function RowActionsCell({ row, stats, onRowUpdated, onDeleteRow }: RowAct
 
   const handleDelete = React.useCallback(async () => {
     if (!onDeleteRow) return;
+
     setIsDeleting(true);
     try {
       await onDeleteRow(row);
@@ -94,7 +95,7 @@ export function RowActionsCell({ row, stats, onRowUpdated, onDeleteRow }: RowAct
           <AlertDialogHeader>
             <AlertDialogTitle>Xóa bản ghi này?</AlertDialogTitle>
             <AlertDialogDescription>
-              Bạn có chắc chắn muốn xóa đơn <strong>{row.orderCode}</strong>? Hành động này không thể hoàn tác.
+              Bạn có chắc chắn muốn xóa đơn <strong>{row.ordercode}</strong>? Hành động này không thể hoàn tác.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

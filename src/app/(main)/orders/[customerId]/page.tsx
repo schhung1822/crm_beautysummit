@@ -5,26 +5,24 @@ import { getOrdersByCustomer } from "@/lib/ordersByCustomer";
 
 import { DataTable } from "./_components/data-table";
 
-export default async function Page({ params }: { params: Promise<{ customerId: string }> | { customerId: string } }) {
-  // ✅ an toàn cho cả 2 trường hợp: params là object hoặc Promise
-  const resolvedParams = await Promise.resolve(params);
-  const rawCustomerId = resolvedParams?.customerId;
+type PageProps = {
+  params: Promise<{ customerId: string }> | { customerId: string };
+};
 
-  const customerId = String(rawCustomerId ?? "").trim();
+export default async function Page({ params }: PageProps) {
+  const { customerId: rawCustomerId = "" } = await Promise.resolve(params);
+  const customerId = String(rawCustomerId).trim();
 
   if (!customerId) {
     return (
       <div className="@container/main flex flex-col gap-4 md:gap-6">
         <h1 className="text-xl font-semibold">Thiếu số điện thoại</h1>
-        <pre className="text-muted-foreground mt-2 text-xs">
-          {JSON.stringify({ rawCustomerId, customerId, resolvedParams }, null, 2)}
-        </pre>
       </div>
     );
   }
 
   const { rows } = await getOrdersByCustomer(customerId);
-  const customer = rows?.length ? rows[0] : null;
+  const customer = rows.length > 0 ? rows[0] : undefined;
 
   return (
     <div className="@container/main flex flex-col gap-4 md:gap-6">
@@ -33,12 +31,12 @@ export default async function Page({ params }: { params: Promise<{ customerId: s
       <div className="bg-card/50 rounded-lg border p-4">
         <div className="flex items-center justify-between">
           <div>
-            <div className="text-lg font-semibold">{customer?.name ?? "Khách hàng không xác định"}</div>
+            <div className="text-lg font-semibold">{customer ? customer.name : "Khách hàng không xác định"}</div>
             <div className="text-muted-foreground text-sm">SĐT: {customerId}</div>
           </div>
           <div className="text-right text-sm">
-            <div>Email: {customer?.email ?? "—"}</div>
-            <div>Lớp: {customer?.class ?? "—"}</div>
+            <div>Email: {customer ? customer.email : "—"}</div>
+            <div>Lớp: {customer ? customer.class : "—"}</div>
           </div>
         </div>
       </div>

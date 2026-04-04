@@ -1,8 +1,9 @@
+/* eslint-disable complexity, max-lines */
 "use client";
 
 import * as React from "react";
 
-import { Calendar, Mail, Phone, User2, Briefcase, CheckCircle2, Wallet } from "lucide-react";
+import { Briefcase, Calendar, CheckCircle2, Mail, Phone, User2, Wallet } from "lucide-react";
 import { toast } from "sonner";
 import { z } from "zod";
 
@@ -39,24 +40,30 @@ type ViewerProps = {
   triggerElement?: React.ReactElement;
 };
 
-function formatDateVN(v: unknown) {
-  if (!v) return "—";
-  const d = v instanceof Date ? v : new Date(String(v));
-  if (Number.isNaN(d.getTime())) return String(v);
-  return d.toLocaleDateString("vi-VN");
+function formatDateVN(value: unknown) {
+  if (!value) return "—";
+
+  const date = value instanceof Date ? value : new Date(String(value));
+  if (Number.isNaN(date.getTime())) return String(value);
+
+  return date.toLocaleString("vi-VN");
 }
+
 function formatGender(value?: string | null) {
-  const v = String(value ?? "")
+  const normalized = String(value ?? "")
     .trim()
     .toLowerCase();
-  if (v === "f" || v === "female" || v === "nữ" || v === "nu") return "Nữ";
-  if (v === "m" || v === "male" || v === "nam") return "Nam";
+
+  if (normalized === "f" || normalized === "female" || normalized === "nữ" || normalized === "nu") return "Nữ";
+  if (normalized === "m" || normalized === "male" || normalized === "nam") return "Nam";
+
   return value ?? "";
 }
-function money(v: unknown) {
-  const n = typeof v === "number" ? v : Number(String(v ?? 0).replaceAll(",", ""));
-  if (!Number.isFinite(n)) return "0";
-  return n.toLocaleString("vi-VN");
+
+function formatMoney(value: unknown) {
+  const numberValue = typeof value === "number" ? value : Number(String(value ?? 0).replaceAll(",", ""));
+  if (!Number.isFinite(numberValue)) return "0";
+  return numberValue.toLocaleString("vi-VN");
 }
 
 function StatPill({ label, value, sub = "VNĐ" }: { label: string; value: string; sub?: string }) {
@@ -100,7 +107,7 @@ export function TableCellViewer({ item, stats, onRowUpdated, triggerElement }: V
   const [form, setForm] = React.useState<z.infer<typeof channelSchema>>(item);
 
   const ticketClassOptions = ["STANDARD", "GOLD", "RUBY", "VIP"];
-  const paymentStatusOptions = ["paydone", "new", "cancelled", "refunded", "Vé tặng"];
+  const paymentStatusOptions = ["paydone", "new", "cancelled", "refunded", "present"];
   const checkinStatusOptions = ["chưa checkin", "đã checkin"];
   const careerQuickOptions = ["Khác", "Chủ spa/ TMV/ Phòng khám", "Bác sĩ", "Dược sĩ", "Kỹ thuật viên", "Sale"];
 
@@ -113,19 +120,24 @@ export function TableCellViewer({ item, stats, onRowUpdated, triggerElement }: V
 
   const handleSave = React.useCallback(async () => {
     setIsSaving(true);
+
     try {
-      const payload = {
+      const isCheckedIn = form.status_checkin === "đã checkin";
+      const payload = channelSchema.parse({
         ...form,
         money: normalizedMoney,
         money_VAT: computedVat,
-        update_time: new Date().toISOString(),
-      };
+        status: form.status || "new",
+        status_checkin: isCheckedIn ? "đã checkin" : "chưa checkin",
+        update_time: new Date(),
+        checkin_time: isCheckedIn ? (form.checkin_time ?? new Date()) : null,
+      });
 
       const response = await fetch("/api/orders", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          originalOrderCode: item.orderCode,
+          originalOrderCode: item.ordercode,
           ...payload,
         }),
       });
@@ -135,23 +147,16 @@ export function TableCellViewer({ item, stats, onRowUpdated, triggerElement }: V
         throw new Error(result?.error ?? "Không thể cập nhật bản ghi");
       }
 
-      const updatedRow = {
-        ...payload,
-        update_time: payload.update_time ? new Date(payload.update_time) : null,
-      } as z.infer<typeof channelSchema>;
-
-      setForm(updatedRow);
+      setForm(payload);
       setIsEditing(false);
-      if (typeof onRowUpdated === "function") {
-        onRowUpdated(updatedRow, item.orderCode);
-      }
+      onRowUpdated?.(payload, item.ordercode);
       toast.success("Đã cập nhật bản ghi");
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Có lỗi xảy ra khi cập nhật");
     } finally {
       setIsSaving(false);
     }
-  }, [computedVat, form, item.orderCode, normalizedMoney, onRowUpdated]);
+  }, [computedVat, form, item.ordercode, normalizedMoney, onRowUpdated]);
 
   const displayedItem = isEditing
     ? {
@@ -161,12 +166,9 @@ export function TableCellViewer({ item, stats, onRowUpdated, triggerElement }: V
       }
     : form;
 
-  const createdAt = displayedItem.create_at ? formatDateVN(displayedItem.create_at) : "";
+  const createdAt = displayedItem.create_time ? formatDateVN(displayedItem.create_time) : "";
   const updatedAt = displayedItem.update_time ? formatDateVN(displayedItem.update_time) : "";
-  const checkinAt = displayedItem.date_checkin ? formatDateVN(displayedItem.date_checkin) : "";
-
-  const moneyValue = money(displayedItem.money || 0);
-  const moneyVatValue = money(displayedItem.money_VAT || 0);
+  const checkinAt = displayedItem.checkin_time ? formatDateVN(displayedItem.checkin_time) : "";
 
   return (
     <Drawer
@@ -183,50 +185,57 @@ export function TableCellViewer({ item, stats, onRowUpdated, triggerElement }: V
       <DrawerTrigger asChild>
         {triggerElement ?? (
           <Button variant="link" className="text-foreground w-fit px-0 text-left">
-            {displayedItem.orderCode}
+            {displayedItem.ordercode}
           </Button>
         )}
       </DrawerTrigger>
 
-      {/* ✅ max width 400px, full height on desktop */}
       <DrawerContent className="h-screen sm:ml-auto sm:h-screen sm:max-w-[400px]">
-        {/* HEADER - sticky */}
         <DrawerHeader className="supports-backdrop-filter:bg-background/80 bg-background/95 sticky top-0 z-10 border-b backdrop-blur">
           <div className="min-w-0">
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0">
-                <DrawerTitle className="truncate">Mã đơn: {item.orderCode}</DrawerTitle>
+                <DrawerTitle className="truncate">Mã đơn: {displayedItem.ordercode}</DrawerTitle>
                 <DrawerDescription className="truncate">
                   {displayedItem.class ? <>• {displayedItem.class}</> : null}
                 </DrawerDescription>
               </div>
 
-              {displayedItem.trang_thai_thanh_toan ? (
+              {displayedItem.status ? (
                 <Badge variant="secondary" className="shrink-0 rounded-full">
-                  {String(displayedItem.trang_thai_thanh_toan)}
+                  {displayedItem.status}
                 </Badge>
               ) : null}
             </div>
           </div>
         </DrawerHeader>
 
-        {/* BODY - scroll */}
         <div className="nice-scroll flex-1 overflow-y-auto px-4 py-4">
-          {/* KPI */}
           <div className="grid gap-3">
+            <Block title="Tổng quan">
+              <div className="grid gap-2">
+                <StatPill label="Tổng đơn" value={stats.totalOrders.toLocaleString("vi-VN")} sub="đơn" />
+                <StatPill label="Tổng tiền" value={formatMoney(stats.totalMoney)} />
+                <StatPill label="Tổng VAT" value={formatMoney(stats.totalMoneyVAT)} />
+              </div>
+            </Block>
+
             {isEditing ? (
               <Block title="Chỉnh sửa nhanh">
                 <div className="grid gap-3">
                   <div className="grid gap-1.5">
                     <Label>Họ tên</Label>
-                    <Input value={form.name} onChange={(e) => setForm((prev) => ({ ...prev, name: e.target.value }))} />
+                    <Input
+                      value={form.name}
+                      onChange={(event) => setForm((prev) => ({ ...prev, name: event.target.value }))}
+                    />
                   </div>
 
                   <div className="grid gap-1.5">
                     <Label>Số điện thoại</Label>
                     <Input
                       value={form.phone}
-                      onChange={(e) => setForm((prev) => ({ ...prev, phone: e.target.value }))}
+                      onChange={(event) => setForm((prev) => ({ ...prev, phone: event.target.value }))}
                     />
                   </div>
 
@@ -235,7 +244,7 @@ export function TableCellViewer({ item, stats, onRowUpdated, triggerElement }: V
                     <Input
                       type="email"
                       value={form.email}
-                      onChange={(e) => setForm((prev) => ({ ...prev, email: e.target.value }))}
+                      onChange={(event) => setForm((prev) => ({ ...prev, email: event.target.value }))}
                     />
                   </div>
 
@@ -250,8 +259,8 @@ export function TableCellViewer({ item, stats, onRowUpdated, triggerElement }: V
                           <SelectValue placeholder="Chọn" />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="Nam">Nam</SelectItem>
-                          <SelectItem value="Nữ">Nữ</SelectItem>
+                          <SelectItem value="m">Nam</SelectItem>
+                          <SelectItem value="f">Nữ</SelectItem>
                         </SelectContent>
                       </Select>
                     </div>
@@ -279,8 +288,8 @@ export function TableCellViewer({ item, stats, onRowUpdated, triggerElement }: V
                   <div className="grid gap-1.5">
                     <Label>Trạng thái</Label>
                     <Select
-                      value={form.trang_thai_thanh_toan || ""}
-                      onValueChange={(value) => setForm((prev) => ({ ...prev, trang_thai_thanh_toan: value }))}
+                      value={form.status || ""}
+                      onValueChange={(value) => setForm((prev) => ({ ...prev, status: value }))}
                     >
                       <SelectTrigger>
                         <SelectValue placeholder="Chọn" />
@@ -301,7 +310,7 @@ export function TableCellViewer({ item, stats, onRowUpdated, triggerElement }: V
                       <Input
                         type="number"
                         value={Number.isFinite(Number(form.money)) ? Number(form.money) : 0}
-                        onChange={(e) => setForm((prev) => ({ ...prev, money: Number(e.target.value) || 0 }))}
+                        onChange={(event) => setForm((prev) => ({ ...prev, money: Number(event.target.value) || 0 }))}
                       />
                     </div>
                     <div className="grid gap-1.5">
@@ -334,7 +343,7 @@ export function TableCellViewer({ item, stats, onRowUpdated, triggerElement }: V
                     <Input
                       list="career-quick-options"
                       value={form.career}
-                      onChange={(e) => setForm((prev) => ({ ...prev, career: e.target.value }))}
+                      onChange={(event) => setForm((prev) => ({ ...prev, career: event.target.value }))}
                     />
                     <datalist id="career-quick-options">
                       {careerQuickOptions.map((option) => (
@@ -348,18 +357,18 @@ export function TableCellViewer({ item, stats, onRowUpdated, triggerElement }: V
 
             <Block title="Khách hàng">
               <Row icon={<User2 className="h-4 w-4" />} label="Họ tên" value={displayedItem.name} />
-              <Row icon={<Phone className="h-4 w-4" />} label="Số điện thoại" value={displayedItem.phone ?? "—"} />
-              <Row icon={<Mail className="h-4 w-4" />} label="Email" value={displayedItem.email ?? "—"} />
+              <Row icon={<Phone className="h-4 w-4" />} label="Số điện thoại" value={displayedItem.phone || "—"} />
+              <Row icon={<Mail className="h-4 w-4" />} label="Email" value={displayedItem.email || "—"} />
             </Block>
 
             <div className="mt-2 flex flex-wrap gap-2">
               <Badge variant="outline" className="rounded-full">
                 <Calendar className="mr-1 h-3.5 w-3.5" />
-                {createdAt}
+                {createdAt || "—"}
               </Badge>
               <Badge variant="outline" className="rounded-full">
                 <Calendar className="mr-1 h-3.5 w-3.5" />
-                {updatedAt}
+                {updatedAt || "—"}
               </Badge>
               {displayedItem.gender ? (
                 <Badge variant="outline" className="rounded-full">
@@ -369,15 +378,11 @@ export function TableCellViewer({ item, stats, onRowUpdated, triggerElement }: V
             </div>
 
             <Block title="Thanh toán">
-              <Row
-                icon={<Wallet className="h-4 w-4" />}
-                label="Trạng thái"
-                value={displayedItem.trang_thai_thanh_toan}
-              />
+              <Row icon={<Wallet className="h-4 w-4" />} label="Trạng thái" value={displayedItem.status || "—"} />
               <Separator />
               <div className="grid grid-cols-1 gap-2">
-                <StatPill label="Tiền" value={moneyValue} />
-                <StatPill label="Tiền (VAT)" value={moneyVatValue} />
+                <StatPill label="Tiền" value={formatMoney(displayedItem.money || 0)} />
+                <StatPill label="Tiền (VAT)" value={formatMoney(displayedItem.money_VAT || 0)} />
               </div>
             </Block>
 
@@ -385,15 +390,14 @@ export function TableCellViewer({ item, stats, onRowUpdated, triggerElement }: V
               <Row
                 icon={<CheckCircle2 className="h-4 w-4" />}
                 label="Trạng thái"
-                value={displayedItem.status_checkin}
+                value={displayedItem.status_checkin || "—"}
               />
-              <Row icon={<Calendar className="h-4 w-4" />} label="Ngày check-in" value={checkinAt || ""} />
-              <Row icon={<Briefcase className="h-4 w-4" />} label="Nghề nghiệp" value={displayedItem.career} />
+              <Row icon={<Calendar className="h-4 w-4" />} label="Ngày check-in" value={checkinAt || "—"} />
+              <Row icon={<Briefcase className="h-4 w-4" />} label="Nghề nghiệp" value={displayedItem.career || "—"} />
             </Block>
           </div>
         </div>
 
-        {/* FOOTER - sticky */}
         <DrawerFooter className="supports-backdrop-filter:bg-background/80 bg-background/95 sticky bottom-0 z-10 border-t backdrop-blur">
           {isEditing ? (
             <div className="grid w-full grid-cols-2 gap-2">

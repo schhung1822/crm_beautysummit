@@ -46,36 +46,36 @@ export function EditOrderDialog({
             <div className="space-y-1.5">
               <Label>Mã đơn</Label>
               <Input
-                value={form.orderCode}
-                onChange={(e) => onChange((prev) => (prev ? { ...prev, orderCode: e.target.value } : prev))}
+                value={form.ordercode}
+                onChange={(event) => onChange((prev) => (prev ? { ...prev, ordercode: event.target.value } : prev))}
               />
             </div>
             <div className="space-y-1.5">
               <Label>Họ tên</Label>
               <Input
                 value={form.name}
-                onChange={(e) => onChange((prev) => (prev ? { ...prev, name: e.target.value } : prev))}
+                onChange={(event) => onChange((prev) => (prev ? { ...prev, name: event.target.value } : prev))}
               />
             </div>
             <div className="space-y-1.5">
               <Label>Số điện thoại</Label>
               <Input
                 value={form.phone}
-                onChange={(e) => onChange((prev) => (prev ? { ...prev, phone: e.target.value } : prev))}
+                onChange={(event) => onChange((prev) => (prev ? { ...prev, phone: event.target.value } : prev))}
               />
             </div>
             <div className="space-y-1.5">
               <Label>Email</Label>
               <Input
                 value={form.email}
-                onChange={(e) => onChange((prev) => (prev ? { ...prev, email: e.target.value } : prev))}
+                onChange={(event) => onChange((prev) => (prev ? { ...prev, email: event.target.value } : prev))}
               />
             </div>
             <div className="space-y-1.5">
               <Label>Hạng vé</Label>
               <Input
                 value={form.class}
-                onChange={(e) => onChange((prev) => (prev ? { ...prev, class: e.target.value } : prev))}
+                onChange={(event) => onChange((prev) => (prev ? { ...prev, class: event.target.value } : prev))}
               />
             </div>
             <div className="space-y-1.5">
@@ -83,7 +83,9 @@ export function EditOrderDialog({
               <Input
                 type="number"
                 value={form.money}
-                onChange={(e) => onChange((prev) => (prev ? { ...prev, money: Number(e.target.value) || 0 } : prev))}
+                onChange={(event) =>
+                  onChange((prev) => (prev ? { ...prev, money: Number(event.target.value) || 0 } : prev))
+                }
               />
             </div>
             <div className="space-y-1.5">
@@ -91,37 +93,39 @@ export function EditOrderDialog({
               <Input
                 type="number"
                 value={form.money_VAT}
-                onChange={(e) =>
-                  onChange((prev) => (prev ? { ...prev, money_VAT: Number(e.target.value) || 0 } : prev))
+                onChange={(event) =>
+                  onChange((prev) => (prev ? { ...prev, money_VAT: Number(event.target.value) || 0 } : prev))
                 }
               />
             </div>
             <div className="space-y-1.5">
               <Label>Trạng thái thanh toán</Label>
               <Input
-                value={form.trang_thai_thanh_toan}
-                onChange={(e) => onChange((prev) => (prev ? { ...prev, trang_thai_thanh_toan: e.target.value } : prev))}
+                value={form.status}
+                onChange={(event) => onChange((prev) => (prev ? { ...prev, status: event.target.value } : prev))}
               />
             </div>
             <div className="space-y-1.5">
               <Label>Giới tính</Label>
               <Input
                 value={form.gender}
-                onChange={(e) => onChange((prev) => (prev ? { ...prev, gender: e.target.value } : prev))}
+                onChange={(event) => onChange((prev) => (prev ? { ...prev, gender: event.target.value } : prev))}
               />
             </div>
             <div className="space-y-1.5">
               <Label>Nghề nghiệp</Label>
               <Input
                 value={form.career}
-                onChange={(e) => onChange((prev) => (prev ? { ...prev, career: e.target.value } : prev))}
+                onChange={(event) => onChange((prev) => (prev ? { ...prev, career: event.target.value } : prev))}
               />
             </div>
             <div className="space-y-1.5">
               <Label>Trạng thái check-in</Label>
               <Input
                 value={form.status_checkin}
-                onChange={(e) => onChange((prev) => (prev ? { ...prev, status_checkin: e.target.value } : prev))}
+                onChange={(event) =>
+                  onChange((prev) => (prev ? { ...prev, status_checkin: event.target.value } : prev))
+                }
               />
             </div>
           </div>

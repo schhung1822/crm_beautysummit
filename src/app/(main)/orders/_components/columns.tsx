@@ -139,7 +139,7 @@ export const dashboardColumns = (
 
   // Mã đơn (đặt lên cột đầu)
   {
-    accessorKey: "orderCode",
+    accessorKey: "ordercode",
     header: ({ column }) => <DataTableColumnHeader column={column} title="Mã đơn" />,
     cell: ({ row }) => <TableCellViewer item={row.original} stats={stats} onRowUpdated={onRowUpdated} />,
     enableSorting: false,
@@ -221,16 +221,12 @@ export const dashboardColumns = (
   },
 
   {
-    accessorKey: "trang_thai_thanh_toan",
+    accessorKey: "status",
     header: ({ column }) => <DataTableColumnHeader column={column} title="Trạng thái" />,
     cell: ({ row }) => {
-      const className = getPaymentStatusBadgeClass(row.original.trang_thai_thanh_toan);
+      const className = getPaymentStatusBadgeClass(row.original.status);
 
-      return (
-        <Badge className={`rounded-full px-2.5 py-0.5 text-xs ${className}`}>
-          {row.original.trang_thai_thanh_toan || "—"}
-        </Badge>
-      );
+      return <Badge className={`rounded-full px-2.5 py-0.5 text-xs ${className}`}>{row.original.status || "—"}</Badge>;
     },
     enableSorting: false,
     size: 130,
@@ -261,14 +257,14 @@ export const dashboardColumns = (
   },
 
   {
-    accessorKey: "date_checkin",
+    accessorKey: "checkin_time",
     header: ({ column }) => <DataTableColumnHeader column={column} title="Ngày check-in" />,
     cell: ({ row }) => (
       <span className="text-sm">
-        {row.original.date_checkin
-          ? row.original.date_checkin instanceof Date
-            ? row.original.date_checkin.toLocaleDateString("vi-VN")
-            : row.original.date_checkin
+        {row.original.checkin_time
+          ? row.original.checkin_time instanceof Date
+            ? row.original.checkin_time.toLocaleDateString("vi-VN")
+            : row.original.checkin_time
           : ""}
       </span>
     ),
@@ -277,14 +273,14 @@ export const dashboardColumns = (
   },
 
   {
-    accessorKey: "create_at",
+    accessorKey: "create_time",
     header: ({ column }) => <DataTableColumnHeader column={column} title="Ngày tạo" />,
     cell: ({ row }) => (
       <span className="text-sm">
-        {row.original.create_at
-          ? row.original.create_at instanceof Date
-            ? row.original.create_at.toLocaleDateString("vi-VN")
-            : row.original.create_at
+        {row.original.create_time
+          ? row.original.create_time instanceof Date
+            ? row.original.create_time.toLocaleDateString("vi-VN")
+            : row.original.create_time
           : ""}
       </span>
     ),

@@ -1,4 +1,5 @@
-// src/lib/channels.ts
+﻿import { RowDataPacket } from "mysql2/promise";
+
 import { channelSchema, Channel } from "@/app/(main)/orders/_components/schema";
 import { getDB } from "@/lib/db";
 
@@ -9,69 +10,151 @@ export interface GetChannelsOptions {
   offset?: number;
 }
 
-export async function getChannels(options?: GetChannelsOptions): Promise<Channel[]> {
-  const db = getDB();
-  const { from, to, limit = 10000, offset = 0 } = options ?? {};
+function parseString(value: unknown): string {
+  return String(value ?? "");
+}
 
-  // Xây dựng WHERE clause động
-  let whereClause = "";
-  const params: (Date | number)[] = [];
+function parseNumber(value: unknown): number {
+  return Number(value) || 0;
+}
 
-  if (from) {
-    whereClause += "WHERE `create_at` >= ?";
-    params.push(from);
-  }
+function parseDate(value: unknown): Date | null {
+  return value ? new Date(value as string) : null;
+}
 
-  if (to) {
-    if (whereClause) {
-      whereClause += " AND `create_at` <= ?";
-    } else {
-      whereClause = "WHERE `create_at` <= ?";
-    }
-    params.push(to);
-  }
+function buildChannelData(r: Record<string, unknown>) {
+  return {
+    ordercode: parseString(r.ordercode),
+    name: parseString(r.name),
+    phone: parseString(r.phone),
+    email: parseString(r.email),
+    class: parseString(r.class),
+    money: parseNumber(r.money),
+    money_VAT: parseNumber(r.money_VAT),
+    status: parseString(r.status),
+    gender: parseString(r.gender),
+    career: parseString(r.career),
+    status_checkin: parseString(r.status_checkin),
+  };
+}
 
-  const [rows] = await db.query<any[]>(
+function buildChannelDates(r: Record<string, unknown>) {
+  return {
+    update_time: parseDate(r.update_time),
+    create_time: parseDate(r.create_time),
+    checkin_time: parseDate(r.checkin_time),
+  };
+}
+
+function mapRowToChannel(r: Record<string, unknown>): Channel {
+  const data = buildChannelData(r);
+  const dates = buildChannelDates(r);
+  return channelSchema.parse({ ...data, ...dates });
+}
+
+function isMissingTableError(error: unknown) {
+  return (
+    typeof error === "object" &&
+    error !== null &&
+    "code" in error &&
+    (error as { code?: string }).code === "ER_NO_SUCH_TABLE"
+  );
+}
+
+async function queryOrdersTable(db: ReturnType<typeof getDB>, whereClause: string, params: (Date | number)[]) {
+  const [rows] = await db.query<RowDataPacket[]>(
     `
     SELECT
-      orderCode,
+      COALESCE(ordercode, '') AS ordercode,
+      COALESCE(name, '') AS name,
+      COALESCE(phone, '') AS phone,
+      COALESCE(email, '') AS email,
+      COALESCE(class, '') AS class,
+      COALESCE(money, 0) AS money,
+      COALESCE(money_VAT, 0) AS money_VAT,
+      COALESCE(status, '') AS status,
+      update_time,
+      create_time,
+      COALESCE(gender, '') AS gender,
+      COALESCE(career, '') AS career,
+      CASE
+        WHEN COALESCE(is_checkin, 0) = 1 OR COALESCE(number_checkin, 0) > 0 OR checkin_time IS NOT NULL THEN 'đã checkin'
+        ELSE 'chưa checkin'
+      END AS status_checkin,
+      checkin_time
+    FROM orders
+    ${whereClause}
+    ORDER BY create_time DESC
+    LIMIT ? OFFSET ?
+  `,
+    params,
+  );
+
+  return rows;
+}
+
+async function queryLegacyCheckinOrders(db: ReturnType<typeof getDB>, whereClause: string, params: (Date | number)[]) {
+  const [rows] = await db.query<RowDataPacket[]>(
+    `
+    SELECT
+      ordercode,
       name,
       phone,
       email,
       class,
       money,
       money_VAT,
-      trang_thai_thanh_toan,
+      status,
       update_time,
-      create_at,
+      create_time,
       gender,
       career,
       status_checkin,
-      date_checkin
+      checkin_time
     FROM checkin_orders
     ${whereClause}
-    ORDER BY create_at DESC
+    ORDER BY create_time DESC
     LIMIT ? OFFSET ?
   `,
-    [...params, limit, offset],
+    params,
   );
 
-  return (rows ?? []).map((r) =>
-    channelSchema.parse({
-      orderCode: String(r.orderCode ?? ""),
-      name: String(r.name ?? ""),
-      phone: String(r.phone ?? ""),
-      email: String(r.email ?? ""),
-      class: String(r.class ?? ""),
-      money: Number(r.money) || 0,
-      money_VAT: Number(r.money_VAT) || 0,
-      trang_thai_thanh_toan: String(r.trang_thai_thanh_toan ?? ""),
-      update_time: r.update_time ? new Date(r.update_time) : null,
-      create_at: r.create_at ? new Date(r.create_at) : r.created_at ? new Date(r.created_at) : null,
-      gender: String(r.gender ?? ""),
-      career: String(r.career ?? ""),
-      status_checkin: String(r.status_checkin ?? ""),
-      date_checkin: r.date_checkin ? new Date(r.date_checkin) : null,
-    }),
-  );
+  return rows;
+}
+
+export async function getChannels(options?: GetChannelsOptions): Promise<Channel[]> {
+  const db = getDB();
+  const { from, to, limit = 10000, offset = 0 } = options ?? {};
+
+  let whereClause = "";
+  const params: (Date | number)[] = [];
+
+  if (from) {
+    whereClause += "WHERE `create_time` >= ?";
+    params.push(from);
+  }
+
+  if (to) {
+    if (whereClause) {
+      whereClause += " AND `create_time` <= ?";
+    } else {
+      whereClause = "WHERE `create_time` <= ?";
+    }
+    params.push(to);
+  }
+
+  const queryParams = [...params, limit, offset];
+  let rows: RowDataPacket[];
+
+  try {
+    rows = await queryOrdersTable(db, whereClause, queryParams);
+  } catch (error) {
+    if (!isMissingTableError(error)) {
+      throw error;
+    }
+
+    rows = await queryLegacyCheckinOrders(db, whereClause, queryParams);
+  }
+
+  return rows.map(mapRowToChannel);
 }

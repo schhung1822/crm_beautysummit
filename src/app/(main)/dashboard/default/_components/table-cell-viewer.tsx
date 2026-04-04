@@ -2,8 +2,6 @@
 
 import * as React from "react";
 
-import Link from "next/link";
-
 import { Calendar, Mail, Phone, User2, Briefcase, CheckCircle2, Wallet } from "lucide-react";
 import { z } from "zod";
 
@@ -37,7 +35,9 @@ function formatDateVN(v: unknown) {
   return d.toLocaleDateString("vi-VN");
 }
 function formatGender(value?: string | null) {
-  const v = String(value ?? "").trim().toLowerCase();
+  const v = String(value ?? "")
+    .trim()
+    .toLowerCase();
   if (v === "f" || v === "female" || v === "nữ" || v === "nu") return "Nữ";
   if (v === "m" || v === "male" || v === "nam") return "Nam";
   return value ?? "";
@@ -81,12 +81,13 @@ function Block({ title, children }: { title: string; children: React.ReactNode }
   );
 }
 
-export function TableCellViewer({ item, stats }: { item: z.infer<typeof channelSchema>; stats: Stats }) {
+// eslint-disable-next-line complexity
+export function TableCellViewer({ item }: { item: z.infer<typeof channelSchema>; stats: Stats }) {
   const isMobile = useIsMobile();
 
-  const createdAt = item.create_at ? formatDateVN(item.create_at) : "";
+  const createdAt = item.create_time ? formatDateVN(item.create_time) : "";
   const updatedAt = item.update_time ? formatDateVN(item.update_time) : "";
-  const checkinAt = item.date_checkin ? formatDateVN(item.date_checkin) : "";
+  const checkinAt = item.checkin_time ? formatDateVN(item.checkin_time) : "";
 
   const moneyValue = money(item.money || 0);
   const moneyVatValue = money(item.money_VAT || 0);
@@ -95,7 +96,7 @@ export function TableCellViewer({ item, stats }: { item: z.infer<typeof channelS
     <Drawer direction={isMobile ? "bottom" : "right"}>
       <DrawerTrigger asChild>
         <Button variant="link" className="text-foreground w-fit px-0 text-left">
-          {item.orderCode}
+          {item.ordercode}
         </Button>
       </DrawerTrigger>
 
@@ -106,13 +107,13 @@ export function TableCellViewer({ item, stats }: { item: z.infer<typeof channelS
           <div className="min-w-0">
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0">
-                <DrawerTitle className="truncate">Mã đơn: {item.orderCode}</DrawerTitle>
+                <DrawerTitle className="truncate">Mã đơn: {item.ordercode}</DrawerTitle>
                 <DrawerDescription className="truncate">{item.class ? <>• {item.class}</> : null}</DrawerDescription>
               </div>
 
-              {item.trang_thai_thanh_toan ? (
+              {item.status ? (
                 <Badge variant="secondary" className="shrink-0 rounded-full">
-                  {String(item.trang_thai_thanh_toan)}
+                  {String(item.status)}
                 </Badge>
               ) : null}
             </div>
@@ -125,8 +126,8 @@ export function TableCellViewer({ item, stats }: { item: z.infer<typeof channelS
           <div className="grid gap-3">
             <Block title="Khách hàng">
               <Row icon={<User2 className="h-4 w-4" />} label="Họ tên" value={item.name} />
-              <Row icon={<Phone className="h-4 w-4" />} label="Số điện thoại" value={item.phone ?? "—"} />
-              <Row icon={<Mail className="h-4 w-4" />} label="Email" value={item.email ?? "—"} />
+              <Row icon={<Phone className="h-4 w-4" />} label="Số điện thoại" value={item.phone} />
+              <Row icon={<Mail className="h-4 w-4" />} label="Email" value={item.email} />
             </Block>
 
             <div className="mt-2 flex flex-wrap gap-2">
@@ -146,7 +147,7 @@ export function TableCellViewer({ item, stats }: { item: z.infer<typeof channelS
             </div>
 
             <Block title="Thanh toán">
-              <Row icon={<Wallet className="h-4 w-4" />} label="Trạng thái" value={item.trang_thai_thanh_toan} />
+              <Row icon={<Wallet className="h-4 w-4" />} label="Trạng thái" value={item.status} />
               <Separator />
               <div className="grid grid-cols-1 gap-2">
                 <StatPill label="Tiền" value={moneyValue} />

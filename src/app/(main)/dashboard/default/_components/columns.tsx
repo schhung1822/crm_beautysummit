@@ -1,6 +1,5 @@
 import { ColumnDef } from "@tanstack/react-table";
 import { EllipsisVertical } from "lucide-react";
-import { z } from "zod";
 
 import { DataTableColumnHeader } from "@/components/data-table/data-table-column-header";
 import { Badge } from "@/components/ui/badge";
@@ -14,7 +13,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 
-import { channelSchema, Channel } from "./schema";
+import { Channel } from "./schema";
 import { TableCellViewer } from "./table-cell-viewer";
 
 // ---- Stats type ----
@@ -25,7 +24,9 @@ export type Stats = {
 };
 
 function formatGender(value?: string | null) {
-  const v = String(value ?? "").trim().toLowerCase();
+  const v = String(value ?? "")
+    .trim()
+    .toLowerCase();
   if (v === "f" || v === "female" || v === "nữ" || v === "nu") return "Nữ";
   if (v === "m" || v === "male" || v === "nam") return "Nam";
   return value ?? "";
@@ -54,7 +55,7 @@ export const dashboardColumns = (stats: Stats): ColumnDef<Channel>[] => [
 
   // Mã đơn (đặt lên cột đầu)
   {
-    accessorKey: "orderCode",
+    accessorKey: "ordercode",
     header: ({ column }) => <DataTableColumnHeader column={column} title="Mã đơn" />,
     cell: ({ row }) => <TableCellViewer item={row.original} stats={stats} />,
     enableSorting: false,
@@ -121,10 +122,10 @@ export const dashboardColumns = (stats: Stats): ColumnDef<Channel>[] => [
   },
 
   {
-    accessorKey: "trang_thai_thanh_toan",
+    accessorKey: "status",
     header: ({ column }) => <DataTableColumnHeader column={column} title="Thanh toán" />,
     cell: ({ row }) => {
-      const s = String(row.original.trang_thai_thanh_toan ?? "").toLowerCase();
+      const s = String(row.original.status).toLowerCase();
       let className = "bg-muted/20 text-muted-foreground";
       if (s.includes("hoàn thành") || s.includes("thành công") || s.includes("đã thanh toán")) {
         className = "bg-green-600 text-white";
@@ -133,7 +134,7 @@ export const dashboardColumns = (stats: Stats): ColumnDef<Channel>[] => [
       } else if (s.includes("hủy") || s.includes("không") || s.includes("thất bại")) {
         className = "bg-red-600 text-white";
       }
-      return <Badge className={className}>{row.original.trang_thai_thanh_toan}</Badge>;
+      return <Badge className={className}>{row.original.status}</Badge>;
     },
     enableSorting: false,
   },
@@ -146,17 +147,15 @@ export const dashboardColumns = (stats: Stats): ColumnDef<Channel>[] => [
   },
 
   {
-    accessorKey: "create_at",
+    accessorKey: "create_time",
     header: ({ column }) => <DataTableColumnHeader column={column} title="Ngày tạo" />,
     cell: ({ row }) => (
       <span className="text-sm">
-        {row.original.create_at ? (
-          row.original.create_at instanceof Date
-            ? row.original.create_at.toLocaleDateString("vi-VN")
-            : row.original.create_at
-        ) : (
-          ""
-        )}
+        {row.original.create_time
+          ? row.original.create_time instanceof Date
+            ? row.original.create_time.toLocaleDateString("vi-VN")
+            : row.original.create_time
+          : ""}
       </span>
     ),
     enableSorting: false,

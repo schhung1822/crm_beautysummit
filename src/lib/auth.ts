@@ -3,7 +3,7 @@ import { cookies } from "next/headers";
 import bcrypt from "bcryptjs";
 import { SignJWT, jwtVerify } from "jose";
 
-const JWT_SECRET = new TextEncoder().encode(process.env.JWT_SECRET || "your-secret-key-change-this-in-production");
+const JWT_SECRET = new TextEncoder().encode(process.env.JWT_SECRET ?? "your-secret-key-change-this-in-production");
 
 const COOKIE_NAME = "auth-token";
 const COOKIE_MAX_AGE = 60 * 60 * 24 * 7; // 7 days
@@ -13,6 +13,7 @@ export interface JWTPayload {
   username: string;
   email: string;
   role: string;
+  zid?: string;
   name?: string;
   phone?: string;
   avatar?: string;

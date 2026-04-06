@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { verifyPassword, createToken, setAuthCookie } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 
+// eslint-disable-next-line complexity
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
@@ -40,12 +41,13 @@ export async function POST(request: NextRequest) {
     // Create JWT token
     const token = await createToken({
       userId: userRecord.id,
-      username: userRecord.user || "",
-      email: userRecord.email || "",
-      role: userRecord.role || "user",
-      name: userRecord.name || undefined,
-      phone: userRecord.phone || undefined,
-      avatar: undefined,
+      username: userRecord.user ?? "",
+      email: userRecord.email ?? "",
+      role: userRecord.role ?? "user",
+      zid: userRecord.zid ?? undefined,
+      name: userRecord.name ?? undefined,
+      phone: userRecord.phone ?? undefined,
+      avatar: userRecord.avatar ?? undefined,
     });
 
     // Set cookie
@@ -58,9 +60,11 @@ export async function POST(request: NextRequest) {
           userId: userRecord.id,
           username: userRecord.user,
           email: userRecord.email,
+          zid: userRecord.zid,
           name: userRecord.name,
           role: userRecord.role,
           phone: userRecord.phone,
+          avatar: userRecord.avatar,
         },
       },
       { status: 200 },

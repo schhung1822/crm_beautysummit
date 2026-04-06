@@ -1,16 +1,25 @@
-import { NextResponse } from "next/server";
-import type { NextRequest } from "next/server";
+import { NextResponse, type NextRequest } from "next/server";
 
 import { verifyToken } from "@/lib/auth";
+import { applyCorsHeaders, buildCorsHeaders } from "@/lib/cors";
 
 // Routes that don't require authentication
-const PUBLIC_ROUTES = ["/auth/v2/login", "/api/auth/login"];
+const PUBLIC_ROUTES = ["/auth/v2/login", "/api/auth/login", "/api/auth/zalo-miniapp"];
 
 // Routes that should redirect to home if authenticated
 const AUTH_ROUTES = ["/auth/v2/login"];
 
+// eslint-disable-next-line complexity
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
+  const isApiRoute = pathname.startsWith("/api/");
+
+  if (isApiRoute && request.method === "OPTIONS") {
+    return new NextResponse(null, {
+      status: 204,
+      headers: buildCorsHeaders(request),
+    });
+  }
 
   // Get token from cookie
   const token = request.cookies.get("auth-token")?.value;
@@ -32,11 +41,16 @@ export async function middleware(request: NextRequest) {
 
   // If route is public, allow access
   if (isPublicRoute) {
-    return NextResponse.next();
+    const response = NextResponse.next();
+    return isApiRoute ? applyCorsHeaders(request, response) : response;
   }
 
   // For protected routes, check authentication
   if (!token) {
+    if (isApiRoute) {
+      return applyCorsHeaders(request, NextResponse.json({ message: "Unauthorized" }, { status: 401 }));
+    }
+
     // Redirect to login if not authenticated
     const loginUrl = new URL("/auth/v2/login", request.url);
     loginUrl.searchParams.set("redirect", pathname);
@@ -46,6 +60,12 @@ export async function middleware(request: NextRequest) {
   // Verify token
   const payload = await verifyToken(token);
   if (!payload) {
+    if (isApiRoute) {
+      const response = NextResponse.json({ message: "Invalid auth token" }, { status: 401 });
+      response.cookies.delete("auth-token");
+      return applyCorsHeaders(request, response);
+    }
+
     // Invalid token, redirect to login
     const loginUrl = new URL("/auth/v2/login", request.url);
     loginUrl.searchParams.set("redirect", pathname);
@@ -56,7 +76,8 @@ export async function middleware(request: NextRequest) {
   }
 
   // Token is valid, allow access
-  return NextResponse.next();
+  const response = NextResponse.next();
+  return isApiRoute ? applyCorsHeaders(request, response) : response;
 }
 
 // Configure which routes to run middleware on

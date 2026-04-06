@@ -4,6 +4,15 @@ import { NextResponse } from "next/server";
 import type { ResultSetHeader, RowDataPacket } from "mysql2";
 
 import { getDB } from "@/lib/db";
+import {
+  buildTicketOrderNote,
+  CHECKIN_DONE_STATUS,
+  CHECKIN_PENDING_STATUS,
+  TICKET_ORDER_BRAND,
+  TICKET_ORDER_CHANNEL,
+  TICKET_PRODUCT_ID,
+  TICKET_PRODUCT_NAME,
+} from "@/lib/ticket-orders";
 
 type NormalizedOrderPayload = {
   ordercode: string | null;
@@ -12,12 +21,12 @@ type NormalizedOrderPayload = {
   email: string | null;
   gender: string | null;
   class: string | null;
-  money: number | null;
-  money_VAT: number | null;
-  status: string | null;
+  money: number;
+  money_VAT: number;
+  status: string;
   is_gift: number;
-  update_time: Date | null;
-  create_time: Date | null;
+  update_time: Date;
+  create_time: Date;
   is_checkin: number;
   number_checkin: number;
   checkin_time: Date | null;
@@ -38,37 +47,53 @@ function toNullableString(value: unknown) {
 }
 
 function toNullableNumber(value: unknown) {
-  if (value === null || value === undefined || value === "") return null;
-  const numberValue = typeof value === "number" ? value : Number(String(value).replaceAll(",", ""));
-  return Number.isFinite(numberValue) ? numberValue : null;
+  if (value === null || value === undefined || value === "") {
+    return null;
+  }
+
+  const parsed = typeof value === "number" ? value : Number(String(value).replaceAll(",", ""));
+  return Number.isFinite(parsed) ? parsed : null;
 }
 
 function toNullableInteger(value: unknown) {
-  const numberValue = toNullableNumber(value);
-  if (numberValue === null) return null;
-  return Math.max(0, Math.trunc(numberValue));
+  const parsed = toNullableNumber(value);
+  if (parsed === null) {
+    return null;
+  }
+
+  return Math.max(0, Math.trunc(parsed));
 }
 
 function toNullableBoolean(value: unknown) {
-  if (value === null || value === undefined || value === "") return null;
-  if (typeof value === "boolean") return value;
+  if (value === null || value === undefined || value === "") {
+    return null;
+  }
+
+  if (typeof value === "boolean") {
+    return value;
+  }
 
   const normalized = String(value).trim().toLowerCase();
-  if (["1", "true", "yes", "y"].includes(normalized)) return true;
-  if (["0", "false", "no", "n"].includes(normalized)) return false;
+  if (["1", "true", "yes", "y"].includes(normalized)) {
+    return true;
+  }
 
-  const numberValue = Number(normalized);
-  if (Number.isFinite(numberValue)) return numberValue !== 0;
+  if (["0", "false", "no", "n"].includes(normalized)) {
+    return false;
+  }
 
-  return null;
+  const parsed = Number(normalized);
+  return Number.isFinite(parsed) ? parsed !== 0 : null;
 }
 
 function toNullableDate(value: unknown) {
   const normalized = typeof value === "string" ? value.trim() : value == null ? "" : String(value).trim();
-  if (!normalized) return null;
+  if (!normalized) {
+    return null;
+  }
 
-  const date = new Date(normalized);
-  return Number.isNaN(date.getTime()) ? null : date;
+  const parsed = new Date(normalized);
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
 }
 
 function normalizeText(value: unknown) {
@@ -81,9 +106,18 @@ function normalizeText(value: unknown) {
 
 function normalizeCheckinStatus(value: unknown) {
   const normalized = normalizeText(value);
-  if (!normalized) return null;
-  if (normalized.includes("da") && normalized.includes("checkin")) return true;
-  if (normalized.includes("chua") && normalized.includes("checkin")) return false;
+  if (!normalized) {
+    return null;
+  }
+
+  if (normalized.includes("da") && normalized.includes("checkin")) {
+    return true;
+  }
+
+  if (normalized.includes("chua") && normalized.includes("checkin")) {
+    return false;
+  }
+
   return null;
 }
 
@@ -91,17 +125,10 @@ function generateTicketCode() {
   return `DH${Date.now().toString(36).toUpperCase().slice(0, 2)}${Math.random().toString(36).slice(2, 7).toUpperCase()}`;
 }
 
-function isMissingTableError(error: unknown) {
-  return (
-    typeof error === "object" &&
-    error !== null &&
-    "code" in error &&
-    (error as { code?: string }).code === "ER_NO_SUCH_TABLE"
-  );
-}
-
 function buildCustomerId(phone: string | null, provided?: string | null) {
-  if (provided) return provided;
+  if (provided) {
+    return provided;
+  }
 
   const digits = String(phone ?? "").replace(/\D/g, "");
   return digits ? `KH${digits}` : null;
@@ -122,6 +149,10 @@ function normalizeOrderPayload(body: Record<string, unknown>): NormalizedOrderPa
 
   const isCheckin = derivedCheckin ? 1 : 0;
   const normalizedCheckinTime = isCheckin ? (checkinTime ?? new Date()) : null;
+  const createTime = toNullableDate(body.create_time ?? body.create_at) ?? new Date();
+  const updateTime = toNullableDate(body.update_time) ?? new Date();
+  const status = toNullableString(body.status ?? body.trang_thai_thanh_toan) ?? "new";
+  const isGift = toNullableInteger(body.is_gift) ?? (status === "present" ? 1 : 0);
 
   return {
     ordercode: toNullableString(body.ordercode ?? body.orderCode),
@@ -132,10 +163,10 @@ function normalizeOrderPayload(body: Record<string, unknown>): NormalizedOrderPa
     class: toNullableString(body.class),
     money,
     money_VAT: toNullableNumber(body.money_VAT) ?? Number((money * 1.08).toFixed(2)),
-    status: toNullableString(body.status ?? body.trang_thai_thanh_toan) ?? "new",
-    is_gift: toNullableInteger(body.is_gift) ?? 0,
-    update_time: toNullableDate(body.update_time),
-    create_time: toNullableDate(body.create_time ?? body.create_at) ?? new Date(),
+    status,
+    is_gift: isGift,
+    update_time: updateTime,
+    create_time: createTime,
     is_checkin: isCheckin,
     number_checkin: numberCheckin ?? (isCheckin ? 1 : 0),
     checkin_time: normalizedCheckinTime,
@@ -147,331 +178,432 @@ function normalizeOrderPayload(body: Record<string, unknown>): NormalizedOrderPa
     customer_id: buildCustomerId(toNullableString(body.phone), toNullableString(body.customer_id)),
     voucher: toNullableString(body.voucher),
     voucher_status: toNullableString(body.voucher_status),
-    status_checkin: isCheckin ? "đã checkin" : "chưa checkin",
+    status_checkin: isCheckin ? CHECKIN_DONE_STATUS : CHECKIN_PENDING_STATUS,
   };
 }
 
 type ExistsRow = RowDataPacket & { is_exists: number };
+type CustomerLookupRow = RowDataPacket & {
+  id: number;
+  customer_ID: string | null;
+  name: string | null;
+  phone: string | null;
+  class: string | null;
+  gender: string | null;
+  create_by: string | null;
+  create_time: Date | null;
+  branch: string | null;
+};
+type CustomerStatsRow = RowDataPacket & {
+  total_orders: number | null;
+  total_sales: number | null;
+  last_payment: Date | null;
+};
 
-async function orderCodeExistsInOrders(code: string) {
+async function orderCodeExists(orderCode: string, excludeOrderCode?: string | null) {
   const db = getDB();
-  const [rows] = await db.query<ExistsRow[]>("SELECT 1 AS is_exists FROM orders WHERE ordercode = ? LIMIT 1", [code]);
+  const params: unknown[] = [orderCode, TICKET_ORDER_CHANNEL];
+  let sql = `
+    SELECT 1 AS is_exists
+    FROM orders
+    WHERE order_ID = ?
+      AND kenh_ban = ?
+  `;
+
+  if (excludeOrderCode) {
+    sql += " AND order_ID <> ? ";
+    params.push(excludeOrderCode);
+  }
+
+  sql += " LIMIT 1 ";
+
+  const [rows] = await db.query<ExistsRow[]>(sql, params);
   return rows.length > 0;
 }
 
-async function orderCodeExistsInLegacy(code: string) {
-  const db = getDB();
-  const [rows] = await db.query<ExistsRow[]>("SELECT 1 AS is_exists FROM checkin_orders WHERE orderCode = ? LIMIT 1", [
-    code,
-  ]);
-  return rows.length > 0;
-}
-
-async function ensureUniqueOrderCode(preferred?: string | null) {
-  const isTaken = async (code: string) => {
-    try {
-      return await orderCodeExistsInOrders(code);
-    } catch (error) {
-      if (!isMissingTableError(error)) throw error;
-      return orderCodeExistsInLegacy(code);
-    }
-  };
+async function ensureUniqueOrderCode(preferred?: string | null, excludeOrderCode?: string | null) {
+  if (preferred && preferred === excludeOrderCode) {
+    return preferred;
+  }
 
   if (preferred) {
-    const preferredTaken = await isTaken(preferred);
-    if (!preferredTaken) return preferred;
+    const preferredTaken = await orderCodeExists(preferred, excludeOrderCode);
+    if (!preferredTaken) {
+      return preferred;
+    }
   }
 
   for (let index = 0; index < 10; index += 1) {
-    const code = generateTicketCode();
-    const codeTaken = await isTaken(code);
-    if (!codeTaken) return code;
+    const orderCode = generateTicketCode();
+    const orderCodeTaken = await orderCodeExists(orderCode, excludeOrderCode);
+    if (!orderCodeTaken) {
+      return orderCode;
+    }
   }
 
-  throw new Error("Không thể tạo mã đơn hàng");
+  throw new Error("Unable to generate a unique ticket code");
 }
 
-async function insertOrderIntoOrders(ordercode: string, payload: NormalizedOrderPayload) {
+function buildOrderNote(payload: NormalizedOrderPayload) {
+  return buildTicketOrderNote({
+    email: payload.email,
+    gender: payload.gender,
+    career: payload.career,
+    status_checkin: payload.status_checkin,
+    checkin_time: payload.checkin_time?.toISOString() ?? null,
+    is_checkin: payload.is_checkin,
+    is_gift: payload.is_gift,
+    hope: payload.hope,
+    ref: payload.ref,
+    source: payload.source ?? "dashboard",
+    send_noti: payload.send_noti,
+    voucher: payload.voucher,
+    voucher_status: payload.voucher_status,
+  });
+}
+
+function buildCustomerNote(payload: NormalizedOrderPayload) {
+  const lines = [`Source: ${TICKET_ORDER_BRAND}`];
+
+  if (payload.email) {
+    lines.push(`Email: ${payload.email}`);
+  }
+
+  if (payload.career) {
+    lines.push(`Career: ${payload.career}`);
+  }
+
+  if (payload.status_checkin) {
+    lines.push(`Check-in: ${payload.status_checkin}`);
+  }
+
+  if (payload.voucher) {
+    lines.push(`Voucher: ${payload.voucher}`);
+  }
+
+  return lines.join("\n");
+}
+
+async function findExistingCustomer(customerId: string | null, phone: string | null) {
+  if (!customerId && !phone) {
+    return null;
+  }
+
+  const db = getDB();
+  const whereParts: string[] = [];
+  const params: unknown[] = [];
+
+  if (customerId) {
+    whereParts.push("customer_ID = ?");
+    params.push(customerId);
+  }
+
+  if (phone) {
+    whereParts.push("phone = ?");
+    params.push(phone);
+  }
+
+  const [rows] = await db.query<CustomerLookupRow[]>(
+    `
+    SELECT
+      id,
+      customer_ID,
+      name,
+      phone,
+      class,
+      gender,
+      create_by,
+      create_time,
+      branch
+    FROM customer
+    WHERE ${whereParts.join(" OR ")}
+    ORDER BY id DESC
+    LIMIT 1
+    `,
+    params,
+  );
+
+  return rows[0] ?? null;
+}
+
+async function getCustomerOrderStats(customerId: string | null, phone: string | null) {
+  if (!customerId && !phone) {
+    return {
+      totalOrders: 0,
+      totalSales: 0,
+      lastPayment: null as Date | null,
+    };
+  }
+
+  const db = getDB();
+  const params: unknown[] = [TICKET_ORDER_CHANNEL];
+  const scopeParts: string[] = [];
+
+  if (customerId) {
+    scopeParts.push("customer_ID = ?");
+    params.push(customerId);
+  }
+
+  if (phone) {
+    scopeParts.push("phone = ?");
+    params.push(phone);
+  }
+
+  const [rows] = await db.query<CustomerStatsRow[]>(
+    `
+    SELECT
+      COUNT(DISTINCT order_ID) AS total_orders,
+      COALESCE(SUM(thanh_tien), 0) AS total_sales,
+      MAX(create_time) AS last_payment
+    FROM orders
+    WHERE kenh_ban = ?
+      AND (${scopeParts.join(" OR ")})
+    `,
+    params,
+  );
+
+  const row = rows[0];
+
+  return {
+    totalOrders: Number(row.total_orders ?? 0),
+    totalSales: Number(row.total_sales ?? 0),
+    lastPayment: row.last_payment ? new Date(row.last_payment) : null,
+  };
+}
+
+async function syncCustomerFromTicket(payload: NormalizedOrderPayload) {
+  const customerId = payload.customer_id;
+  const phone = payload.phone;
+
+  if (!customerId && !phone) {
+    return;
+  }
+
+  const db = getDB();
+  const existingCustomer = await findExistingCustomer(customerId, phone);
+  const customerStats = await getCustomerOrderStats(customerId, phone);
+  const name = payload.name ?? existingCustomer?.name ?? null;
+  const ticketClass = payload.class ?? existingCustomer?.class ?? null;
+  const gender = payload.gender ?? existingCustomer?.gender ?? null;
+  const createBy = existingCustomer?.create_by ?? "admin_ticket";
+  const createTime = existingCustomer?.create_time ?? payload.create_time;
+  const branch = existingCustomer?.branch ?? TICKET_ORDER_BRAND;
+  const lastPayment = customerStats.lastPayment ?? payload.update_time;
+  const note = buildCustomerNote(payload);
+  const totalSales = customerStats.totalSales;
+
+  if (existingCustomer) {
+    await db.query(
+      `
+      UPDATE customer
+      SET
+        customer_ID = ?,
+        name = ?,
+        phone = ?,
+        class = ?,
+        gender = ?,
+        create_by = ?,
+        last_payment = ?,
+        note = ?,
+        branch = ?,
+        no_hien_tai = ?,
+        tong_ban = ?,
+        tong_ban_tru_tra_hang = ?,
+        create_time = ?,
+        updated_at = ?
+      WHERE id = ?
+      LIMIT 1
+      `,
+      [
+        customerId,
+        name,
+        phone,
+        ticketClass,
+        gender,
+        createBy,
+        lastPayment,
+        note,
+        branch,
+        0,
+        totalSales,
+        totalSales,
+        createTime,
+        payload.update_time,
+        existingCustomer.id,
+      ],
+    );
+
+    return;
+  }
+
+  await db.query(
+    `
+    INSERT INTO customer
+      (
+        customer_ID,
+        name,
+        phone,
+        class,
+        gender,
+        create_by,
+        last_payment,
+        note,
+        branch,
+        no_hien_tai,
+        tong_ban,
+        tong_ban_tru_tra_hang,
+        create_time,
+        created_at,
+        updated_at
+      )
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `,
+    [
+      customerId,
+      name,
+      phone,
+      ticketClass,
+      gender,
+      "admin_ticket",
+      lastPayment,
+      note,
+      TICKET_ORDER_BRAND,
+      0,
+      totalSales,
+      totalSales,
+      payload.create_time,
+      payload.create_time,
+      payload.update_time,
+    ],
+  );
+}
+
+async function insertTicketOrder(orderCode: string, payload: NormalizedOrderPayload) {
   const db = getDB();
 
   await db.query(
     `
     INSERT INTO orders
       (
-        ordercode,
+        order_ID,
+        brand,
         create_time,
-        name,
+        name_customer,
+        customer_ID,
         phone,
-        email,
-        gender,
-        class,
-        money,
-        money_VAT,
+        address,
+        seller,
+        kenh_ban,
+        note,
+        tien_hang,
+        giam_gia,
+        thanh_tien,
         status,
-        is_gift,
-        update_time,
-        is_checkin,
-        number_checkin,
-        checkin_time,
-        career,
-        hope,
-        ref,
-        source,
-        send_noti,
-        customer_id,
-        voucher,
-        voucher_status
+        pro_ID,
+        name_pro,
+        brand_pro,
+        quantity,
+        created_at,
+        updated_at
       )
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `,
     [
-      ordercode,
+      orderCode,
+      TICKET_ORDER_BRAND,
       payload.create_time,
       payload.name,
-      payload.phone,
-      payload.email,
-      payload.gender,
-      payload.class,
-      payload.money,
-      payload.money_VAT,
-      payload.status,
-      payload.is_gift,
-      payload.update_time,
-      payload.is_checkin,
-      payload.number_checkin,
-      payload.checkin_time,
-      payload.career,
-      payload.hope,
-      payload.ref,
-      payload.source,
-      payload.send_noti,
       payload.customer_id,
-      payload.voucher,
-      payload.voucher_status,
+      payload.phone,
+      null,
+      null,
+      TICKET_ORDER_CHANNEL,
+      buildOrderNote(payload),
+      Math.round(payload.money),
+      0,
+      Math.round(payload.money_VAT),
+      payload.status,
+      TICKET_PRODUCT_ID,
+      TICKET_PRODUCT_NAME,
+      payload.class,
+      1,
+      payload.create_time,
+      payload.update_time,
     ],
   );
 }
 
-async function insertOrderIntoLegacy(ordercode: string, payload: NormalizedOrderPayload) {
+async function updateTicketOrder(originalOrderCode: string, payload: NormalizedOrderPayload) {
   const db = getDB();
-
-  try {
-    await db.query(
-      `
-      INSERT INTO checkin_orders
-        (
-          orderCode,
-          name,
-          phone,
-          email,
-          class,
-          money,
-          money_VAT,
-          trang_thai_thanh_toan,
-          update_time,
-          create_at,
-          gender,
-          career,
-          status_checkin,
-          date_checkin,
-          number_checkin
-        )
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-      `,
-      [
-        ordercode,
-        payload.name,
-        payload.phone,
-        payload.email,
-        payload.class,
-        payload.money,
-        payload.money_VAT,
-        payload.status,
-        payload.update_time,
-        payload.create_time,
-        payload.gender,
-        payload.career,
-        payload.status_checkin,
-        payload.checkin_time,
-        payload.number_checkin,
-      ],
-    );
-  } catch (error) {
-    const message = String(error);
-    if (!(message.includes("number_checkin") || message.includes("Unknown column"))) {
-      throw error;
-    }
-
-    await db.query(
-      `
-      INSERT INTO checkin_orders
-        (
-          orderCode,
-          name,
-          phone,
-          email,
-          class,
-          money,
-          money_VAT,
-          trang_thai_thanh_toan,
-          update_time,
-          create_at,
-          gender,
-          career,
-          status_checkin,
-          date_checkin
-        )
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-      `,
-      [
-        ordercode,
-        payload.name,
-        payload.phone,
-        payload.email,
-        payload.class,
-        payload.money,
-        payload.money_VAT,
-        payload.status,
-        payload.update_time,
-        payload.create_time,
-        payload.gender,
-        payload.career,
-        payload.status_checkin,
-        payload.checkin_time,
-      ],
-    );
-  }
-}
-
-async function updateOrderInOrders(originalOrderCode: string, payload: NormalizedOrderPayload) {
-  const db = getDB();
-  const nextOrderCode = payload.ordercode ?? originalOrderCode;
+  const nextOrderCode = await ensureUniqueOrderCode(payload.ordercode ?? originalOrderCode, originalOrderCode);
 
   await db.query(
     `
     UPDATE orders
     SET
-      ordercode = ?,
+      order_ID = ?,
+      brand = ?,
       create_time = ?,
-      name = ?,
+      name_customer = ?,
+      customer_ID = ?,
       phone = ?,
-      email = ?,
-      gender = ?,
-      class = ?,
-      money = ?,
-      money_VAT = ?,
+      address = ?,
+      seller = ?,
+      kenh_ban = ?,
+      note = ?,
+      tien_hang = ?,
+      giam_gia = ?,
+      thanh_tien = ?,
       status = ?,
-      is_gift = ?,
-      update_time = ?,
-      is_checkin = ?,
-      number_checkin = ?,
-      checkin_time = ?,
-      career = ?,
-      hope = ?,
-      ref = ?,
-      source = ?,
-      send_noti = ?,
-      customer_id = ?,
-      voucher = ?,
-      voucher_status = ?
-    WHERE ordercode = ?
+      pro_ID = ?,
+      name_pro = ?,
+      brand_pro = ?,
+      quantity = ?,
+      updated_at = ?
+    WHERE order_ID = ?
+      AND kenh_ban = ?
     LIMIT 1
     `,
     [
       nextOrderCode,
+      TICKET_ORDER_BRAND,
       payload.create_time,
       payload.name,
-      payload.phone,
-      payload.email,
-      payload.gender,
-      payload.class,
-      payload.money,
-      payload.money_VAT,
-      payload.status,
-      payload.is_gift,
-      payload.update_time,
-      payload.is_checkin,
-      payload.number_checkin,
-      payload.checkin_time,
-      payload.career,
-      payload.hope,
-      payload.ref,
-      payload.source,
-      payload.send_noti,
       payload.customer_id,
-      payload.voucher,
-      payload.voucher_status,
-      originalOrderCode,
-    ],
-  );
-
-  return nextOrderCode;
-}
-
-async function updateOrderInLegacy(originalOrderCode: string, payload: NormalizedOrderPayload) {
-  const db = getDB();
-  const nextOrderCode = payload.ordercode ?? originalOrderCode;
-
-  await db.query(
-    `
-    UPDATE checkin_orders
-    SET
-      orderCode = ?,
-      name = ?,
-      phone = ?,
-      email = ?,
-      class = ?,
-      money = ?,
-      money_VAT = ?,
-      trang_thai_thanh_toan = ?,
-      update_time = ?,
-      create_at = ?,
-      gender = ?,
-      career = ?,
-      status_checkin = ?,
-      date_checkin = ?
-    WHERE orderCode = ?
-    LIMIT 1
-    `,
-    [
-      nextOrderCode,
-      payload.name,
       payload.phone,
-      payload.email,
-      payload.class,
-      payload.money,
-      payload.money_VAT,
+      null,
+      null,
+      TICKET_ORDER_CHANNEL,
+      buildOrderNote(payload),
+      Math.round(payload.money),
+      0,
+      Math.round(payload.money_VAT),
       payload.status,
+      TICKET_PRODUCT_ID,
+      TICKET_PRODUCT_NAME,
+      payload.class,
+      1,
       payload.update_time,
-      payload.create_time,
-      payload.gender,
-      payload.career,
-      payload.status_checkin,
-      payload.checkin_time,
       originalOrderCode,
+      TICKET_ORDER_CHANNEL,
     ],
   );
 
   return nextOrderCode;
 }
 
-async function deleteOrdersFromOrders(orderCodes: string[]) {
+async function deleteTicketOrders(orderCodes: string[]) {
   const db = getDB();
   const placeholders = orderCodes.map(() => "?").join(", ");
   const [result] = await db.query<ResultSetHeader>(
-    `DELETE FROM orders WHERE ordercode IN (${placeholders})`,
-    orderCodes,
+    `
+    DELETE FROM orders
+    WHERE kenh_ban = ?
+      AND order_ID IN (${placeholders})
+    `,
+    [TICKET_ORDER_CHANNEL, ...orderCodes],
   );
-  return result.affectedRows;
-}
 
-async function deleteOrdersFromLegacy(orderCodes: string[]) {
-  const db = getDB();
-  const placeholders = orderCodes.map(() => "?").join(", ");
-  const [result] = await db.query<ResultSetHeader>(
-    `DELETE FROM checkin_orders WHERE orderCode IN (${placeholders})`,
-    orderCodes,
-  );
   return result.affectedRows;
 }
 
@@ -488,16 +620,12 @@ export async function POST(req: Request) {
     const orderCodes: string[] = [];
 
     for (let index = 0; index < quantity; index += 1) {
-      const ordercode = await ensureUniqueOrderCode(payload.ordercode);
-      orderCodes.push(ordercode);
-
-      try {
-        await insertOrderIntoOrders(ordercode, payload);
-      } catch (error) {
-        if (!isMissingTableError(error)) throw error;
-        await insertOrderIntoLegacy(ordercode, payload);
-      }
+      const orderCode = await ensureUniqueOrderCode(payload.ordercode);
+      orderCodes.push(orderCode);
+      await insertTicketOrder(orderCode, payload);
     }
+
+    await syncCustomerFromTicket(payload);
 
     return NextResponse.json({ ok: true, orderCodes });
   } catch (error) {
@@ -511,18 +639,12 @@ export async function PUT(req: Request) {
     const originalOrderCode = toNullableString(body.originalOrderCode ?? body.original_ordercode);
 
     if (!originalOrderCode) {
-      return NextResponse.json({ error: "Thiếu mã đơn hàng gốc" }, { status: 400 });
+      return NextResponse.json({ error: "Missing original order code" }, { status: 400 });
     }
 
     const payload = normalizeOrderPayload(body);
-
-    let ordercode: string;
-    try {
-      ordercode = await updateOrderInOrders(originalOrderCode, payload);
-    } catch (error) {
-      if (!isMissingTableError(error)) throw error;
-      ordercode = await updateOrderInLegacy(originalOrderCode, payload);
-    }
+    const ordercode = await updateTicketOrder(originalOrderCode, payload);
+    await syncCustomerFromTicket(payload);
 
     return NextResponse.json({ ok: true, ordercode });
   } catch (error) {
@@ -539,17 +661,10 @@ export async function DELETE(req: Request) {
       .filter((value): value is string => Boolean(value));
 
     if (!orderCodes.length) {
-      return NextResponse.json({ error: "Không có bản ghi để xóa" }, { status: 400 });
+      return NextResponse.json({ error: "No order records selected for deletion" }, { status: 400 });
     }
 
-    let deleted: number;
-    try {
-      deleted = await deleteOrdersFromOrders(orderCodes);
-    } catch (error) {
-      if (!isMissingTableError(error)) throw error;
-      deleted = await deleteOrdersFromLegacy(orderCodes);
-    }
-
+    const deleted = await deleteTicketOrders(orderCodes);
     return NextResponse.json({ ok: true, deleted });
   } catch (error) {
     return NextResponse.json({ error: toErrorMessage(error) }, { status: 500 });

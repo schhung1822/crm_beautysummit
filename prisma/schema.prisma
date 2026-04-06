@@ -179,9 +179,11 @@ model user {
   user_id     String?   @db.Text
   user        String?   @unique @db.VarChar(255)
   email       String?   @unique @db.VarChar(255)
+  zid         String?   @unique @db.VarChar(255)
   phone       String?   @db.Text
-  password    String    @db.Text
+  password    String?   @db.Text
   name        String?   @db.Text
+  avatar      String?   @db.Text
   role        String?   @default("user") @db.VarChar(50)
   status      String?   @db.Text
   last_login  DateTime? @db.DateTime(0)

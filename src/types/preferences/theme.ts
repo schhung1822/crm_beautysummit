@@ -17,7 +17,7 @@ export type ThemeMode = (typeof THEME_MODE_VALUES)[number];
 
 export const THEME_PRESET_OPTIONS = [
   {
-    label: "Mặc định",
+    label: "Default",
     value: "default",
     primary: {
       light: "oklch(0.205 0 0)",
@@ -25,15 +25,15 @@ export const THEME_PRESET_OPTIONS = [
     },
   },
   {
-    label: "Hiện đại",
+    label: "Brutalist",
     value: "brutalist",
     primary: {
-      light: "oklch(0.6489 0.2370 26.9728)",
+      light: "oklch(0.6489 0.237 26.9728)",
       dark: "oklch(0.7044 0.1872 23.1858)",
     },
   },
   {
-    label: "Nổi bật",
+    label: "Soft Pop",
     value: "soft-pop",
     primary: {
       light: "oklch(0.5106 0.2301 276.9656)",
@@ -41,7 +41,7 @@ export const THEME_PRESET_OPTIONS = [
     },
   },
   {
-    label: "Năng lượng",
+    label: "Tangerine",
     value: "tangerine",
     primary: {
       light: "oklch(0.64 0.17 36.44)",

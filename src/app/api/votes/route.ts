@@ -68,7 +68,7 @@ export async function PUT(req: Request) {
     };
 
     if (!original.ordercode || !original.phone || !original.brand_id) {
-      return NextResponse.json({ error: "Thiáº¿u khÃ³a Ä‘á»‹nh danh báº£n ghi vote" }, { status: 400 });
+      return NextResponse.json({ error: "Thieu khoa dinh danh ban ghi vote" }, { status: 400 });
     }
 
     const payload = {
@@ -133,7 +133,7 @@ export async function DELETE(req: Request) {
       .filter((record: VoteRecordKey | null): record is VoteRecordKey => Boolean(record));
 
     if (!records.length) {
-      return NextResponse.json({ error: "KhÃ´ng cÃ³ báº£n ghi Ä‘á»ƒ xÃ³a" }, { status: 400 });
+      return NextResponse.json({ error: "Khong co ban ghi de xoa" }, { status: 400 });
     }
 
     const db = getDB();

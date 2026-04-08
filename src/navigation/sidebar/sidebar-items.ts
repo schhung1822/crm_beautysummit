@@ -1,19 +1,18 @@
 import {
-  Users,
-  SquareArrowUpRight,
-  LayoutDashboard,
-  ChartBar,
   Banknote,
+  Bell,
+  Calendar1Icon,
+  ChartBar,
   Gauge,
+  LayoutDashboard,
+  PackageIcon,
   type LucideIcon,
-  TrendingUp,
   Scale,
   ShoppingBagIcon,
-  PackageIcon,
-  Calendar1Icon,
+  SquareArrowUpRight,
   User,
   UserCog,
-  Bell,
+  Users,
 } from "lucide-react";
 
 export interface NavSubItem {
@@ -47,7 +46,7 @@ export const sidebarItems: NavGroup[] = [
     label: "Dashboards",
     items: [
       {
-        title: "Tổng quan",
+        title: "Tong quan",
         url: "/dashboard/default",
         icon: LayoutDashboard,
       },
@@ -57,13 +56,13 @@ export const sidebarItems: NavGroup[] = [
         icon: ChartBar,
       },
       {
-        title: "Tài chính",
+        title: "Tai chinh",
         url: "/dashboard/finance",
         icon: Banknote,
         comingSoon: true,
       },
       {
-        title: "Phân tích",
+        title: "Phan tich",
         url: "/dashboard/coming-soon",
         icon: Gauge,
         comingSoon: true,
@@ -72,20 +71,25 @@ export const sidebarItems: NavGroup[] = [
   },
   {
     id: 2,
-    label: "Quản lý",
+    label: "Quan ly",
     items: [
       {
-        title: "Đơn hàng",
+        title: "Don hang",
         url: "/orders",
         icon: ShoppingBagIcon,
       },
       {
-        title: "Bình chọn",
+        title: "Binh chon",
         url: "/votes",
         icon: Calendar1Icon,
       },
       {
-        title: "Khách hàng",
+        title: "Le tan check-in",
+        url: "/staff-checkin",
+        icon: PackageIcon,
+      },
+      {
+        title: "Khach hang",
         url: "/customers",
         icon: Users,
         comingSoon: true,
@@ -97,32 +101,32 @@ export const sidebarItems: NavGroup[] = [
         comingSoon: true,
       },
       {
-        title: "Thông báo",
+        title: "Thong bao",
         url: "#",
         icon: Bell,
         subItems: [
-          { title: "Cập nhật", url: "/noti/update-notifications" },
-          { title: "Dịch vụ", url: "/noti/service-notifications" },
+          { title: "Cap nhat", url: "/noti/update-notifications" },
+          { title: "Dich vu", url: "/noti/service-notifications" },
         ],
       },
     ],
   },
   {
     id: 3,
-    label: "Khác",
+    label: "Khac",
     items: [
       {
-        title: "Tài khoản",
+        title: "Tai khoan",
         url: "/account",
         icon: UserCog,
       },
       {
-        title: "Quy tắc",
+        title: "Quy tac",
         url: "/rules",
         icon: Scale,
       },
       {
-        title: "Khác",
+        title: "Khac",
         url: "/other",
         icon: SquareArrowUpRight,
       },

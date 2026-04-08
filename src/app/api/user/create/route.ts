@@ -6,11 +6,11 @@ import { prisma } from "@/lib/prisma";
 
 function ensureCreateUserPermission(currentUser: Awaited<ReturnType<typeof getCurrentUser>>) {
   if (!currentUser) {
-    return NextResponse.json({ message: "ChÆ°a Ä‘Äƒng nháº­p" }, { status: 401 });
+    return NextResponse.json({ message: "Chua dang nhap" }, { status: 401 });
   }
 
   if (currentUser.role !== "admin") {
-    return NextResponse.json({ message: "Báº¡n khÃ´ng cÃ³ quyá»n táº¡o tÃ i khoáº£n" }, { status: 403 });
+    return NextResponse.json({ message: "Ban khong co quyen tao tai khoan" }, { status: 403 });
   }
 
   return null;
@@ -36,10 +36,7 @@ export async function POST(request: NextRequest) {
     const normalizedPhone = toDatabasePhone(phone);
 
     if (!username || !email || !password) {
-      return NextResponse.json(
-        { message: "Vui lÃ²ng nháº­p Ä‘áº§y Ä‘á»§ username, email vÃ  máº­t kháº©u" },
-        { status: 400 },
-      );
+      return NextResponse.json({ message: "Vui long nhap day du username, email va mat khau" }, { status: 400 });
     }
 
     const existingUser = await prisma.user.findFirst({
@@ -49,7 +46,7 @@ export async function POST(request: NextRequest) {
     });
 
     if (existingUser) {
-      return NextResponse.json({ message: "Username hoáº·c email Ä‘Ã£ tá»“n táº¡i" }, { status: 400 });
+      return NextResponse.json({ message: "Username hoac email da ton tai" }, { status: 400 });
     }
 
     const hashedPassword = await hashPassword(password);
@@ -70,7 +67,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json(
       {
-        message: "Táº¡o tÃ i khoáº£n thÃ nh cÃ´ng",
+        message: "Tao tai khoan thanh cong",
         user: {
           id: newUser.id,
           username: newUser.user,
@@ -84,6 +81,6 @@ export async function POST(request: NextRequest) {
   } catch (error: unknown) {
     console.error("Create user error:", error);
     const message = error instanceof Error ? error.message : "Unknown error";
-    return NextResponse.json({ message: "CÃ³ lá»—i xáº£y ra khi táº¡o tÃ i khoáº£n", error: message }, { status: 500 });
+    return NextResponse.json({ message: "Co loi xay ra khi tao tai khoan", error: message }, { status: 500 });
   }
 }

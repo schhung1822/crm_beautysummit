@@ -46,6 +46,8 @@ type UserAccessRow = RowDataPacket & {
   id: number;
 };
 
+const DEFAULT_ZALO_SDK_NAME = "User Name";
+
 const normalizedPhoneSql =
   "REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(COALESCE(phone, ''), ' ', ''), '-', ''), '.', ''), '+', ''), '(', ''), ')', '')";
 
@@ -61,6 +63,15 @@ function normalizeTicketCode(value: unknown): string {
   return String(value ?? "")
     .trim()
     .toUpperCase();
+}
+
+function normalizeMiniAppName(value: unknown): string {
+  const normalizedValue = String(value ?? "").trim();
+  if (!normalizedValue || normalizedValue === DEFAULT_ZALO_SDK_NAME) {
+    return "";
+  }
+
+  return normalizedValue;
 }
 
 function buildCustomerId(phone: string): string {
@@ -289,7 +300,7 @@ export async function POST(request: NextRequest) {
       .toLowerCase();
     const phone = toDatabasePhone(body.phone) ?? "";
     const zid = String(body.id ?? "").trim();
-    const name = String(body.name ?? "").trim();
+    const name = normalizeMiniAppName(body.name);
     const avatar = String(body.avatar ?? "").trim();
 
     if (!phone || !zid) {

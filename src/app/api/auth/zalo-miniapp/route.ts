@@ -12,6 +12,16 @@ interface ZaloMiniAppPayload {
   avatar?: string;
 }
 
+const DEFAULT_ZALO_SDK_NAME = "User Name";
+const normalizeMiniAppName = (value?: string): string | undefined => {
+  const normalizedValue = value?.trim() ?? "";
+  if (!normalizedValue || normalizedValue === DEFAULT_ZALO_SDK_NAME) {
+    return undefined;
+  }
+
+  return normalizedValue;
+};
+
 const jsonWithCors = (request: NextRequest, body: unknown, init?: ResponseInit): NextResponse => {
   return applyCorsHeaders(request, NextResponse.json(body, init), ["POST", "OPTIONS"]);
 };
@@ -30,8 +40,7 @@ export async function POST(request: NextRequest) {
     const zid = body.id?.trim();
     const phone = toDatabasePhone(body.phone);
     const avatar = body.avatar?.trim();
-    const nameValue = body.name?.trim() ?? undefined;
-    const name = nameValue === "" ? undefined : nameValue;
+    const name = normalizeMiniAppName(body.name);
 
     if (!zid || !phone || !avatar) {
       return jsonWithCors(request, { message: "id, phone va avatar la bat buoc" }, { status: 400 });

@@ -31,7 +31,7 @@ async function main() {
         password: hashedPassword,
         name: "Administrator",
         role: "admin",
-        phone: "0123456789",
+        phone: "84123456789",
         status: "active",
       },
     });

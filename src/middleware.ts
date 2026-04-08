@@ -4,7 +4,13 @@ import { verifyToken } from "@/lib/auth";
 import { applyCorsHeaders, buildCorsHeaders } from "@/lib/cors";
 
 // Routes that don't require authentication
-const PUBLIC_ROUTES = ["/auth/v2/login", "/api/auth/login", "/api/auth/zalo-miniapp"];
+const PUBLIC_ROUTES = [
+  "/auth/v2/login",
+  "/api/auth/login",
+  "/api/auth/zalo-miniapp",
+  "/api/miniapp/tickets",
+  "/api/tickets",
+];
 
 // Routes that should redirect to home if authenticated
 const AUTH_ROUTES = ["/auth/v2/login"];

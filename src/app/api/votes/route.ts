@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import type { ResultSetHeader } from "mysql2";
 
 import { getDB } from "@/lib/db";
+import { toDatabasePhone } from "@/lib/phone";
 
 function toNullableString(value: unknown) {
   const v = typeof value === "string" ? value.trim() : value == null ? "" : String(value).trim();
@@ -28,7 +29,7 @@ function toVoteRecordKey(value: unknown): VoteRecordKey | null {
 
   const record = value as Record<string, unknown>;
   const ordercode = toNullableString(record.ordercode);
-  const phone = toNullableString(record.phone);
+  const phone = toDatabasePhone(record.phone);
   const brand_id = toNullableString(record.brand_id);
   const time_vote = toNullableDate(record.time_vote);
 
@@ -61,7 +62,7 @@ export async function PUT(req: Request) {
 
     const original = {
       ordercode: toNullableString(body.original?.ordercode),
-      phone: toNullableString(body.original?.phone),
+      phone: toDatabasePhone(body.original?.phone),
       brand_id: toNullableString(body.original?.brand_id),
       time_vote: toNullableDate(body.original?.time_vote),
     };
@@ -73,7 +74,7 @@ export async function PUT(req: Request) {
     const payload = {
       ordercode: toNullableString(body.ordercode),
       name: toNullableString(body.name),
-      phone: toNullableString(body.phone),
+      phone: toDatabasePhone(body.phone),
       email: toNullableString(body.email),
       gender: toNullableString(body.gender),
       brand_id: toNullableString(body.brand_id),

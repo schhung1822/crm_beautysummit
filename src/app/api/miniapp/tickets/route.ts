@@ -5,6 +5,7 @@ import type { RowDataPacket } from "mysql2/promise";
 
 import { applyCorsHeaders, buildCorsHeaders } from "@/lib/cors";
 import { getDB } from "@/lib/db";
+import { buildPhoneVariants, normalizePhoneDigits, toDatabasePhone, toDisplayPhone } from "@/lib/phone";
 import {
   buildTicketOrderNote,
   CHECKIN_DONE_STATUS,
@@ -53,7 +54,7 @@ function jsonWithCors(request: NextRequest, body: unknown, init?: ResponseInit):
 }
 
 function normalizeDigits(value: unknown): string {
-  return String(value ?? "").replace(/\D/g, "");
+  return normalizePhoneDigits(value);
 }
 
 function normalizeTicketCode(value: unknown): string {
@@ -74,25 +75,6 @@ function buildCustomerNote(value: { zid: string; avatar: string; ticketCode: str
     `Avatar: ${value.avatar}`,
     `Ticket: ${value.ticketCode}`,
   ].join("\n");
-}
-
-function buildPhoneVariants(phone: string): string[] {
-  const digits = normalizeDigits(phone);
-  const variants = new Set<string>();
-
-  if (digits) {
-    variants.add(digits);
-  }
-
-  if (digits.startsWith("84") && digits.length >= 10) {
-    variants.add(`0${digits.slice(2)}`);
-  }
-
-  if (digits.startsWith("0") && digits.length >= 10) {
-    variants.add(`84${digits.slice(1)}`);
-  }
-
-  return Array.from(variants).filter(Boolean);
 }
 
 async function hasMiniAppUserAccess(zid: string, phone: string): Promise<boolean> {
@@ -133,7 +115,7 @@ function mapTicketRow(row: TicketOrderRow) {
   return {
     code: String(row.ordercode ?? "").trim(),
     name: String(row.name ?? ""),
-    phone: String(row.phone ?? ""),
+    phone: toDisplayPhone(row.phone),
     ticketClass: String(row.ticketClass ?? ""),
     status: checkedIn ? "checked_in" : "pending",
     statusLabel: checkedIn ? "Đã check-in" : "Chưa check-in",
@@ -190,15 +172,17 @@ async function syncCustomerFromMiniAppTicket(value: {
   const db = getDB();
   const now = new Date();
   const customerId = buildCustomerId(value.phone);
+  const phoneVariants = buildPhoneVariants(value.phone);
+  const phoneSql = phoneVariants.length > 0 ? ` OR phone IN (${phoneVariants.map(() => "?").join(", ")})` : "";
   const [rows] = await db.query<CustomerRow[]>(
     `
     SELECT id, name, phone, class, create_time
     FROM customer
-    WHERE customer_ID = ? OR phone = ?
+    WHERE customer_ID = ?${phoneSql}
     ORDER BY id DESC
     LIMIT 1
     `,
-    [customerId, value.phone],
+    [customerId, ...phoneVariants],
   );
   const existingCustomer = rows.length > 0 ? rows[0] : null;
   const note = buildCustomerNote({
@@ -303,7 +287,7 @@ export async function POST(request: NextRequest) {
     const action = String(body.action ?? (body.code ? "claim" : "list"))
       .trim()
       .toLowerCase();
-    const phone = normalizeDigits(body.phone);
+    const phone = toDatabasePhone(body.phone) ?? "";
     const zid = String(body.id ?? "").trim();
     const name = String(body.name ?? "").trim();
     const avatar = String(body.avatar ?? "").trim();

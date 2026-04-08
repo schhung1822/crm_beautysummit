@@ -3,6 +3,7 @@ import { RowDataPacket } from "mysql2/promise";
 
 import { channelSchema, type Channel } from "@/app/(main)/orders/_components/schema";
 import { getDB } from "@/lib/db";
+import { buildPhoneVariants, toDisplayPhone } from "@/lib/phone";
 import { CHECKIN_PENDING_STATUS, parseTicketOrderNote, TICKET_ORDER_CHANNEL } from "@/lib/ticket-orders";
 
 type Paging = { page?: number; pageSize?: number | "all" | -1 };
@@ -25,7 +26,7 @@ function mapRowToChannel(row: Record<string, unknown>): Channel {
   return channelSchema.parse({
     ordercode: parseString(row.ordercode),
     name: parseString(row.name),
-    phone: parseString(row.phone),
+    phone: toDisplayPhone(row.phone),
     email: meta.email ?? "",
     class: parseString(row.class),
     money: parseNumber(row.money),
@@ -58,6 +59,9 @@ export async function getOrdersByCustomer(
   const offset = pageSize ? (page - 1) * pageSize : 0;
   const limitSql = pageSize ? " LIMIT ? OFFSET ? " : "";
   const limitParams = pageSize ? [pageSize, offset] : [];
+  const phoneVariants = buildPhoneVariants(customerKey);
+  const phoneSql = phoneVariants.length > 0 ? ` OR phone IN (${phoneVariants.map(() => "?").join(", ")})` : "";
+  const phoneParams = phoneVariants.length > 0 ? phoneVariants : [];
 
   const [rows] = await db.query<RowDataPacket[]>(
     `
@@ -74,11 +78,11 @@ export async function getOrdersByCustomer(
       note
     FROM orders
     WHERE kenh_ban = ?
-      AND (customer_ID = ? OR phone = ?)
+      AND (customer_ID = ?${phoneSql})
     ORDER BY create_time DESC
     ${limitSql}
     `,
-    [TICKET_ORDER_CHANNEL, customerKey, customerKey, ...limitParams],
+    [TICKET_ORDER_CHANNEL, customerKey, ...phoneParams, ...limitParams],
   );
 
   const [countRows] = await db.query<RowDataPacket[]>(
@@ -86,9 +90,9 @@ export async function getOrdersByCustomer(
     SELECT COUNT(*) AS total
     FROM orders
     WHERE kenh_ban = ?
-      AND (customer_ID = ? OR phone = ?)
+      AND (customer_ID = ?${phoneSql})
     `,
-    [TICKET_ORDER_CHANNEL, customerKey, customerKey],
+    [TICKET_ORDER_CHANNEL, customerKey, ...phoneParams],
   );
 
   return {

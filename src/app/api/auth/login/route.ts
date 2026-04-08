@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 
 import { verifyPassword, createToken, setAuthCookie } from "@/lib/auth";
+import { toDisplayPhone } from "@/lib/phone";
 import { prisma } from "@/lib/prisma";
 
 // eslint-disable-next-line complexity
@@ -63,7 +64,7 @@ export async function POST(request: NextRequest) {
           zid: userRecord.zid,
           name: userRecord.name,
           role: userRecord.role,
-          phone: userRecord.phone,
+          phone: userRecord.phone ? toDisplayPhone(userRecord.phone) : null,
           avatar: userRecord.avatar,
         },
       },

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 
 import { createToken, setAuthCookie } from "@/lib/auth";
 import { applyCorsHeaders, buildCorsHeaders } from "@/lib/cors";
+import { toDatabasePhone } from "@/lib/phone";
 import { prisma } from "@/lib/prisma";
 
 interface ZaloMiniAppPayload {
@@ -27,7 +28,7 @@ export async function POST(request: NextRequest) {
   try {
     const body = (await request.json()) as ZaloMiniAppPayload;
     const zid = body.id?.trim();
-    const phone = body.phone?.trim();
+    const phone = toDatabasePhone(body.phone);
     const avatar = body.avatar?.trim();
     const nameValue = body.name?.trim() ?? undefined;
     const name = nameValue === "" ? undefined : nameValue;

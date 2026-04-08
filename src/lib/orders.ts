@@ -2,6 +2,7 @@ import { RowDataPacket } from "mysql2/promise";
 
 import { channelSchema, Channel } from "@/app/(main)/orders/_components/schema";
 import { getDB } from "@/lib/db";
+import { toDisplayPhone } from "@/lib/phone";
 import { CHECKIN_PENDING_STATUS, parseTicketOrderNote, TICKET_ORDER_CHANNEL } from "@/lib/ticket-orders";
 
 export interface GetChannelsOptions {
@@ -29,7 +30,7 @@ function mapRowToChannel(row: Record<string, unknown>): Channel {
   return channelSchema.parse({
     ordercode: parseString(row.ordercode),
     name: parseString(row.name),
-    phone: parseString(row.phone),
+    phone: toDisplayPhone(row.phone),
     email: meta.email ?? "",
     class: parseString(row.class),
     money: parseNumber(row.money),

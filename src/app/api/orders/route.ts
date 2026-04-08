@@ -4,6 +4,7 @@ import { NextResponse } from "next/server";
 import type { ResultSetHeader, RowDataPacket } from "mysql2";
 
 import { getDB } from "@/lib/db";
+import { buildPhoneVariants, normalizePhoneDigits, toDatabasePhone } from "@/lib/phone";
 import {
   buildTicketOrderNote,
   CHECKIN_DONE_STATUS,
@@ -130,7 +131,7 @@ function buildCustomerId(phone: string | null, provided?: string | null) {
     return provided;
   }
 
-  const digits = String(phone ?? "").replace(/\D/g, "");
+  const digits = normalizePhoneDigits(phone);
   return digits ? `KH${digits}` : null;
 }
 
@@ -157,7 +158,7 @@ function normalizeOrderPayload(body: Record<string, unknown>): NormalizedOrderPa
   return {
     ordercode: toNullableString(body.ordercode ?? body.orderCode),
     name: toNullableString(body.name),
-    phone: toNullableString(body.phone),
+    phone: toDatabasePhone(body.phone),
     email: toNullableString(body.email),
     gender: toNullableString(body.gender),
     class: toNullableString(body.class),
@@ -175,7 +176,7 @@ function normalizeOrderPayload(body: Record<string, unknown>): NormalizedOrderPa
     ref: toNullableString(body.ref),
     source: toNullableString(body.source),
     send_noti: toNullableInteger(body.send_noti) ?? 0,
-    customer_id: buildCustomerId(toNullableString(body.phone), toNullableString(body.customer_id)),
+    customer_id: buildCustomerId(toDatabasePhone(body.phone), toNullableString(body.customer_id)),
     voucher: toNullableString(body.voucher),
     voucher_status: toNullableString(body.voucher_status),
     status_checkin: isCheckin ? CHECKIN_DONE_STATUS : CHECKIN_PENDING_STATUS,
@@ -299,8 +300,12 @@ async function findExistingCustomer(customerId: string | null, phone: string | n
   }
 
   if (phone) {
-    whereParts.push("phone = ?");
-    params.push(phone);
+    const phoneVariants = buildPhoneVariants(phone);
+    if (phoneVariants.length > 0) {
+      const placeholders = phoneVariants.map(() => "?").join(", ");
+      whereParts.push(`phone IN (${placeholders})`);
+      params.push(...phoneVariants);
+    }
   }
 
   const [rows] = await db.query<CustomerLookupRow[]>(
@@ -345,8 +350,12 @@ async function getCustomerOrderStats(customerId: string | null, phone: string | 
   }
 
   if (phone) {
-    scopeParts.push("phone = ?");
-    params.push(phone);
+    const phoneVariants = buildPhoneVariants(phone);
+    if (phoneVariants.length > 0) {
+      const placeholders = phoneVariants.map(() => "?").join(", ");
+      scopeParts.push(`phone IN (${placeholders})`);
+      params.push(...phoneVariants);
+    }
   }
 
   const [rows] = await db.query<CustomerStatsRow[]>(

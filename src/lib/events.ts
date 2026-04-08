@@ -2,6 +2,7 @@ import type { RowDataPacket } from "mysql2";
 
 import { academySchema, Academy } from "@/app/(main)/votes/_components/schema";
 import { getDB } from "@/lib/db";
+import { toDisplayPhone } from "@/lib/phone";
 
 type AcademyRow = RowDataPacket & {
   ordercode: string | null;
@@ -17,6 +18,36 @@ type AcademyRow = RowDataPacket & {
   voted: string | null;
   link: string | null;
 };
+
+function parseString(value: unknown): string {
+  return String(value ?? "");
+}
+
+function parseDate(value: unknown): Date | null {
+  if (!value) {
+    return null;
+  }
+
+  const parsed = value instanceof Date ? value : new Date(String(value));
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
+}
+
+function mapAcademyRow(row: AcademyRow): Academy {
+  return academySchema.parse({
+    ordercode: parseString(row.ordercode),
+    name: parseString(row.name),
+    phone: toDisplayPhone(row.phone),
+    email: parseString(row.email),
+    gender: parseString(row.gender),
+    time_vote: parseDate(row.time_vote),
+    brand_id: parseString(row.brand_id),
+    brand_name: parseString(row.brand_name),
+    category: parseString(row.category),
+    product: parseString(row.product),
+    voted: parseString(row.voted),
+    link: parseString(row.link),
+  });
+}
 
 export async function getAcademy(): Promise<Academy[]> {
   const db = getDB();
@@ -39,20 +70,5 @@ export async function getAcademy(): Promise<Academy[]> {
     LEFT JOIN brand b ON b.brand_id = v.brand_id
   `);
 
-  return rows.map((r) =>
-    academySchema.parse({
-      ordercode: String(r.ordercode ?? ""),
-      name: String(r.name ?? ""),
-      phone: String(r.phone ?? ""),
-      email: String(r.email ?? ""),
-      gender: String(r.gender ?? ""),
-      time_vote: r.time_vote ? new Date(r.time_vote) : null,
-      brand_id: String(r.brand_id ?? ""),
-      brand_name: String(r.brand_name ?? ""),
-      category: String(r.category ?? ""),
-      product: String(r.product ?? ""),
-      voted: String(r.voted ?? ""),
-      link: String(r.link ?? ""),
-    }),
-  );
+  return rows.map((row) => mapAcademyRow(row));
 }

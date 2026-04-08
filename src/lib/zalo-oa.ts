@@ -2,6 +2,7 @@ import type { RowDataPacket } from "mysql2";
 
 import { userOASchema, UsersOA } from "@/app/(main)/zalo-oa/_components/schema";
 import { getDB } from "@/lib/db";
+import { toDisplayPhone } from "@/lib/phone";
 
 type UserOARow = RowDataPacket & {
   user_id: string | number | null;
@@ -39,7 +40,7 @@ export async function getUserOA(): Promise<UsersOA[]> {
       follower: String(r.follower ?? ""),
       is_sensitive: String(r.is_sensitive ?? ""),
       avatar: String(r.avatar ?? ""),
-      phone: String(r.phone ?? ""),
+      phone: toDisplayPhone(r.phone),
       city: String(r.city ?? ""),
       address: String(r.address ?? ""),
       district: String(r.district ?? ""),

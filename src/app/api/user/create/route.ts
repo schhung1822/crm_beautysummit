@@ -1,53 +1,67 @@
 import { NextRequest, NextResponse } from "next/server";
 
 import { getCurrentUser, hashPassword } from "@/lib/auth";
+import { toDatabasePhone } from "@/lib/phone";
 import { prisma } from "@/lib/prisma";
+
+function ensureCreateUserPermission(currentUser: Awaited<ReturnType<typeof getCurrentUser>>) {
+  if (!currentUser) {
+    return NextResponse.json({ message: "ChÆ°a Ä‘Äƒng nháº­p" }, { status: 401 });
+  }
+
+  if (currentUser.role !== "admin") {
+    return NextResponse.json({ message: "Báº¡n khÃ´ng cÃ³ quyá»n táº¡o tÃ i khoáº£n" }, { status: 403 });
+  }
+
+  return null;
+}
 
 export async function POST(request: NextRequest) {
   try {
-    // Kiểm tra user hiện tại
     const currentUser = await getCurrentUser();
-
-    if (!currentUser) {
-      return NextResponse.json({ message: "Chưa đăng nhập" }, { status: 401 });
-    }
-
-    // Kiểm tra quyền admin
-    if (currentUser.role !== "admin") {
-      return NextResponse.json({ message: "Bạn không có quyền tạo tài khoản" }, { status: 403 });
+    const permissionError = ensureCreateUserPermission(currentUser);
+    if (permissionError) {
+      return permissionError;
     }
 
     const body = await request.json();
-    const { username, email, password, name, role, phone } = body;
+    const { username, email, password, name, role, phone } = body as {
+      username?: string;
+      email?: string;
+      password?: string;
+      name?: string;
+      role?: string;
+      phone?: string;
+    };
+    const normalizedPhone = toDatabasePhone(phone);
 
-    // Validate dữ liệu
     if (!username || !email || !password) {
-      return NextResponse.json({ message: "Vui lòng nhập đầy đủ username, email và mật khẩu" }, { status: 400 });
+      return NextResponse.json(
+        { message: "Vui lÃ²ng nháº­p Ä‘áº§y Ä‘á»§ username, email vÃ  máº­t kháº©u" },
+        { status: 400 },
+      );
     }
 
-    // Kiểm tra username đã tồn tại
     const existingUser = await prisma.user.findFirst({
       where: {
-        OR: [{ user: username }, { email: email }],
+        OR: [{ user: username }, { email }],
       },
     });
 
     if (existingUser) {
-      return NextResponse.json({ message: "Username hoặc email đã tồn tại" }, { status: 400 });
+      return NextResponse.json({ message: "Username hoáº·c email Ä‘Ã£ tá»“n táº¡i" }, { status: 400 });
     }
 
-    // Hash password
     const hashedPassword = await hashPassword(password);
 
-    // Tạo user mới
     const newUser = await prisma.user.create({
       data: {
         user: username,
-        email: email,
+        email,
         password: hashedPassword,
-        name: name || username,
-        role: role || "user",
-        phone: phone || null,
+        name: name ?? username,
+        role: role ?? "user",
+        phone: normalizedPhone,
         status: "active",
         created_by: currentUser.username,
         updated_by: currentUser.username,
@@ -56,7 +70,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json(
       {
-        message: "Tạo tài khoản thành công",
+        message: "Táº¡o tÃ i khoáº£n thÃ nh cÃ´ng",
         user: {
           id: newUser.id,
           username: newUser.user,
@@ -67,8 +81,9 @@ export async function POST(request: NextRequest) {
       },
       { status: 201 },
     );
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Create user error:", error);
-    return NextResponse.json({ message: "Có lỗi xảy ra khi tạo tài khoản", error: error.message }, { status: 500 });
+    const message = error instanceof Error ? error.message : "Unknown error";
+    return NextResponse.json({ message: "CÃ³ lá»—i xáº£y ra khi táº¡o tÃ i khoáº£n", error: message }, { status: 500 });
   }
 }

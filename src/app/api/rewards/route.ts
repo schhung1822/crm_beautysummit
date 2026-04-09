@@ -20,6 +20,7 @@ type RewardsPayload = {
   phone?: string;
   name?: string;
   avatar?: string;
+  orderCode?: string;
   missionId?: string;
   voucherId?: string;
   milestonePct?: number;
@@ -127,7 +128,7 @@ export async function POST(request: NextRequest) {
         return jsonWithCors(request, { message: "categoryId and brandId are required" }, { status: 400 });
       }
 
-      const state = await updateMiniAppVote(identity, categoryId, brandId);
+      const state = await updateMiniAppVote(identity, categoryId, brandId, requireString(body.orderCode));
       return jsonWithCors(request, { data: { state } }, { status: 200 });
     }
 

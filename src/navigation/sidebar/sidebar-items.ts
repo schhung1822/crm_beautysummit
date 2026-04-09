@@ -47,7 +47,7 @@ export const sidebarItems: NavGroup[] = [
     label: "Dashboards",
     items: [
       {
-        title: "Tong quan",
+        title: "Tổng quan",
         url: "/dashboard/default",
         icon: LayoutDashboard,
       },
@@ -57,13 +57,13 @@ export const sidebarItems: NavGroup[] = [
         icon: ChartBar,
       },
       {
-        title: "Tai chinh",
+        title: "Tài chính",
         url: "/dashboard/finance",
         icon: Banknote,
         comingSoon: true,
       },
       {
-        title: "Phan tich",
+        title: "Phân tích",
         url: "/dashboard/coming-soon",
         icon: Gauge,
         comingSoon: true,
@@ -72,20 +72,20 @@ export const sidebarItems: NavGroup[] = [
   },
   {
     id: 2,
-    label: "Quan ly",
+    label: "Quản lý",
     items: [
       {
-        title: "Don hang",
+        title: "Đơn hàng",
         url: "/orders",
         icon: ShoppingBagIcon,
       },
       {
-        title: "Binh chon",
+        title: "Bình chọn",
         url: "/votes",
         icon: Calendar1Icon,
       },
       {
-        title: "Le tan check-in",
+        title: "Lễ tân check-in",
         url: "/staff-checkin",
         icon: PackageIcon,
       },
@@ -95,7 +95,7 @@ export const sidebarItems: NavGroup[] = [
         icon: Gift,
       },
       {
-        title: "Khach hang",
+        title: "Khách hàng",
         url: "/customers",
         icon: Users,
         comingSoon: true,
@@ -107,32 +107,32 @@ export const sidebarItems: NavGroup[] = [
         comingSoon: true,
       },
       {
-        title: "Thong bao",
+        title: "Thông báo",
         url: "#",
         icon: Bell,
         subItems: [
-          { title: "Cap nhat", url: "/noti/update-notifications" },
-          { title: "Dich vu", url: "/noti/service-notifications" },
+          { title: "Cập nhật", url: "/noti/update-notifications" },
+          { title: "Dịch vụ", url: "/noti/service-notifications" },
         ],
       },
     ],
   },
   {
     id: 3,
-    label: "Khac",
+    label: "Khác",
     items: [
       {
-        title: "Tai khoan",
+        title: "Tài khoản",
         url: "/account",
         icon: UserCog,
       },
       {
-        title: "Quy tac",
+        title: "Quy tắc",
         url: "/rules",
         icon: Scale,
       },
       {
-        title: "Khac",
+        title: "Khác",
         url: "/other",
         icon: SquareArrowUpRight,
       },

@@ -1,21 +1,15 @@
+/* eslint-disable max-lines, complexity */
 "use client";
 
 import * as React from "react";
 
-import { Pencil, Plus, Tags, Trash2 } from "lucide-react";
+import { ImagePlus, Pencil, Plus, Tags, ThumbsUp, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
+import { CreatableSearchSelect, type CreatableSearchSelectOption } from "@/components/creatable-search-select";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import type { VoteOptionRecord } from "@/lib/vote-options";
@@ -26,23 +20,79 @@ type VoteOptionManagerProps = {
 
 type VoteOptionFormState = {
   id: number | null;
-  brandId: string;
-  name: string;
   category: string;
   product: string;
+  logo: string;
   summary: string;
-  link: string;
 };
+
+type CatalogType = "category" | "product" | "brand";
+
+type CatalogResponse = {
+  data?: {
+    categories: CreatableSearchSelectOption[];
+    products: CreatableSearchSelectOption[];
+    brands: CreatableSearchSelectOption[];
+  };
+  message?: string;
+};
+
+const MAX_LOGO_SIZE_BYTES = 512 * 1024;
+const IMAGE_SOURCE_PATTERN = /^(data:image\/|https?:\/\/|\/)/i;
 
 const DEFAULT_FORM: VoteOptionFormState = {
   id: null,
-  brandId: "",
-  name: "",
   category: "",
   product: "",
+  logo: "",
   summary: "",
-  link: "",
 };
+
+function normalizeLabel(value: string): string {
+  return value.trim().replace(/\s+/g, " ");
+}
+
+function buildOptionId(value: string): string {
+  return normalizeLabel(value).toLowerCase();
+}
+
+function buildInitialCategoryOptions(data: VoteOptionRecord[]): CreatableSearchSelectOption[] {
+  return Array.from(new Set(data.map((item) => normalizeLabel(item.category)).filter(Boolean)))
+    .sort()
+    .map((label) => ({
+      id: `category-${buildOptionId(label)}`,
+      label,
+      deletable: false,
+    }));
+}
+
+function buildInitialProductOptions(data: VoteOptionRecord[]): CreatableSearchSelectOption[] {
+  return Array.from(new Set(data.map((item) => normalizeLabel(item.product)).filter(Boolean)))
+    .sort()
+    .map((label) => ({
+      id: `product-${buildOptionId(label)}`,
+      label,
+      deletable: false,
+    }));
+}
+
+function mergeOptionLists(
+  current: CreatableSearchSelectOption[],
+  incoming: CreatableSearchSelectOption[],
+): CreatableSearchSelectOption[] {
+  const map = new Map<string, CreatableSearchSelectOption>();
+  [...current, ...incoming].forEach((option) => {
+    const key = option.label.toLowerCase();
+    const previous = map.get(key);
+    map.set(key, {
+      id: option.id,
+      label: option.label,
+      deletable: option.deletable === true || previous?.deletable === true,
+    });
+  });
+
+  return Array.from(map.values()).sort((left, right) => left.label.localeCompare(right.label));
+}
 
 function buildFormState(item?: VoteOptionRecord | null): VoteOptionFormState {
   if (!item) {
@@ -51,13 +101,117 @@ function buildFormState(item?: VoteOptionRecord | null): VoteOptionFormState {
 
   return {
     id: item.id,
-    brandId: item.brandId,
-    name: item.name,
     category: item.category,
     product: item.product,
+    logo: item.logo,
     summary: item.summary,
-    link: item.link,
   };
+}
+
+function isImageLogo(value: string): boolean {
+  return IMAGE_SOURCE_PATTERN.test(value.trim());
+}
+
+function buildLogoFallback(product: string): string {
+  return product
+    .trim()
+    .split(/\s+/)
+    .slice(0, 2)
+    .map((part) => part.charAt(0).toUpperCase())
+    .join("");
+}
+
+function resizeImageFileToDataUrl(file: File, size: number): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const image = new Image();
+
+      image.onload = () => {
+        const canvas = document.createElement("canvas");
+        canvas.width = size;
+        canvas.height = size;
+
+        const context = canvas.getContext("2d");
+        if (!context) {
+          reject(new Error("Khong the xu ly anh logo"));
+          return;
+        }
+
+        context.clearRect(0, 0, size, size);
+        const ratio = Math.min(size / image.width, size / image.height);
+        const width = image.width * ratio;
+        const height = image.height * ratio;
+        const x = (size - width) / 2;
+        const y = (size - height) / 2;
+
+        context.drawImage(image, x, y, width, height);
+        resolve(canvas.toDataURL("image/png"));
+      };
+
+      image.onerror = () => reject(new Error("Khong the doc file logo"));
+      image.src = String(reader.result ?? "");
+    };
+
+    reader.onerror = () => reject(new Error("Khong the doc file logo"));
+    reader.readAsDataURL(file);
+  });
+}
+
+function VoteLogoPreview({ logo, product }: { logo: string; product: string }) {
+  if (isImageLogo(logo)) {
+    return (
+      <div className="flex h-[4.5rem] w-[4.5rem] items-center justify-center overflow-hidden rounded-[1.2rem] border border-[#eadfd2] bg-white shadow-[0_8px_18px_rgba(184,134,11,0.08)]">
+        <img src={logo} alt={product} className="h-full w-full object-cover" />
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex h-[4.5rem] w-[4.5rem] items-center justify-center rounded-[1.2rem] border border-[#f3b9e1] bg-[linear-gradient(135deg,#7c1d5b,#db2777)] text-[2rem] font-black text-white shadow-[0_12px_24px_rgba(219,39,119,0.18)]">
+      {buildLogoFallback(product || "Vote") || "V"}
+    </div>
+  );
+}
+
+function VotePreviewCard({ category, product, logo }: Pick<VoteOptionFormState, "category" | "product" | "logo">) {
+  return (
+    <div className="mx-auto w-full max-w-[420px] rounded-[1.5rem] border border-[#f0e4d8] bg-[linear-gradient(145deg,#fffdf9,#fff8f1)] p-4 shadow-[0_14px_32px_rgba(184,134,11,0.06)]">
+      <div className="mb-3 flex items-center justify-between">
+        <div className="text-[11px] font-semibold tracking-[0.16em] text-[#8a7e8b] uppercase">Preview</div>
+        <div className="rounded-full border border-[#f4e7da] bg-white px-2.5 py-1 text-[10px] font-semibold text-[#b088a6]">
+          Vote card
+        </div>
+      </div>
+
+      <div className="overflow-hidden rounded-[1.2rem] border border-[#eee4d8] bg-white shadow-[0_12px_22px_rgba(36,22,41,0.08)]">
+        <div className="relative flex items-center gap-3 px-5 py-4">
+          <div className="absolute top-4 right-4 text-[1.05rem] font-semibold text-[#7f7486]">#1</div>
+          <div className="shrink-0">
+            <VoteLogoPreview logo={logo} product={product} />
+          </div>
+          <div className="min-w-0 flex-1">
+            <div className="truncate text-[1rem] font-bold text-[#1f2c44]">{product || "Ten san pham"}</div>
+            <div className="mt-2 inline-flex max-w-full rounded-[0.75rem] bg-[#f4e8ff] px-2.5 py-1 text-[12px] font-semibold text-[#8b34ff]">
+              <span className="truncate">{category || "The loai"}</span>
+            </div>
+            <div className="mt-3 text-[15px] font-black text-[#111827]">
+              156 <span className="font-medium text-[#8a7e8b]">vote</span>
+            </div>
+          </div>
+          <div className="shrink-0 self-end">
+            <div className="inline-flex items-center gap-2 rounded-[0.95rem] border border-[#eef2f7] bg-[#f8fafc] px-4 py-2.5 text-[0.95rem] font-semibold text-[#243b64] shadow-[0_8px_18px_rgba(148,163,184,0.12)]">
+              <ThumbsUp className="size-4" />
+              Vote
+            </div>
+          </div>
+        </div>
+        <div className="h-1.5 bg-[#e3e7ee]">
+          <div className="h-full w-[74%] bg-[#98a6ba]" />
+        </div>
+      </div>
+    </div>
+  );
 }
 
 export function VoteOptionManager({ initialData }: VoteOptionManagerProps) {
@@ -66,10 +220,119 @@ export function VoteOptionManager({ initialData }: VoteOptionManagerProps) {
   const [form, setForm] = React.useState<VoteOptionFormState>(DEFAULT_FORM);
   const [isSaving, setIsSaving] = React.useState(false);
   const [deletingId, setDeletingId] = React.useState<number | null>(null);
+  const [categoryOptions, setCategoryOptions] = React.useState<CreatableSearchSelectOption[]>(
+    buildInitialCategoryOptions(initialData),
+  );
+  const [productOptions, setProductOptions] = React.useState<CreatableSearchSelectOption[]>(
+    buildInitialProductOptions(initialData),
+  );
 
-  const categories = React.useMemo(
-    () => Array.from(new Set(data.map((item) => item.category).filter(Boolean))).sort(),
-    [data],
+  const categories = React.useMemo(() => categoryOptions.map((item) => item.label), [categoryOptions]);
+
+  const loadCatalogOptions = React.useCallback(async () => {
+    try {
+      const response = await fetch("/api/catalog-options");
+      const result = (await response.json()) as CatalogResponse;
+      if (!response.ok || !result.data) {
+        throw new Error(result.message ?? "Khong the tai bo loc");
+      }
+
+      setCategoryOptions((current) => mergeOptionLists(current, result.data.categories));
+      setProductOptions((current) => mergeOptionLists(current, result.data.products));
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Khong the tai du lieu bo loc");
+    }
+  }, []);
+
+  React.useEffect(() => {
+    void loadCatalogOptions();
+  }, [loadCatalogOptions]);
+
+  const mutateCatalogOption = React.useCallback(async (type: CatalogType, label: string, method: "POST" | "DELETE") => {
+    const response = await fetch("/api/catalog-options", {
+      method,
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ type, label }),
+    });
+
+    const result = (await response.json()) as {
+      data?: CreatableSearchSelectOption;
+      deleted?: number;
+      message?: string;
+    };
+    if (!response.ok) {
+      throw new Error(result.message ?? "Khong the cap nhat bo loc");
+    }
+
+    return result;
+  }, []);
+
+  const handleCreateCategory = React.useCallback(
+    async (label: string) => {
+      const result = await mutateCatalogOption("category", label, "POST");
+      if (!result.data) {
+        return;
+      }
+
+      setCategoryOptions((current) =>
+        [...current.filter((item) => item.label.toLowerCase() !== result.data!.label.toLowerCase()), result.data!].sort(
+          (left, right) => left.label.localeCompare(right.label),
+        ),
+      );
+      toast.success("Da them the loai moi");
+      return result.data;
+    },
+    [mutateCatalogOption],
+  );
+
+  const handleDeleteCategory = React.useCallback(
+    async (option: CreatableSearchSelectOption) => {
+      const confirmed = window.confirm(`Xoa the loai "${option.label}"?`);
+      if (!confirmed) {
+        return;
+      }
+
+      await mutateCatalogOption("category", option.label, "DELETE");
+      setCategoryOptions((current) =>
+        current.filter((item) => item.label.toLowerCase() !== option.label.toLowerCase()),
+      );
+      toast.success("Da xoa the loai");
+    },
+    [mutateCatalogOption],
+  );
+
+  const handleCreateProduct = React.useCallback(
+    async (label: string) => {
+      const result = await mutateCatalogOption("product", label, "POST");
+      if (!result.data) {
+        return;
+      }
+
+      setProductOptions((current) =>
+        [...current.filter((item) => item.label.toLowerCase() !== result.data!.label.toLowerCase()), result.data!].sort(
+          (left, right) => left.label.localeCompare(right.label),
+        ),
+      );
+      toast.success("Da them san pham moi");
+      return result.data;
+    },
+    [mutateCatalogOption],
+  );
+
+  const handleDeleteProduct = React.useCallback(
+    async (option: CreatableSearchSelectOption) => {
+      const confirmed = window.confirm(`Xoa san pham "${option.label}"?`);
+      if (!confirmed) {
+        return;
+      }
+
+      await mutateCatalogOption("product", option.label, "DELETE");
+      setProductOptions((current) => current.filter((item) => item.label.toLowerCase() !== option.label.toLowerCase()));
+      toast.success("Da xoa san pham");
+    },
+    [mutateCatalogOption],
   );
 
   const openCreateDialog = React.useCallback(() => {
@@ -80,6 +343,32 @@ export function VoteOptionManager({ initialData }: VoteOptionManagerProps) {
   const openEditDialog = React.useCallback((item: VoteOptionRecord) => {
     setForm(buildFormState(item));
     setDialogOpen(true);
+  }, []);
+
+  const handleLogoFileChange = React.useCallback(async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+
+    if (!file) {
+      return;
+    }
+
+    if (!file.type.startsWith("image/")) {
+      toast.error("Vui long chon file anh cho logo");
+      return;
+    }
+
+    if (file.size > MAX_LOGO_SIZE_BYTES) {
+      toast.error("Logo qua lon. Vui long chon anh nho hon 512KB");
+      return;
+    }
+
+    try {
+      const dataUrl = await resizeImageFileToDataUrl(file, 256);
+      setForm((current) => ({ ...current, logo: dataUrl }));
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Khong the tai logo");
+    }
   }, []);
 
   const handleSave = React.useCallback(async () => {
@@ -93,35 +382,47 @@ export function VoteOptionManager({ initialData }: VoteOptionManagerProps) {
         },
         body: JSON.stringify({
           id: form.id,
-          brandId: form.brandId,
-          name: form.name,
           category: form.category,
           product: form.product,
+          logo: form.logo,
           summary: form.summary,
-          link: form.link,
         }),
       });
       const result = (await response.json()) as { data?: VoteOptionRecord; message?: string };
       if (!response.ok || !result.data) {
-        throw new Error(result.message ?? "Khong the luu ung vien");
+        throw new Error(result.message ?? "Khong the luu vote");
       }
 
       setData((current) => {
         const next = current.filter((item) => item.id !== result.data?.id);
         return [result.data!, ...next];
       });
+      setCategoryOptions((current) =>
+        mergeOptionLists(
+          current,
+          form.category
+            ? [{ id: `category-${buildOptionId(form.category)}`, label: form.category, deletable: false }]
+            : [],
+        ),
+      );
+      setProductOptions((current) =>
+        mergeOptionLists(
+          current,
+          form.product ? [{ id: `product-${buildOptionId(form.product)}`, label: form.product, deletable: false }] : [],
+        ),
+      );
       setDialogOpen(false);
       setForm(DEFAULT_FORM);
-      toast.success(form.id ? "Da cap nhat ung vien" : "Da tao ung vien moi");
+      toast.success(form.id ? "Da cap nhat vote" : "Da tao vote moi");
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Khong the luu ung vien");
+      toast.error(error instanceof Error ? error.message : "Khong the luu vote");
     } finally {
       setIsSaving(false);
     }
   }, [form]);
 
   const handleDelete = React.useCallback(async (item: VoteOptionRecord) => {
-    const confirmed = window.confirm(`Xoa ung vien ${item.name}?`);
+    const confirmed = window.confirm(`Xoa vote ${item.product}?`);
     if (!confirmed) {
       return;
     }
@@ -137,17 +438,19 @@ export function VoteOptionManager({ initialData }: VoteOptionManagerProps) {
       });
       const result = (await response.json()) as { deleted?: number; message?: string };
       if (!response.ok || !result.deleted) {
-        throw new Error(result.message ?? "Khong the xoa ung vien");
+        throw new Error(result.message ?? "Khong the xoa vote");
       }
 
       setData((current) => current.filter((currentItem) => currentItem.id !== item.id));
-      toast.success("Da xoa ung vien");
+      toast.success("Da xoa vote");
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Khong the xoa ung vien");
+      toast.error(error instanceof Error ? error.message : "Khong the xoa vote");
     } finally {
       setDeletingId(null);
     }
   }, []);
+
+  const canSave = Boolean(normalizeLabel(form.category) && normalizeLabel(form.product));
 
   return (
     <div className="bg-card rounded-xl border p-4 shadow-sm">
@@ -155,22 +458,22 @@ export function VoteOptionManager({ initialData }: VoteOptionManagerProps) {
         <div>
           <div className="flex items-center gap-2 text-base font-semibold">
             <Tags className="size-4" />
-            Quan ly the loai va ung vien binh chon
+            Quản lý vote mini app
           </div>
           <div className="text-muted-foreground mt-1 text-sm">
-            Du lieu nay duoc dong bo sang mini app de user binh chon theo the loai.
+            Tạo thể loại, sản phẩm, ảnh logo và giới thiệu để đồng bộ sang giao diện user.
           </div>
         </div>
         <Button onClick={openCreateDialog}>
           <Plus className="size-4" />
-          Them ung vien
+          Thêm vote
         </Button>
       </div>
 
       {categories.length > 0 ? (
         <div className="mb-4 flex flex-wrap gap-2">
           {categories.map((category) => (
-            <Badge key={category} variant="outline">
+            <Badge key={category} variant="outline" className="rounded-full px-3 py-1">
               {category}
             </Badge>
           ))}
@@ -181,30 +484,29 @@ export function VoteOptionManager({ initialData }: VoteOptionManagerProps) {
         <table className="w-full text-sm">
           <thead className="bg-muted/40">
             <tr className="text-left">
-              <th className="px-4 py-3 font-medium">The loai</th>
-              <th className="px-4 py-3 font-medium">Ung vien</th>
-              <th className="px-4 py-3 font-medium">San pham</th>
-              <th className="px-4 py-3 font-medium">Tom tat</th>
-              <th className="px-4 py-3 text-right font-medium">Thao tac</th>
+              <th className="px-4 py-3 font-medium">Logo</th>
+              <th className="px-4 py-3 font-medium">Thể loại</th>
+              <th className="px-4 py-3 font-medium">Sản phẩm</th>
+              <th className="px-4 py-3 font-medium">Giới thiệu</th>
+              <th className="px-4 py-3 text-right font-medium">Thao tác</th>
             </tr>
           </thead>
           <tbody>
             {data.length === 0 ? (
               <tr>
                 <td colSpan={5} className="text-muted-foreground px-4 py-8 text-center">
-                  Chua co ung vien nao.
+                  Chưa có vote nào.
                 </td>
               </tr>
             ) : (
               data.map((item) => (
                 <tr key={item.id} className="border-t align-top">
-                  <td className="px-4 py-3">{item.category}</td>
                   <td className="px-4 py-3">
-                    <div className="font-medium">{item.name}</div>
-                    <div className="text-muted-foreground mt-1 font-mono text-xs">{item.brandId}</div>
+                    <VoteLogoPreview logo={item.logo} product={item.product} />
                   </td>
-                  <td className="px-4 py-3">{item.product || "--"}</td>
-                  <td className="px-4 py-3">{item.summary || "--"}</td>
+                  <td className="px-4 py-3">{item.category}</td>
+                  <td className="px-4 py-3 font-medium">{item.product}</td>
+                  <td className="text-muted-foreground max-w-[360px] px-4 py-3">{item.summary || "--"}</td>
                   <td className="px-4 py-3">
                     <div className="flex justify-end gap-2">
                       <Button size="sm" variant="outline" onClick={() => openEditDialog(item)}>
@@ -230,66 +532,112 @@ export function VoteOptionManager({ initialData }: VoteOptionManagerProps) {
       </div>
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="sm:max-w-2xl">
-          <DialogHeader>
-            <DialogTitle>{form.id ? "Cap nhat ung vien" : "Them ung vien"}</DialogTitle>
-            <DialogDescription>
-              Admin tao the loai va san pham tai day, mini app se load va hien thi theo the loai.
-            </DialogDescription>
-          </DialogHeader>
+        <DialogContent className="max-w-[calc(100%-2rem)] rounded-[2rem] border-0 bg-white p-0 shadow-[0_32px_90px_rgba(17,24,39,0.18)] sm:max-w-[1100px]">
+          <div className="border-b border-[#f2e8dd] px-8 py-7">
+            <DialogHeader className="space-y-2 text-left">
+              <DialogTitle className="text-[2rem] font-black text-[#111827]">
+                {form.id ? "Sửa vote" : "Thêm vote"}
+              </DialogTitle>
+              <p className="max-w-2xl text-sm leading-6 text-[#7a7280]">
+                Chon the loai, san pham, logo va gioi thieu. Cac gia tri trong dropdown co the tim, them moi hoac xoa
+                ngay.
+              </p>
+            </DialogHeader>
+          </div>
 
-          <div className="grid gap-4 sm:grid-cols-2">
-            <div className="space-y-1.5">
-              <Label>The loai</Label>
-              <Input
-                value={form.category}
-                onChange={(event) => setForm((current) => ({ ...current, category: event.target.value }))}
-              />
+          <div className="flex flex-col gap-6 px-8 py-7 lg:flex-row lg:items-start">
+            <div className="min-w-0 flex-1">
+              <div className="flex flex-col gap-5">
+                <div className="flex flex-col gap-4 sm:flex-row sm:items-start">
+                  <div className="space-y-2 sm:flex-1">
+                    <Label className="text-base font-semibold text-[#241629]">Thể loại</Label>
+                    <CreatableSearchSelect
+                      value={form.category}
+                      options={categoryOptions}
+                      placeholder="Chọn hoặc thêm thể loại"
+                      searchPlaceholder="Tìm thể loại..."
+                      onValueChange={(value) => setForm((current) => ({ ...current, category: value }))}
+                      onCreate={handleCreateCategory}
+                      onDelete={handleDeleteCategory}
+                    />
+                  </div>
+
+                  <div className="space-y-2 sm:flex-1">
+                    <Label className="text-base font-semibold text-[#241629]">Sản phẩm</Label>
+                    <CreatableSearchSelect
+                      value={form.product}
+                      options={productOptions}
+                      placeholder="Chọn hoặc thêm sản phẩm"
+                      searchPlaceholder="Tìm sản phẩm..."
+                      onValueChange={(value) => setForm((current) => ({ ...current, product: value }))}
+                      onCreate={handleCreateProduct}
+                      onDelete={handleDeleteProduct}
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <Label className="text-base font-semibold text-[#241629]">Ảnh logo</Label>
+                  <div className="flex flex-col gap-4 rounded-[1.5rem] border border-[#f0e1cf] bg-[linear-gradient(145deg,#fffdf8,#fff6ea)] p-4 shadow-[0_12px_30px_rgba(184,134,11,0.07)] sm:flex-row sm:items-center sm:justify-between">
+                    <div className="flex items-center gap-4">
+                      <VoteLogoPreview logo={form.logo} product={form.product || "Vote"} />
+                      <div className="text-sm">
+                        <div className="font-semibold text-[#241629]">
+                          {isImageLogo(form.logo) ? "Đã chọn ảnh logo" : "Đang dùng logo chữ"}
+                        </div>
+                        <div className="mt-1 text-[13px] text-[#7a7280]">
+                          Khuyến nghị ảnh vuông, dung lượng dưới 512KB.
+                        </div>
+                      </div>
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      <label className="inline-flex cursor-pointer items-center gap-2 rounded-[1rem] border border-[#eadfd2] bg-white px-4 py-3 text-sm font-semibold text-[#241629] shadow-[0_8px_18px_rgba(184,134,11,0.05)]">
+                        <ImagePlus className="size-4" />
+                        Chọn ảnh
+                        <input type="file" accept="image/*" className="hidden" onChange={handleLogoFileChange} />
+                      </label>
+                      {form.logo ? (
+                        <Button
+                          type="button"
+                          variant="outline"
+                          className="rounded-[1rem] border-[#eadfd2] bg-white text-[#241629]"
+                          onClick={() => setForm((current) => ({ ...current, logo: "" }))}
+                        >
+                          Xóa logo
+                        </Button>
+                      ) : null}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <Label className="text-base font-semibold text-[#241629]">Giới thiệu</Label>
+                  <Textarea
+                    rows={6}
+                    value={form.summary}
+                    onChange={(event) => setForm((current) => ({ ...current, summary: event.target.value }))}
+                    className="rounded-[1.2rem] border-[#eadfd2] bg-white px-4 py-3 text-[15px] leading-7 shadow-[0_10px_24px_rgba(184,134,11,0.05)]"
+                    placeholder="Nhập mô tả ngắn cho item vote..."
+                  />
+                </div>
+              </div>
             </div>
-            <div className="space-y-1.5">
-              <Label>Ten ung vien</Label>
-              <Input
-                value={form.name}
-                onChange={(event) => setForm((current) => ({ ...current, name: event.target.value }))}
-              />
-            </div>
-            <div className="space-y-1.5">
-              <Label>Ma ung vien</Label>
-              <Input
-                value={form.brandId}
-                onChange={(event) => setForm((current) => ({ ...current, brandId: event.target.value }))}
-                placeholder="Bo trong de he thong tu tao"
-              />
-            </div>
-            <div className="space-y-1.5">
-              <Label>San pham</Label>
-              <Input
-                value={form.product}
-                onChange={(event) => setForm((current) => ({ ...current, product: event.target.value }))}
-              />
-            </div>
-            <div className="space-y-1.5 sm:col-span-2">
-              <Label>Tom tat</Label>
-              <Textarea
-                value={form.summary}
-                onChange={(event) => setForm((current) => ({ ...current, summary: event.target.value }))}
-              />
-            </div>
-            <div className="space-y-1.5 sm:col-span-2">
-              <Label>Link</Label>
-              <Input
-                value={form.link}
-                onChange={(event) => setForm((current) => ({ ...current, link: event.target.value }))}
-              />
+
+            <div className="w-full lg:w-[400px] lg:shrink-0">
+              <VotePreviewCard category={form.category} product={form.product} logo={form.logo} />
             </div>
           </div>
 
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setDialogOpen(false)}>
-              Huy
+          <DialogFooter className="border-t border-[#f2e8dd] px-8 py-6">
+            <Button variant="outline" className="rounded-[1rem] px-6" onClick={() => setDialogOpen(false)}>
+              Hủy
             </Button>
-            <Button onClick={() => void handleSave()} disabled={isSaving}>
-              {isSaving ? "Dang luu..." : form.id ? "Luu thay doi" : "Them ung vien"}
+            <Button
+              className="rounded-[1rem] bg-[#111111] px-6 text-white hover:bg-[#1f1f1f]"
+              onClick={() => void handleSave()}
+              disabled={isSaving || !canSave}
+            >
+              {isSaving ? "Đang lưu..." : form.id ? "Lưu thay đổi" : "Thêm vote"}
             </Button>
           </DialogFooter>
         </DialogContent>

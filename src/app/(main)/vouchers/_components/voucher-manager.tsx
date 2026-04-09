@@ -6,6 +6,7 @@ import * as React from "react";
 import { ImagePlus, Pencil, Plus, Search, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
+import { CreatableSearchSelect, type CreatableSearchSelectOption } from "@/components/creatable-search-select";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -18,6 +19,17 @@ import type { MiniAppVoucherKind, MiniAppVoucherRecord } from "@/lib/miniapp-rew
 
 type VoucherManagerProps = {
   initialData: MiniAppVoucherRecord[];
+};
+
+type CatalogType = "category" | "product" | "brand";
+
+type CatalogResponse = {
+  data?: {
+    categories: CreatableSearchSelectOption[];
+    products: CreatableSearchSelectOption[];
+    brands: CreatableSearchSelectOption[];
+  };
+  message?: string;
 };
 
 type VoucherFormState = {
@@ -100,6 +112,48 @@ function formatDateLabel(value?: string | null): string {
 
 function normalizeSearchValue(value: string): string {
   return value.trim().toLowerCase();
+}
+
+function buildOptionId(value: string): string {
+  return normalizeSearchValue(value).replace(/\s+/g, "-");
+}
+
+function buildInitialBrandOptions(data: MiniAppVoucherRecord[]): CreatableSearchSelectOption[] {
+  return Array.from(new Set(data.map((item) => item.brand.trim()).filter(Boolean)))
+    .sort()
+    .map((label) => ({
+      id: `brand-${buildOptionId(label)}`,
+      label,
+      deletable: false,
+    }));
+}
+
+function buildInitialProductOptions(data: MiniAppVoucherRecord[]): CreatableSearchSelectOption[] {
+  return Array.from(new Set(data.map((item) => item.discount.trim()).filter(Boolean)))
+    .sort()
+    .map((label) => ({
+      id: `product-${buildOptionId(label)}`,
+      label,
+      deletable: false,
+    }));
+}
+
+function mergeOptionLists(
+  current: CreatableSearchSelectOption[],
+  incoming: CreatableSearchSelectOption[],
+): CreatableSearchSelectOption[] {
+  const map = new Map<string, CreatableSearchSelectOption>();
+  [...current, ...incoming].forEach((option) => {
+    const key = normalizeSearchValue(option.label);
+    const previous = map.get(key);
+    map.set(key, {
+      id: option.id,
+      label: option.label,
+      deletable: option.deletable === true || previous?.deletable === true,
+    });
+  });
+
+  return Array.from(map.values()).sort((left, right) => left.label.localeCompare(right.label));
 }
 
 function isImageLogo(value: string): boolean {
@@ -207,6 +261,12 @@ export default function VoucherManager({ initialData }: VoucherManagerProps) {
   const [form, setForm] = React.useState<VoucherFormState>(DEFAULT_FORM);
   const [isSaving, setIsSaving] = React.useState(false);
   const [deletingId, setDeletingId] = React.useState<string | null>(null);
+  const [brandOptions, setBrandOptions] = React.useState<CreatableSearchSelectOption[]>(
+    buildInitialBrandOptions(initialData),
+  );
+  const [productOptions, setProductOptions] = React.useState<CreatableSearchSelectOption[]>(
+    buildInitialProductOptions(initialData),
+  );
 
   const isEditing = Boolean(form.voucherId);
 
@@ -257,6 +317,106 @@ export default function VoucherManager({ initialData }: VoucherManagerProps) {
       setPageIndex(Math.max(pageCount - 1, 0));
     }
   }, [pageCount, pageIndex]);
+
+  const loadCatalogOptions = React.useCallback(async () => {
+    try {
+      const response = await fetch("/api/catalog-options");
+      const result = (await response.json()) as CatalogResponse;
+      if (!response.ok || !result.data) {
+        throw new Error(result.message ?? "Khong the tai bo loc du lieu");
+      }
+
+      setBrandOptions((current) => mergeOptionLists(current, result.data.brands));
+      setProductOptions((current) => mergeOptionLists(current, result.data.products));
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Khong the tai bo loc du lieu");
+    }
+  }, []);
+
+  React.useEffect(() => {
+    void loadCatalogOptions();
+  }, [loadCatalogOptions]);
+
+  const mutateCatalogOption = React.useCallback(async (type: CatalogType, label: string, method: "POST" | "DELETE") => {
+    const response = await fetch("/api/catalog-options", {
+      method,
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ type, label }),
+    });
+
+    const result = (await response.json()) as {
+      data?: CreatableSearchSelectOption;
+      deleted?: number;
+      message?: string;
+    };
+    if (!response.ok) {
+      throw new Error(result.message ?? "Khong the cap nhat bo loc");
+    }
+
+    return result;
+  }, []);
+
+  const handleCreateBrand = React.useCallback(
+    async (label: string) => {
+      const result = await mutateCatalogOption("brand", label, "POST");
+      if (!result.data) {
+        return;
+      }
+
+      setBrandOptions((current) => mergeOptionLists(current, [result.data!]));
+      toast.success("Da them brand moi");
+      return result.data;
+    },
+    [mutateCatalogOption],
+  );
+
+  const handleDeleteBrand = React.useCallback(
+    async (option: CreatableSearchSelectOption) => {
+      const confirmed = window.confirm(`Xoa brand "${option.label}"?`);
+      if (!confirmed) {
+        return;
+      }
+
+      await mutateCatalogOption("brand", option.label, "DELETE");
+      setBrandOptions((current) =>
+        current.filter((item) => normalizeSearchValue(item.label) !== normalizeSearchValue(option.label)),
+      );
+      toast.success("Da xoa brand");
+    },
+    [mutateCatalogOption],
+  );
+
+  const handleCreateProduct = React.useCallback(
+    async (label: string) => {
+      const result = await mutateCatalogOption("product", label, "POST");
+      if (!result.data) {
+        return;
+      }
+
+      setProductOptions((current) => mergeOptionLists(current, [result.data!]));
+      toast.success("Da them san pham moi");
+      return result.data;
+    },
+    [mutateCatalogOption],
+  );
+
+  const handleDeleteProduct = React.useCallback(
+    async (option: CreatableSearchSelectOption) => {
+      const confirmed = window.confirm(`Xoa san pham "${option.label}"?`);
+      if (!confirmed) {
+        return;
+      }
+
+      await mutateCatalogOption("product", option.label, "DELETE");
+      setProductOptions((current) =>
+        current.filter((item) => normalizeSearchValue(item.label) !== normalizeSearchValue(option.label)),
+      );
+      toast.success("Da xoa san pham");
+    },
+    [mutateCatalogOption],
+  );
 
   const openCreateDialog = React.useCallback(() => {
     setForm(createFormState());
@@ -328,6 +488,22 @@ export default function VoucherManager({ initialData }: VoucherManagerProps) {
         const next = current.filter((item) => item.id !== result.data?.id);
         return [result.data!, ...next];
       });
+      setBrandOptions((current) =>
+        mergeOptionLists(
+          current,
+          [{ id: `brand-${buildOptionId(form.brand)}`, label: form.brand, deletable: false }].filter(
+            (item) => item.label,
+          ),
+        ),
+      );
+      setProductOptions((current) =>
+        mergeOptionLists(
+          current,
+          [{ id: `product-${buildOptionId(form.discount)}`, label: form.discount, deletable: false }].filter(
+            (item) => item.label,
+          ),
+        ),
+      );
       setPageIndex(0);
       setDialogOpen(false);
       setForm(DEFAULT_FORM);
@@ -372,10 +548,10 @@ export default function VoucherManager({ initialData }: VoucherManagerProps) {
     <div className="flex flex-col gap-6">
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         {[
-          { label: "Tong voucher", value: summary.total },
+          { label: "Tổng voucher", value: summary.total },
           { label: "Voucher BPoint", value: summary.bpoint },
           { label: "Voucher free", value: summary.free },
-          { label: "Dang hoat dong", value: summary.active },
+          { label: "Đang hoạt động", value: summary.active },
         ].map((item) => (
           <div key={item.label} className="bg-card rounded-xl border p-4 shadow-sm">
             <div className="text-muted-foreground text-sm">{item.label}</div>
@@ -400,7 +576,7 @@ export default function VoucherManager({ initialData }: VoucherManagerProps) {
               <SelectValue placeholder="Loai voucher" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">Tat ca</SelectItem>
+              <SelectItem value="all">Tất cả</SelectItem>
               <SelectItem value="bpoint">BPoint</SelectItem>
               <SelectItem value="free">Free</SelectItem>
             </SelectContent>
@@ -420,19 +596,19 @@ export default function VoucherManager({ initialData }: VoucherManagerProps) {
               <tr className="text-left">
                 <th className="px-4 py-3 font-medium">Logo</th>
                 <th className="px-4 py-3 font-medium">Brand</th>
-                <th className="px-4 py-3 font-medium">Loai</th>
+                <th className="px-4 py-3 font-medium">Loại</th>
                 <th className="px-4 py-3 font-medium">Title</th>
                 <th className="px-4 py-3 font-medium">Code</th>
-                <th className="px-4 py-3 font-medium">Trang thai</th>
-                <th className="px-4 py-3 font-medium">Cap nhat</th>
-                <th className="px-4 py-3 text-right font-medium">Thao tac</th>
+                <th className="px-4 py-3 font-medium">Trạng thái</th>
+                <th className="px-4 py-3 font-medium">Cập nhật</th>
+                <th className="px-4 py-3 text-right font-medium">Thao tác</th>
               </tr>
             </thead>
             <tbody>
               {paginatedData.length === 0 ? (
                 <tr>
                   <td colSpan={8} className="text-muted-foreground px-4 py-10 text-center">
-                    Chua co voucher phu hop.
+                    Chưa có voucher phù hợp.
                   </td>
                 </tr>
               ) : (
@@ -455,7 +631,7 @@ export default function VoucherManager({ initialData }: VoucherManagerProps) {
                     <td className="px-4 py-3 font-mono text-xs">{voucher.code ?? "--"}</td>
                     <td className="px-4 py-3">
                       <Badge variant={voucher.isActive === false ? "outline" : "secondary"}>
-                        {voucher.isActive === false ? "Tat" : "Dang bat"}
+                        {voucher.isActive === false ? "Tắt" : "Đang bật"}
                       </Badge>
                     </td>
                     <td className="px-4 py-3 text-xs">{formatDateLabel(voucher.updatedAt)}</td>
@@ -486,13 +662,13 @@ export default function VoucherManager({ initialData }: VoucherManagerProps) {
 
       <div className="flex items-center justify-between px-4 py-2">
         <div className="text-muted-foreground hidden flex-1 text-sm lg:flex">
-          Hien {visibleStart}-{visibleEnd} cua {filteredData.length} voucher
+          Hiển {visibleStart}-{visibleEnd} của {filteredData.length} voucher
         </div>
 
         <div className="flex w-full items-center gap-8 lg:w-fit">
           <div className="hidden items-center gap-2 lg:flex">
             <Label htmlFor="voucher-rows-per-page" className="text-sm font-medium">
-              So hang moi trang
+              Số hàng mỗi trang
             </Label>
             <Select
               value={String(pageSize)}
@@ -515,7 +691,7 @@ export default function VoucherManager({ initialData }: VoucherManagerProps) {
           </div>
 
           <div className="flex w-fit items-center justify-center text-sm font-medium">
-            Trang {filteredData.length === 0 ? 0 : safePageIndex + 1} cua {pageCount}
+            Trang {filteredData.length === 0 ? 0 : safePageIndex + 1} của {pageCount}
           </div>
 
           <div className="ml-auto flex items-center gap-2 lg:ml-0">
@@ -525,7 +701,7 @@ export default function VoucherManager({ initialData }: VoucherManagerProps) {
               onClick={() => setPageIndex(0)}
               disabled={safePageIndex === 0}
             >
-              <span className="sr-only">Trang dau</span>«
+              <span className="sr-only">Trang đầu</span>«
             </Button>
             <Button
               variant="outline"
@@ -534,7 +710,7 @@ export default function VoucherManager({ initialData }: VoucherManagerProps) {
               disabled={safePageIndex === 0}
               onClick={() => setPageIndex((current) => Math.max(current - 1, 0))}
             >
-              <span className="sr-only">Trang truoc</span>‹
+              <span className="sr-only">Trang trước</span>‹
             </Button>
             <Button
               variant="outline"
@@ -552,7 +728,7 @@ export default function VoucherManager({ initialData }: VoucherManagerProps) {
               disabled={safePageIndex >= pageCount - 1}
               onClick={() => setPageIndex(pageCount - 1)}
             >
-              <span className="sr-only">Trang cuoi</span>»
+              <span className="sr-only">Trang cuối</span>»
             </Button>
           </div>
         </div>
@@ -590,9 +766,14 @@ export default function VoucherManager({ initialData }: VoucherManagerProps) {
               </div>
               <div className="space-y-1.5">
                 <Label>Brand</Label>
-                <Input
+                <CreatableSearchSelect
                   value={form.brand}
-                  onChange={(event) => setForm((current) => ({ ...current, brand: event.target.value }))}
+                  options={brandOptions}
+                  placeholder="Chon hoac them brand"
+                  searchPlaceholder="Tim brand..."
+                  onValueChange={(value) => setForm((current) => ({ ...current, brand: value }))}
+                  onCreate={handleCreateBrand}
+                  onDelete={handleDeleteBrand}
                 />
               </div>
               <div className="space-y-1.5 sm:min-w-[170px]">
@@ -756,21 +937,26 @@ export default function VoucherManager({ initialData }: VoucherManagerProps) {
             >
               <div className="space-y-1.5">
                 <Label>Tiêu đề</Label>
-                <Input
+                <CreatableSearchSelect
                   value={form.discount}
-                  onChange={(event) => setForm((current) => ({ ...current, discount: event.target.value }))}
+                  options={productOptions}
+                  placeholder="Chon hoac them san pham"
+                  searchPlaceholder="Tim san pham..."
+                  onValueChange={(value) => setForm((current) => ({ ...current, discount: value }))}
+                  onCreate={handleCreateProduct}
+                  onDelete={handleDeleteProduct}
                 />
               </div>
               {form.kind === "bpoint" ? (
                 <div className="space-y-1.5">
-                  <Label>So diem BPoint</Label>
+                  <Label>Số điểm BPoint</Label>
                   <Input
                     type="number"
                     min="0"
                     inputMode="numeric"
                     value={form.cost}
                     disabled={form.isGrand}
-                    placeholder={form.isGrand ? "Giải đặc biệt" : "Nhap so diem"}
+                    placeholder={form.isGrand ? "Giải đặc biệt" : "Nhập số điểm"}
                     onChange={(event) =>
                       setForm((current) => ({
                         ...current,

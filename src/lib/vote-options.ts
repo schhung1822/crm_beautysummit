@@ -14,14 +14,18 @@ type VoteOptionRow = RowDataPacket & {
   link: string | null;
 };
 
+type VoteCountRow = RowDataPacket & {
+  brand_id: string | null;
+  vote_count: number | null;
+};
+
 export type VoteOptionRecord = {
   id: number;
   brandId: string;
-  name: string;
   category: string;
   product: string;
+  logo: string;
   summary: string;
-  link: string;
 };
 
 export type VoteCategoryRecord = {
@@ -29,28 +33,37 @@ export type VoteCategoryRecord = {
   title: string;
   desc: string;
   color: string;
+  totalVotes: number;
   brands: Array<{
     id: string;
     name: string;
     product?: string;
     summary?: string;
     link?: string;
+    logo?: string;
+    voteCount: number;
+    rank: number;
+    progressPct: number;
   }>;
 };
 
 type VoteOptionInput = {
   brandId?: string;
-  name: string;
   category: string;
-  product?: string;
+  product: string;
+  logo?: string;
   summary?: string;
-  link?: string;
 };
 
 const CATEGORY_COLORS = ["#0EA5E9", "#E11D48", "#8B5CF6", "#F59E0B", "#14B8A6", "#EC4899"];
 
 function parseString(value: unknown): string {
   return String(value ?? "").trim();
+}
+
+function parseNumber(value: unknown): number {
+  const parsed = Number(value ?? 0);
+  return Number.isFinite(parsed) ? parsed : 0;
 }
 
 function buildCategoryId(value: string): string {
@@ -62,36 +75,38 @@ function buildCategoryId(value: string): string {
     .replace(/^-+|-+$/g, "");
 }
 
+function buildVoteOptionRowLabel(row: VoteOptionRow): string {
+  return parseString(row.product) || parseString(row.brand_name);
+}
+
 function mapVoteOptionRow(row: VoteOptionRow): VoteOptionRecord {
   return {
     id: row.id,
     brandId: parseString(row.brand_id),
-    name: parseString(row.brand_name),
     category: parseString(row.category),
-    product: parseString(row.product),
+    product: buildVoteOptionRowLabel(row),
+    logo: parseString(row.link),
     summary: parseString(row.voted),
-    link: parseString(row.link),
   };
 }
 
 function normalizeVoteOptionInput(input: VoteOptionInput): VoteOptionInput {
   return {
     brandId: parseString(input.brandId),
-    name: parseString(input.name),
     category: parseString(input.category),
     product: parseString(input.product),
+    logo: parseString(input.logo),
     summary: parseString(input.summary),
-    link: parseString(input.link),
   };
 }
 
 function validateVoteOptionInput(input: VoteOptionInput): string | null {
-  if (!input.name) {
-    return "Ten ung vien la bat buoc";
-  }
-
   if (!input.category) {
     return "The loai la bat buoc";
+  }
+
+  if (!input.product) {
+    return "San pham la bat buoc";
   }
 
   return null;
@@ -111,11 +126,35 @@ async function queryVoteOptionRows(): Promise<VoteOptionRow[]> {
       link
     FROM brand
     WHERE COALESCE(TRIM(brand_id), '') <> ''
-    ORDER BY category ASC, brand_name ASC, id ASC
+    ORDER BY category ASC, product ASC, brand_name ASC, id ASC
     `,
   );
 
   return rows;
+}
+
+async function queryVoteCountRows(): Promise<VoteCountRow[]> {
+  const db = getDB();
+  const [rows] = await db.query<VoteCountRow[]>(
+    `
+    SELECT
+      brand_id,
+      COUNT(*) AS vote_count
+    FROM voted
+    WHERE COALESCE(TRIM(brand_id), '') <> ''
+    GROUP BY brand_id
+    `,
+  );
+
+  return rows;
+}
+
+function buildVoteCountMap(rows: VoteCountRow[]): Map<string, number> {
+  return new Map(
+    rows
+      .map((row) => [parseString(row.brand_id), parseNumber(row.vote_count)] as const)
+      .filter(([brandId]) => brandId.length > 0),
+  );
 }
 
 export async function listVoteOptions(): Promise<VoteOptionRecord[]> {
@@ -124,7 +163,8 @@ export async function listVoteOptions(): Promise<VoteOptionRecord[]> {
 }
 
 export async function listVoteCategories(): Promise<VoteCategoryRecord[]> {
-  const options = await listVoteOptions();
+  const [options, voteCountRows] = await Promise.all([listVoteOptions(), queryVoteCountRows()]);
+  const voteCountMap = buildVoteCountMap(voteCountRows);
   const grouped = new Map<string, VoteOptionRecord[]>();
 
   options.forEach((option) => {
@@ -134,19 +174,38 @@ export async function listVoteCategories(): Promise<VoteCategoryRecord[]> {
     grouped.set(key, current);
   });
 
-  return Array.from(grouped.entries()).map(([title, items], index) => ({
-    id: buildCategoryId(title) || `category-${index + 1}`,
-    title,
-    desc: `Binh chon ung vien trong the loai ${title}.`,
-    color: CATEGORY_COLORS[index % CATEGORY_COLORS.length],
-    brands: items.map((item) => ({
-      id: item.brandId,
-      name: item.name,
-      product: item.product || undefined,
-      summary: item.summary || undefined,
-      link: item.link || undefined,
-    })),
-  }));
+  return Array.from(grouped.entries()).map(([title, items], index) => {
+    const rankedBrands = items
+      .map((item) => ({
+        id: item.brandId,
+        name: item.product,
+        product: item.product || undefined,
+        summary: item.summary || undefined,
+        link: item.logo || undefined,
+        logo: item.logo || undefined,
+        voteCount: voteCountMap.get(item.brandId) ?? 0,
+      }))
+      .sort((left, right) => right.voteCount - left.voteCount || left.name.localeCompare(right.name))
+      .map((item, itemIndex, ranked) => {
+        const maxVoteCount = ranked[0]?.voteCount ?? 0;
+        return {
+          ...item,
+          rank: itemIndex + 1,
+          progressPct: maxVoteCount > 0 ? Math.max(12, Math.round((item.voteCount / maxVoteCount) * 100)) : 0,
+        };
+      });
+
+    const totalVotes = rankedBrands.reduce((sum, item) => sum + item.voteCount, 0);
+
+    return {
+      id: buildCategoryId(title) || `category-${index + 1}`,
+      title,
+      desc: `Binh chon san pham trong the loai ${title}.`,
+      color: CATEGORY_COLORS[index % CATEGORY_COLORS.length],
+      totalVotes,
+      brands: rankedBrands,
+    };
+  });
 }
 
 export async function createVoteOption(input: VoteOptionInput): Promise<VoteOptionRecord> {
@@ -161,7 +220,7 @@ export async function createVoteOption(input: VoteOptionInput): Promise<VoteOpti
   const [orderRows] = await db.query<Array<RowDataPacket & { next_order: number }>>(
     "SELECT COALESCE(MAX(nc_order), 0) + 1 AS next_order FROM brand",
   );
-  const nextOrder = Number(orderRows[0]?.next_order ?? 1);
+  const nextOrder = parseNumber(orderRows[0]?.next_order) || 1;
   const brandId =
     normalizedInput.brandId.length > 0
       ? normalizedInput.brandId
@@ -192,18 +251,18 @@ export async function createVoteOption(input: VoteOptionInput): Promise<VoteOpti
       "studio-admin",
       nextOrder,
       brandId,
-      normalizedInput.name,
+      normalizedInput.product,
       normalizedInput.category,
-      normalizedInput.product.length > 0 ? normalizedInput.product : null,
+      normalizedInput.product,
       normalizedInput.summary.length > 0 ? normalizedInput.summary : null,
-      normalizedInput.link.length > 0 ? normalizedInput.link : null,
+      normalizedInput.logo.length > 0 ? normalizedInput.logo : null,
     ],
   );
 
   const options = await listVoteOptions();
   const created = options.find((item) => item.brandId === brandId);
   if (!created) {
-    throw new Error("Khong the tao ung vien");
+    throw new Error("Khong the tao vote");
   }
 
   return created;
@@ -233,11 +292,11 @@ export async function updateVoteOption(optionId: number, input: VoteOptionInput)
     LIMIT 1
     `,
     [
-      normalizedInput.name,
+      normalizedInput.product,
       normalizedInput.category,
-      normalizedInput.product.length > 0 ? normalizedInput.product : null,
+      normalizedInput.product,
       normalizedInput.summary.length > 0 ? normalizedInput.summary : null,
-      normalizedInput.link.length > 0 ? normalizedInput.link : null,
+      normalizedInput.logo.length > 0 ? normalizedInput.logo : null,
       now,
       "studio-admin",
       optionId,
@@ -247,7 +306,7 @@ export async function updateVoteOption(optionId: number, input: VoteOptionInput)
   const options = await listVoteOptions();
   const updated = options.find((item) => item.id === optionId);
   if (!updated) {
-    throw new Error("Khong the cap nhat ung vien");
+    throw new Error("Khong the cap nhat vote");
   }
 
   return updated;

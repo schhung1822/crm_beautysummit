@@ -5,21 +5,19 @@ import { createVoteOption, deleteVoteOption, listVoteOptions, updateVoteOption }
 type VoteOptionPayload = {
   id?: number;
   brandId?: string;
-  name?: string;
   category?: string;
   product?: string;
   summary?: string;
-  link?: string;
+  logo?: string;
 };
 
 function normalizePayload(body: VoteOptionPayload) {
   return {
     brandId: String(body.brandId ?? "").trim(),
-    name: String(body.name ?? "").trim(),
     category: String(body.category ?? "").trim(),
     product: String(body.product ?? "").trim(),
     summary: String(body.summary ?? "").trim(),
-    link: String(body.link ?? "").trim(),
+    logo: String(body.logo ?? "").trim(),
   };
 }
 
@@ -42,7 +40,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ data }, { status: 201 });
   } catch (error) {
     return NextResponse.json(
-      { message: error instanceof Error ? error.message : "Khong the tao ung vien" },
+      { message: error instanceof Error ? error.message : "Khong the tao vote" },
       { status: 400 },
     );
   }
@@ -60,7 +58,7 @@ export async function PUT(request: Request) {
     return NextResponse.json({ data });
   } catch (error) {
     return NextResponse.json(
-      { message: error instanceof Error ? error.message : "Khong the cap nhat ung vien" },
+      { message: error instanceof Error ? error.message : "Khong the cap nhat vote" },
       { status: 400 },
     );
   }
@@ -78,7 +76,7 @@ export async function DELETE(request: Request) {
     return NextResponse.json({ deleted });
   } catch (error) {
     return NextResponse.json(
-      { message: error instanceof Error ? error.message : "Khong the xoa ung vien" },
+      { message: error instanceof Error ? error.message : "Khong the xoa vote" },
       { status: 400 },
     );
   }

@@ -5,6 +5,7 @@ import type { ResultSetHeader, RowDataPacket } from "mysql2/promise";
 
 import { getDB } from "@/lib/db";
 import { buildPhoneVariants, toDatabasePhone } from "@/lib/phone";
+import { listVoteCategories } from "@/lib/vote-options";
 
 export type MiniAppVoucherKind = "bpoint" | "free";
 
@@ -415,6 +416,77 @@ function mapVoucherRowsByKind(rows: MiniAppVoucherRow[]) {
   };
 }
 
+async function syncMiniAppVoteRecord(
+  identity: RewardIdentity,
+  orderCode: string,
+  candidateBrandIds: string[],
+  selectedBrandId: string | null,
+): Promise<void> {
+  const normalizedOrderCode = parseString(orderCode);
+  const normalizedPhone = toDatabasePhone(identity.phone) ?? "";
+  const validBrandIds = uniqueStringArray(candidateBrandIds);
+  if (!normalizedOrderCode || !normalizedPhone || validBrandIds.length === 0) {
+    return;
+  }
+
+  const db = getDB();
+  const placeholders = validBrandIds.map(() => "?").join(", ");
+  await db.query(
+    `
+    DELETE FROM voted
+    WHERE ordercode = ?
+      AND ${normalizedPhoneSql} IN (?)
+      AND brand_id IN (${placeholders})
+    `,
+    [normalizedOrderCode, normalizedPhone, ...validBrandIds],
+  );
+
+  if (!selectedBrandId) {
+    return;
+  }
+
+  const now = new Date();
+  const [orderRows] = await db.query<Array<RowDataPacket & { next_order: number }>>(
+    "SELECT COALESCE(MAX(nc_order), 0) + 1 AS next_order FROM voted",
+  );
+  const nextOrder = parseNumber(orderRows[0]?.next_order) || 1;
+
+  await db.query(
+    `
+    INSERT INTO voted
+      (
+        created_at,
+        updated_at,
+        created_by,
+        updated_by,
+        nc_order,
+        ordercode,
+        name,
+        phone,
+        email,
+        gender,
+        time_vote,
+        brand_id
+      )
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `,
+    [
+      now,
+      now,
+      "miniapp",
+      "miniapp",
+      nextOrder,
+      normalizedOrderCode,
+      parseString(identity.name) || null,
+      normalizedPhone,
+      null,
+      null,
+      now,
+      selectedBrandId,
+    ],
+  );
+}
+
 async function findRewardStateRow(zid: string): Promise<StoredRewardState | null> {
   const db = getDB();
   const [rows] = await db.query<MiniAppRewardStateRow[]>(
@@ -661,6 +733,7 @@ export async function updateMiniAppVote(
   identity: RewardIdentity,
   categoryId: string,
   brandId: string,
+  orderCode?: string,
 ): Promise<MiniAppRewardState> {
   const normalizedCategoryId = parseString(categoryId);
   const normalizedBrandId = parseString(brandId);
@@ -669,12 +742,30 @@ export async function updateMiniAppVote(
   }
 
   const current = await ensureMiniAppRewardState(identity);
+  const voteCategories = await listVoteCategories();
+  const category = voteCategories.find((item) => item.id === normalizedCategoryId);
+  if (!category) {
+    throw new Error("Vote category is not supported");
+  }
+
+  const candidateBrandIds = category.brands.map((item) => item.id);
+  if (!candidateBrandIds.includes(normalizedBrandId)) {
+    throw new Error("Vote brand is not supported");
+  }
+
   const nextVotes = { ...current.votes };
   if (nextVotes[normalizedCategoryId] === normalizedBrandId) {
     delete nextVotes[normalizedCategoryId];
   } else {
     nextVotes[normalizedCategoryId] = normalizedBrandId;
   }
+
+  await syncMiniAppVoteRecord(
+    identity,
+    parseString(orderCode),
+    candidateBrandIds,
+    nextVotes[normalizedCategoryId] ?? null,
+  );
 
   const nextState = buildStoredStateUpdate(current, { votes: nextVotes });
   await saveMiniAppRewardState(nextState);

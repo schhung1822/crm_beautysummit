@@ -409,7 +409,7 @@ export default function VoucherManager({ initialData }: VoucherManagerProps) {
 
         <Button onClick={openCreateDialog}>
           <Plus className="size-4" />
-          Tao voucher
+          Tạo voucher
         </Button>
       </div>
 
@@ -463,7 +463,7 @@ export default function VoucherManager({ initialData }: VoucherManagerProps) {
                       <div className="flex justify-end gap-2">
                         <Button size="sm" variant="outline" onClick={() => openEditDialog(voucher)}>
                           <Pencil className="size-4" />
-                          Sua
+                          Sửa
                         </Button>
                         <Button
                           size="sm"
@@ -472,7 +472,7 @@ export default function VoucherManager({ initialData }: VoucherManagerProps) {
                           disabled={deletingId === voucher.id}
                         >
                           <Trash2 className="size-4" />
-                          Xoa
+                          Xóa
                         </Button>
                       </div>
                     </td>
@@ -649,7 +649,7 @@ export default function VoucherManager({ initialData }: VoucherManagerProps) {
                       {form.discount || "Title voucher"}
                     </div>
                     <div className={`mt-1 truncate text-[12px] ${form.isGrand ? "text-[#7a7280]" : "text-[#7a7280]"}`}>
-                      {form.desc || "Mo ta voucher 1 dong, dai thi se tu cat."}
+                      {form.desc || "Mô tả voucher 1 dòng, dài thì sẽ tự cắt."}
                     </div>
                   </div>
                   <div
@@ -782,7 +782,7 @@ export default function VoucherManager({ initialData }: VoucherManagerProps) {
               ) : null}
             </div>
             <div className="space-y-1.5 sm:col-span-2">
-              <Label>Mo ta</Label>
+              <Label>Mô tả</Label>
               <Textarea
                 value={form.desc}
                 onChange={(event) => setForm((current) => ({ ...current, desc: event.target.value }))}
@@ -792,10 +792,10 @@ export default function VoucherManager({ initialData }: VoucherManagerProps) {
 
           <DialogFooter>
             <Button variant="outline" onClick={() => setDialogOpen(false)}>
-              Huy
+              Hủy
             </Button>
             <Button onClick={() => void handleSave()} disabled={isSaving}>
-              {isSaving ? "Dang luu..." : isEditing ? "Luu thay doi" : "Tao voucher"}
+              {isSaving ? "Đang lưu..." : isEditing ? "Lưu thay đổi" : "Tạo voucher"}
             </Button>
           </DialogFooter>
         </DialogContent>

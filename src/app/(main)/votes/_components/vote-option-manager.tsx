@@ -209,7 +209,7 @@ export function VoteOptionManager({ initialData }: VoteOptionManagerProps) {
                     <div className="flex justify-end gap-2">
                       <Button size="sm" variant="outline" onClick={() => openEditDialog(item)}>
                         <Pencil className="size-4" />
-                        Sua
+                        Sửa
                       </Button>
                       <Button
                         size="sm"
@@ -218,7 +218,7 @@ export function VoteOptionManager({ initialData }: VoteOptionManagerProps) {
                         onClick={() => void handleDelete(item)}
                       >
                         <Trash2 className="size-4" />
-                        Xoa
+                        Xóa
                       </Button>
                     </div>
                   </td>

@@ -158,17 +158,24 @@ function resizeImageFileToDataUrl(file: File, size: number): Promise<string> {
   });
 }
 
-function VoteLogoPreview({ logo, product }: { logo: string; product: string }) {
+function VoteLogoPreview({ logo, product, compact = false }: { logo: string; product: string; compact?: boolean }) {
+  const sizeClass = compact ? "h-[58px] w-[58px] rounded-[0.9rem]" : "h-[4.5rem] w-[4.5rem] rounded-[1.2rem]";
+  const textClass = compact ? "text-[1.2rem]" : "text-[2rem]";
+
   if (isImageLogo(logo)) {
     return (
-      <div className="flex h-[4.5rem] w-[4.5rem] items-center justify-center overflow-hidden rounded-[1.2rem] border border-[#eadfd2] bg-white shadow-[0_8px_18px_rgba(184,134,11,0.08)]">
+      <div
+        className={`flex items-center justify-center overflow-hidden border border-[#eadfd2] bg-white shadow-[0_8px_18px_rgba(184,134,11,0.08)] ${sizeClass}`}
+      >
         <img src={logo} alt={product} className="h-full w-full object-cover" />
       </div>
     );
   }
 
   return (
-    <div className="flex h-[4.5rem] w-[4.5rem] items-center justify-center rounded-[1.2rem] border border-[#f3b9e1] bg-[linear-gradient(135deg,#7c1d5b,#db2777)] text-[2rem] font-black text-white shadow-[0_12px_24px_rgba(219,39,119,0.18)]">
+    <div
+      className={`flex items-center justify-center border border-[#f3b9e1] bg-[linear-gradient(135deg,#7c1d5b,#db2777)] font-black text-white shadow-[0_12px_24px_rgba(219,39,119,0.18)] ${sizeClass} ${textClass}`}
+    >
       {buildLogoFallback(product || "Vote") || "V"}
     </div>
   );
@@ -184,29 +191,30 @@ function VotePreviewCard({ category, product, logo }: Pick<VoteOptionFormState, 
         </div>
       </div>
 
-      <div className="overflow-hidden rounded-[1.2rem] border border-[#eee4d8] bg-white shadow-[0_12px_22px_rgba(36,22,41,0.08)]">
-        <div className="relative flex items-center gap-3 px-5 py-4">
-          <div className="absolute top-4 right-4 text-[1.05rem] font-semibold text-[#7f7486]">#1</div>
+      <div className="overflow-hidden rounded-[1.2rem] border border-[#eadfd2] bg-white shadow-[0_10px_22px_rgba(91,74,117,0.08)]">
+        <div className="relative flex items-center gap-3 px-2.5 py-2">
+          <div className="absolute top-4 right-4 text-[0.95rem] font-semibold text-[#7d6f8a]">#1</div>
           <div className="shrink-0">
-            <VoteLogoPreview logo={logo} product={product} />
+            <VoteLogoPreview logo={logo} product={product} compact />
           </div>
           <div className="min-w-0 flex-1">
-            <div className="truncate text-[1rem] font-bold text-[#1f2c44]">{product || "Ten san pham"}</div>
-            <div className="mt-2 inline-flex max-w-full rounded-[0.75rem] bg-[#f4e8ff] px-2.5 py-1 text-[12px] font-semibold text-[#8b34ff]">
+            <div className="mt-1 truncate text-[0.95rem] font-black text-[#1f2937]">{product || "Ten san pham"}</div>
+            <div className="inline-flex max-w-full rounded bg-[#f4e8ff] px-1.5 py-0.5 text-[11px] font-semibold text-[#8b34ff]">
               <span className="truncate">{category || "The loai"}</span>
             </div>
-            <div className="mt-3 text-[15px] font-black text-[#111827]">
-              156 <span className="font-medium text-[#8a7e8b]">vote</span>
+            <div className="mt-1">
+              <span className="me-1 font-medium text-[#111827]">156</span>
+              <span className="text-[11px] text-[#8a7e8b]">vote</span>
             </div>
           </div>
           <div className="shrink-0 self-end">
-            <div className="inline-flex items-center gap-2 rounded-[0.95rem] border border-[#eef2f7] bg-[#f8fafc] px-4 py-2.5 text-[0.95rem] font-semibold text-[#243b64] shadow-[0_8px_18px_rgba(148,163,184,0.12)]">
-              <ThumbsUp className="size-4" />
+            <div className="inline-flex items-center gap-1 rounded-full border border-[#ece7f2] bg-[#faf8fc] px-2.5 py-1 text-xs font-semibold text-[#4a5568] shadow-sm">
+              <ThumbsUp className="size-3" />
               Vote
             </div>
           </div>
         </div>
-        <div className="h-1.5 bg-[#e3e7ee]">
+        <div className="h-1.5 bg-[#d8dde8]">
           <div className="h-full w-[74%] bg-[#98a6ba]" />
         </div>
       </div>
@@ -590,8 +598,8 @@ export function VoteOptionManager({ initialData }: VoteOptionManagerProps) {
                         </div>
                       </div>
                     </div>
-                    <div className="flex flex-wrap gap-2">
-                      <label className="inline-flex cursor-pointer items-center gap-2 rounded-[1rem] border border-[#eadfd2] bg-white px-4 py-3 text-sm font-semibold text-[#241629] shadow-[0_8px_18px_rgba(184,134,11,0.05)]">
+                    <div className="flex shrink-0 items-center gap-2">
+                      <label className="inline-flex shrink-0 cursor-pointer items-center gap-2 rounded-[1rem] border border-[#eadfd2] bg-white px-4 py-3 text-sm font-semibold whitespace-nowrap text-[#241629] shadow-[0_8px_18px_rgba(184,134,11,0.05)]">
                         <ImagePlus className="size-4" />
                         Chọn ảnh
                         <input type="file" accept="image/*" className="hidden" onChange={handleLogoFileChange} />
@@ -600,7 +608,7 @@ export function VoteOptionManager({ initialData }: VoteOptionManagerProps) {
                         <Button
                           type="button"
                           variant="outline"
-                          className="rounded-[1rem] border-[#eadfd2] bg-white text-[#241629]"
+                          className="shrink-0 rounded-[1rem] border-[#eadfd2] bg-white whitespace-nowrap text-[#241629]"
                           onClick={() => setForm((current) => ({ ...current, logo: "" }))}
                         >
                           Xóa logo

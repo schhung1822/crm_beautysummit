@@ -35,8 +35,30 @@ model brand {
   nc_order   Decimal?  @db.Decimal(10, 2)
   brand_id   String?   @db.Text
   brand_name String?   @db.Text
+  category   String?   @db.Text
+  product    String?   @db.Text
+  voted      String?   @db.Text
+  link       String?   @db.Text
 
   @@index([nc_order], map: "brand_order_idx")
+}
+
+model voted {
+  id         Int       @id @default(autoincrement()) @db.UnsignedInt
+  created_at DateTime? @db.Timestamp(0)
+  updated_at DateTime? @db.Timestamp(0)
+  created_by String?   @db.VarChar(255)
+  updated_by String?   @db.VarChar(255)
+  nc_order   Decimal?  @db.Decimal(10, 2)
+  ordercode  String?   @db.Text
+  name       String?   @db.Text
+  phone      String?   @db.Text
+  email      String?   @db.Text
+  gender     String?   @db.Text
+  time_vote  DateTime? @db.DateTime(0)
+  brand_id   String?   @db.Text
+
+  @@index([nc_order], map: "voted_order_idx")
 }
 
 model checkin {
@@ -213,4 +235,54 @@ model user_zaloOA {
   id_lark      String?   @db.Text
 
   @@index([nc_order], map: "user_zaloOA_order_idx")
+}
+
+model miniapp_user_reward_state {
+  id                       Int       @id @default(autoincrement()) @db.UnsignedInt
+  created_at               DateTime? @db.Timestamp(0)
+  updated_at               DateTime? @db.Timestamp(0)
+  created_by               String?   @db.VarChar(255)
+  updated_by               String?   @db.VarChar(255)
+  nc_order                 Decimal?  @db.Decimal(10, 2)
+  zid                      String    @unique @db.VarChar(255)
+  phone                    String?   @db.Text
+  name                     String?   @db.Text
+  avatar                   String?   @db.Text
+  completed_mission_ids    String?   @db.LongText
+  claimed_free_voucher_ids String?   @db.LongText
+  redeemed_voucher_ids     String?   @db.LongText
+  claimed_milestone_pcts   String?   @db.LongText
+  votes_json               String?   @db.LongText
+  spent_points             Int?      @default(0)
+  total_points             Int?      @default(0)
+  available_points         Int?      @default(0)
+  create_time              DateTime? @default(now()) @db.DateTime(0)
+  update_time              DateTime? @updatedAt @db.DateTime(0)
+
+  @@index([nc_order], map: "miniapp_user_reward_state_order_idx")
+}
+
+model miniapp_voucher {
+  id          Int       @id @default(autoincrement()) @db.UnsignedInt
+  created_at  DateTime? @db.Timestamp(0)
+  updated_at  DateTime? @db.Timestamp(0)
+  created_by  String?   @db.VarChar(255)
+  updated_by  String?   @db.VarChar(255)
+  nc_order    Decimal?  @db.Decimal(10, 2)
+  voucher_id  String    @unique @db.VarChar(64)
+  kind        String    @db.VarChar(20)
+  brand       String    @db.VarChar(255)
+  logo        String?   @db.LongText
+  discount    String    @db.VarChar(255)
+  description String?   @db.Text
+  code        String?   @unique @db.VarChar(64)
+  color       String?   @db.VarChar(20)
+  cost        Int?
+  is_grand    Int?      @default(0) @db.TinyInt
+  is_active   Int?      @default(1) @db.TinyInt
+  create_time DateTime? @default(now()) @db.DateTime(0)
+  update_time DateTime? @updatedAt @db.DateTime(0)
+
+  @@index([kind], map: "miniapp_voucher_kind_idx")
+  @@index([nc_order], map: "miniapp_voucher_order_idx")
 }

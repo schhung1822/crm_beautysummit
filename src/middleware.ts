@@ -9,7 +9,9 @@ const PUBLIC_ROUTES = [
   "/api/auth/login",
   "/api/auth/zalo-miniapp",
   "/api/miniapp/tickets",
+  "/api/miniapp/rewards",
   "/api/tickets",
+  "/api/rewards",
 ];
 
 // Routes that should redirect to home if authenticated

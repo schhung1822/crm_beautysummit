@@ -4,6 +4,7 @@ import {
   Calendar1Icon,
   ChartBar,
   Gauge,
+  Gift,
   LayoutDashboard,
   PackageIcon,
   type LucideIcon,
@@ -87,6 +88,11 @@ export const sidebarItems: NavGroup[] = [
         title: "Le tan check-in",
         url: "/staff-checkin",
         icon: PackageIcon,
+      },
+      {
+        title: "Voucher",
+        url: "/vouchers",
+        icon: Gift,
       },
       {
         title: "Khach hang",

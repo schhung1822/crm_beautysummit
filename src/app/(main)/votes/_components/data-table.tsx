@@ -15,10 +15,12 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useDataTableInstance } from "@/hooks/use-data-table-instance";
 import { exportData } from "@/lib/export-utils";
+import type { VoteOptionRecord } from "@/lib/vote-options";
 
 import { dashboardColumns } from "./columns";
 import { EventsSummary } from "./events-summary";
 import { Academy } from "./schema";
+import { VoteOptionManager } from "./vote-option-manager";
 
 const colorPalette = ["#22c55e", "#3b82f6", "#f59e0b", "#a855f7", "#ec4899", "#14b8a6", "#f97316"];
 
@@ -26,7 +28,13 @@ function toVoteRowKey(row: Pick<Academy, "ordercode" | "phone" | "brand_id" | "t
   return `${row.ordercode}__${row.phone}__${row.brand_id}__${row.time_vote ? new Date(row.time_vote).toISOString() : ""}`;
 }
 
-export function DataTable({ data: initialData }: { data: Academy[] }) {
+export function DataTable({
+  data: initialData,
+  initialVoteOptions,
+}: {
+  data: Academy[];
+  initialVoteOptions: VoteOptionRecord[];
+}) {
   const [data, setData] = React.useState<Academy[]>(() => initialData);
   const [searchTerm, setSearchTerm] = React.useState("");
   const [selectedBrand, setSelectedBrand] = React.useState<string>("all");
@@ -219,6 +227,8 @@ export function DataTable({ data: initialData }: { data: Academy[] }) {
 
   return (
     <div className="flex w-full flex-col gap-6">
+      <VoteOptionManager initialData={initialVoteOptions} />
+
       <EventsSummary totalVotes={totalVotes} genderData={genderData} brandRatioData={brandRatioData} />
 
       <div className="flex items-center justify-between gap-4">

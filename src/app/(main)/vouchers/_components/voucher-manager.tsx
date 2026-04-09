@@ -1,0 +1,805 @@
+/* eslint-disable max-lines, complexity */
+"use client";
+
+import * as React from "react";
+
+import { ImagePlus, Pencil, Plus, Search, Trash2 } from "lucide-react";
+import { toast } from "sonner";
+
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
+import { Textarea } from "@/components/ui/textarea";
+import type { MiniAppVoucherKind, MiniAppVoucherRecord } from "@/lib/miniapp-rewards";
+
+type VoucherManagerProps = {
+  initialData: MiniAppVoucherRecord[];
+};
+
+type VoucherFormState = {
+  voucherId: string | null;
+  kind: MiniAppVoucherKind;
+  brand: string;
+  logo: string;
+  discount: string;
+  desc: string;
+  color: string;
+  cost: string;
+  isGrand: boolean;
+  isActive: boolean;
+  code: string;
+};
+
+const COLOR_OPTIONS = [
+  "#B8860B",
+  "#EC4899",
+  "#0EA5E9",
+  "#8B5CF6",
+  "#F97316",
+  "#14B8A6",
+  "#E11D48",
+  "#22C55E",
+  "#1E3A5F",
+  "#333333",
+] as const;
+
+const PAGE_SIZE_OPTIONS = [5, 10, 20, 50] as const;
+const MAX_LOGO_SIZE_BYTES = 512 * 1024;
+const IMAGE_SOURCE_PATTERN = /^(data:image\/|https?:\/\/|\/)/i;
+
+const DEFAULT_FORM: VoucherFormState = {
+  voucherId: null,
+  kind: "bpoint",
+  brand: "",
+  logo: "",
+  discount: "",
+  desc: "",
+  color: "#B8860B",
+  cost: "0",
+  isGrand: false,
+  isActive: true,
+  code: "",
+};
+
+function createFormState(voucher?: MiniAppVoucherRecord | null): VoucherFormState {
+  if (!voucher) {
+    return DEFAULT_FORM;
+  }
+
+  return {
+    voucherId: voucher.id,
+    kind: voucher.kind,
+    brand: voucher.brand,
+    logo: voucher.logo,
+    discount: voucher.discount,
+    desc: voucher.desc,
+    color: voucher.color,
+    cost: voucher.cost == null ? "" : String(voucher.cost),
+    isGrand: voucher.isGrand === true,
+    isActive: voucher.isActive !== false,
+    code: voucher.code ?? "",
+  };
+}
+
+function formatDateLabel(value?: string | null): string {
+  if (!value) {
+    return "--";
+  }
+
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) {
+    return value;
+  }
+
+  return parsed.toLocaleString("vi-VN");
+}
+
+function normalizeSearchValue(value: string): string {
+  return value.trim().toLowerCase();
+}
+
+function isImageLogo(value: string): boolean {
+  return IMAGE_SOURCE_PATTERN.test(value.trim());
+}
+
+function buildLogoFallback(logo: string, brand: string): string {
+  const normalizedLogo = logo.trim();
+  if (normalizedLogo && !isImageLogo(normalizedLogo)) {
+    return normalizedLogo.slice(0, 3).toUpperCase();
+  }
+
+  return brand
+    .trim()
+    .split(/\s+/)
+    .slice(0, 2)
+    .map((part) => part.charAt(0).toUpperCase())
+    .join("");
+}
+
+function LogoPreview({
+  logo,
+  brand,
+  color,
+  isGrand = false,
+}: {
+  logo: string;
+  brand: string;
+  color: string;
+  isGrand?: boolean;
+}) {
+  if (isImageLogo(logo)) {
+    return (
+      <div
+        className="flex h-12 w-12 items-center justify-center overflow-hidden rounded-xl shadow-[0_8px_18px_rgba(184,134,11,0.08)]"
+        style={{
+          background: isGrand ? `linear-gradient(135deg, ${color}22, ${color}14)` : "#ffffff",
+          border: isGrand ? `1px solid ${color}` : "1px solid #eadfd2",
+          boxShadow: isGrand ? "0 8px 18px rgba(236,72,153,0.12)" : undefined,
+        }}
+      >
+        <img src={logo} alt={brand} className="h-full w-full object-contain p-1.5" />
+      </div>
+    );
+  }
+
+  return (
+    <div
+      className="flex h-12 w-12 items-center justify-center rounded-xl text-sm font-black text-white shadow-[0_8px_18px_rgba(184,134,11,0.08)]"
+      style={{
+        background: `linear-gradient(135deg, ${color}, ${color}bb)`,
+        border: isGrand ? `1px solid ${color}` : undefined,
+        boxShadow: isGrand ? "0 8px 18px rgba(236,72,153,0.12)" : undefined,
+      }}
+    >
+      {buildLogoFallback(logo, brand)}
+    </div>
+  );
+}
+
+function resizeImageFileToDataUrl(file: File, size: number): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const image = new Image();
+
+      image.onload = () => {
+        const canvas = document.createElement("canvas");
+        canvas.width = size;
+        canvas.height = size;
+
+        const context = canvas.getContext("2d");
+        if (!context) {
+          reject(new Error("Khong the xu ly logo"));
+          return;
+        }
+
+        context.clearRect(0, 0, size, size);
+
+        const ratio = Math.min(size / image.width, size / image.height);
+        const width = image.width * ratio;
+        const height = image.height * ratio;
+        const x = (size - width) / 2;
+        const y = (size - height) / 2;
+
+        context.drawImage(image, x, y, width, height);
+        resolve(canvas.toDataURL("image/png"));
+      };
+
+      image.onerror = () => reject(new Error("Khong the doc file logo"));
+      image.src = String(reader.result ?? "");
+    };
+    reader.onerror = () => reject(new Error("Khong the doc file logo"));
+    reader.readAsDataURL(file);
+  });
+}
+
+export default function VoucherManager({ initialData }: VoucherManagerProps) {
+  const [data, setData] = React.useState<MiniAppVoucherRecord[]>(initialData);
+  const [search, setSearch] = React.useState("");
+  const [kindFilter, setKindFilter] = React.useState<"all" | MiniAppVoucherKind>("all");
+  const [pageSize, setPageSize] = React.useState<number>(10);
+  const [pageIndex, setPageIndex] = React.useState(0);
+  const [dialogOpen, setDialogOpen] = React.useState(false);
+  const [form, setForm] = React.useState<VoucherFormState>(DEFAULT_FORM);
+  const [isSaving, setIsSaving] = React.useState(false);
+  const [deletingId, setDeletingId] = React.useState<string | null>(null);
+
+  const isEditing = Boolean(form.voucherId);
+
+  const filteredData = React.useMemo(() => {
+    const keyword = normalizeSearchValue(search);
+    return data.filter((voucher) => {
+      const passKind = kindFilter === "all" || voucher.kind === kindFilter;
+      if (!passKind) {
+        return false;
+      }
+
+      if (!keyword) {
+        return true;
+      }
+
+      const haystack = [voucher.brand, voucher.discount, voucher.code, voucher.desc]
+        .map((value) => normalizeSearchValue(String(value ?? "")))
+        .join(" ");
+
+      return haystack.includes(keyword);
+    });
+  }, [data, kindFilter, search]);
+
+  const summary = React.useMemo(
+    () => ({
+      total: data.length,
+      bpoint: data.filter((voucher) => voucher.kind === "bpoint").length,
+      free: data.filter((voucher) => voucher.kind === "free").length,
+      active: data.filter((voucher) => voucher.isActive !== false).length,
+    }),
+    [data],
+  );
+
+  const pageCount = Math.max(1, Math.ceil(filteredData.length / pageSize));
+  const safePageIndex = Math.min(pageIndex, pageCount - 1);
+  const pageStart = safePageIndex * pageSize;
+  const pageEnd = pageStart + pageSize;
+  const paginatedData = filteredData.slice(pageStart, pageEnd);
+  const visibleStart = filteredData.length === 0 ? 0 : pageStart + 1;
+  const visibleEnd = Math.min(filteredData.length, pageEnd);
+
+  React.useEffect(() => {
+    setPageIndex(0);
+  }, [kindFilter, pageSize, search]);
+
+  React.useEffect(() => {
+    if (pageIndex > pageCount - 1) {
+      setPageIndex(Math.max(pageCount - 1, 0));
+    }
+  }, [pageCount, pageIndex]);
+
+  const openCreateDialog = React.useCallback(() => {
+    setForm(createFormState());
+    setDialogOpen(true);
+  }, []);
+
+  const openEditDialog = React.useCallback((voucher: MiniAppVoucherRecord) => {
+    setForm(createFormState(voucher));
+    setDialogOpen(true);
+  }, []);
+
+  const handleLogoFileChange = React.useCallback(async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+
+    if (!file) {
+      return;
+    }
+
+    if (!file.type.startsWith("image/")) {
+      toast.error("Vui long chon file anh cho logo");
+      return;
+    }
+
+    if (file.size > MAX_LOGO_SIZE_BYTES) {
+      toast.error("Logo qua lon. Vui long chon anh nho hon 512KB");
+      return;
+    }
+
+    try {
+      const dataUrl = await resizeImageFileToDataUrl(file, 256);
+      setForm((current) => ({ ...current, logo: dataUrl }));
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Khong the tai logo");
+    }
+  }, []);
+
+  const handleSave = React.useCallback(async () => {
+    setIsSaving(true);
+
+    try {
+      const payload = {
+        voucherId: form.voucherId,
+        kind: form.kind,
+        brand: form.brand,
+        logo: form.logo,
+        discount: form.discount,
+        desc: form.desc,
+        color: form.color,
+        cost: form.kind === "bpoint" && !form.isGrand ? Number(form.cost || 0) : null,
+        isGrand: form.isGrand,
+        isActive: form.isActive,
+      };
+
+      const response = await fetch("/api/vouchers", {
+        method: isEditing ? "PUT" : "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(payload),
+      });
+      const result = (await response.json()) as { data?: MiniAppVoucherRecord; message?: string };
+
+      if (!response.ok || !result.data) {
+        throw new Error(result.message ?? "Khong the luu voucher");
+      }
+
+      setData((current) => {
+        const next = current.filter((item) => item.id !== result.data?.id);
+        return [result.data!, ...next];
+      });
+      setPageIndex(0);
+      setDialogOpen(false);
+      setForm(DEFAULT_FORM);
+      toast.success(isEditing ? "Đã cập nhật voucher" : "Đã tạo voucher mới");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Không thể lưu voucher");
+    } finally {
+      setIsSaving(false);
+    }
+  }, [form, isEditing]);
+
+  const handleDelete = React.useCallback(async (voucher: MiniAppVoucherRecord) => {
+    const confirmed = window.confirm(`Xoa voucher ${voucher.brand}?`);
+    if (!confirmed) {
+      return;
+    }
+
+    setDeletingId(voucher.id);
+    try {
+      const response = await fetch("/api/vouchers", {
+        method: "DELETE",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ voucherId: voucher.id }),
+      });
+      const result = (await response.json()) as { deleted?: number; message?: string };
+      if (!response.ok || !result.deleted) {
+        throw new Error(result.message ?? "Khong the xoa voucher");
+      }
+
+      setData((current) => current.filter((item) => item.id !== voucher.id));
+      toast.success("Da xoa voucher");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Khong the xoa voucher");
+    } finally {
+      setDeletingId(null);
+    }
+  }, []);
+
+  return (
+    <div className="flex flex-col gap-6">
+      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        {[
+          { label: "Tong voucher", value: summary.total },
+          { label: "Voucher BPoint", value: summary.bpoint },
+          { label: "Voucher free", value: summary.free },
+          { label: "Dang hoat dong", value: summary.active },
+        ].map((item) => (
+          <div key={item.label} className="bg-card rounded-xl border p-4 shadow-sm">
+            <div className="text-muted-foreground text-sm">{item.label}</div>
+            <div className="mt-2 text-2xl font-semibold">{item.value}</div>
+          </div>
+        ))}
+      </div>
+
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+        <div className="flex flex-1 flex-col gap-3 sm:flex-row">
+          <div className="relative max-w-md flex-1">
+            <Search className="text-muted-foreground absolute top-1/2 left-3 size-4 -translate-y-1/2" />
+            <Input
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
+              placeholder="Tim theo brand, ma voucher..."
+              className="pl-10"
+            />
+          </div>
+          <Select value={kindFilter} onValueChange={(value) => setKindFilter(value as "all" | MiniAppVoucherKind)}>
+            <SelectTrigger className="w-[180px]">
+              <SelectValue placeholder="Loai voucher" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Tat ca</SelectItem>
+              <SelectItem value="bpoint">BPoint</SelectItem>
+              <SelectItem value="free">Free</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+
+        <Button onClick={openCreateDialog}>
+          <Plus className="size-4" />
+          Tao voucher
+        </Button>
+      </div>
+
+      <div className="bg-card overflow-hidden rounded-xl border shadow-sm">
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[980px] text-sm">
+            <thead className="bg-muted/40">
+              <tr className="text-left">
+                <th className="px-4 py-3 font-medium">Logo</th>
+                <th className="px-4 py-3 font-medium">Brand</th>
+                <th className="px-4 py-3 font-medium">Loai</th>
+                <th className="px-4 py-3 font-medium">Title</th>
+                <th className="px-4 py-3 font-medium">Code</th>
+                <th className="px-4 py-3 font-medium">Trang thai</th>
+                <th className="px-4 py-3 font-medium">Cap nhat</th>
+                <th className="px-4 py-3 text-right font-medium">Thao tac</th>
+              </tr>
+            </thead>
+            <tbody>
+              {paginatedData.length === 0 ? (
+                <tr>
+                  <td colSpan={8} className="text-muted-foreground px-4 py-10 text-center">
+                    Chua co voucher phu hop.
+                  </td>
+                </tr>
+              ) : (
+                paginatedData.map((voucher) => (
+                  <tr key={voucher.id} className="border-t align-top">
+                    <td className="px-4 py-3">
+                      <LogoPreview logo={voucher.logo} brand={voucher.brand} color={voucher.color} />
+                    </td>
+                    <td className="px-4 py-3">
+                      <div className="font-medium">{voucher.brand}</div>
+                      <div className="text-muted-foreground mt-1 line-clamp-2 text-xs">{voucher.desc}</div>
+                    </td>
+                    <td className="px-4 py-3">
+                      <div className="flex flex-wrap gap-2">
+                        <Badge variant="outline">{voucher.kind === "bpoint" ? "BPoint" : "Free"}</Badge>
+                        {voucher.isGrand ? <Badge>Grand</Badge> : null}
+                      </div>
+                    </td>
+                    <td className="px-4 py-3">{voucher.discount}</td>
+                    <td className="px-4 py-3 font-mono text-xs">{voucher.code ?? "--"}</td>
+                    <td className="px-4 py-3">
+                      <Badge variant={voucher.isActive === false ? "outline" : "secondary"}>
+                        {voucher.isActive === false ? "Tat" : "Dang bat"}
+                      </Badge>
+                    </td>
+                    <td className="px-4 py-3 text-xs">{formatDateLabel(voucher.updatedAt)}</td>
+                    <td className="px-4 py-3">
+                      <div className="flex justify-end gap-2">
+                        <Button size="sm" variant="outline" onClick={() => openEditDialog(voucher)}>
+                          <Pencil className="size-4" />
+                          Sua
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="destructive"
+                          onClick={() => void handleDelete(voucher)}
+                          disabled={deletingId === voucher.id}
+                        >
+                          <Trash2 className="size-4" />
+                          Xoa
+                        </Button>
+                      </div>
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div className="flex items-center justify-between px-4 py-2">
+        <div className="text-muted-foreground hidden flex-1 text-sm lg:flex">
+          Hien {visibleStart}-{visibleEnd} cua {filteredData.length} voucher
+        </div>
+
+        <div className="flex w-full items-center gap-8 lg:w-fit">
+          <div className="hidden items-center gap-2 lg:flex">
+            <Label htmlFor="voucher-rows-per-page" className="text-sm font-medium">
+              So hang moi trang
+            </Label>
+            <Select
+              value={String(pageSize)}
+              onValueChange={(value) => {
+                setPageSize(Number(value));
+                setPageIndex(0);
+              }}
+            >
+              <SelectTrigger size="sm" className="w-20" id="voucher-rows-per-page">
+                <SelectValue placeholder={String(pageSize)} />
+              </SelectTrigger>
+              <SelectContent side="top">
+                {PAGE_SIZE_OPTIONS.map((size) => (
+                  <SelectItem key={size} value={String(size)}>
+                    {size}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="flex w-fit items-center justify-center text-sm font-medium">
+            Trang {filteredData.length === 0 ? 0 : safePageIndex + 1} cua {pageCount}
+          </div>
+
+          <div className="ml-auto flex items-center gap-2 lg:ml-0">
+            <Button
+              variant="outline"
+              className="hidden h-8 w-8 p-0 lg:flex"
+              onClick={() => setPageIndex(0)}
+              disabled={safePageIndex === 0}
+            >
+              <span className="sr-only">Trang dau</span>«
+            </Button>
+            <Button
+              variant="outline"
+              className="size-8"
+              size="icon"
+              disabled={safePageIndex === 0}
+              onClick={() => setPageIndex((current) => Math.max(current - 1, 0))}
+            >
+              <span className="sr-only">Trang truoc</span>‹
+            </Button>
+            <Button
+              variant="outline"
+              className="size-8"
+              size="icon"
+              disabled={safePageIndex >= pageCount - 1}
+              onClick={() => setPageIndex((current) => Math.min(current + 1, pageCount - 1))}
+            >
+              <span className="sr-only">Trang sau</span>›
+            </Button>
+            <Button
+              variant="outline"
+              className="hidden size-8 lg:flex"
+              size="icon"
+              disabled={safePageIndex >= pageCount - 1}
+              onClick={() => setPageIndex(pageCount - 1)}
+            >
+              <span className="sr-only">Trang cuoi</span>»
+            </Button>
+          </div>
+        </div>
+      </div>
+
+      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+        <DialogContent className="sm:max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>{isEditing ? "Cập nhật voucher" : "Tạo voucher mới"}</DialogTitle>
+          </DialogHeader>
+
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="grid gap-4 sm:col-span-2 sm:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)_auto] sm:items-end">
+              <div className="space-y-1.5">
+                <Label>Loại voucher</Label>
+                <Select
+                  value={form.kind}
+                  onValueChange={(value) =>
+                    setForm((current) => ({
+                      ...current,
+                      kind: value as MiniAppVoucherKind,
+                      cost: value === "bpoint" ? current.cost || "0" : "",
+                      isGrand: value === "bpoint" ? current.isGrand : false,
+                    }))
+                  }
+                >
+                  <SelectTrigger className="w-full">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="bpoint">BPoint</SelectItem>
+                    <SelectItem value="free">Free</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1.5">
+                <Label>Brand</Label>
+                <Input
+                  value={form.brand}
+                  onChange={(event) => setForm((current) => ({ ...current, brand: event.target.value }))}
+                />
+              </div>
+              <div className="space-y-1.5 sm:min-w-[170px]">
+                <Label>Activate</Label>
+                <div className="flex h-10 items-center rounded-lg border px-3">
+                  <Switch
+                    checked={form.isActive}
+                    onCheckedChange={(checked) => setForm((current) => ({ ...current, isActive: checked }))}
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div className="grid gap-4 sm:col-span-2 lg:grid-cols-[minmax(0,1fr)_220px] lg:items-start">
+              <div
+                className={`relative overflow-hidden rounded-[1.2rem] border px-4 py-4 shadow-[0_10px_24px_rgba(184,134,11,0.06)] ${form.isGrand ? "border-[#f4b16a]" : "border-[#eadfd2] bg-[linear-gradient(145deg,#fffdf8,#fff6ea)]"}`}
+                style={
+                  form.isGrand
+                    ? {
+                        background:
+                          "radial-gradient(circle at top right, rgba(255,175,64,0.24), transparent 34%), radial-gradient(circle at bottom left, rgba(236,72,153,0.16), transparent 42%), linear-gradient(145deg,#fff8ef 0%,#fff3e0 52%,#fff7fb 100%)",
+                        boxShadow: "0 12px 26px rgba(249,115,22,0.12), 0 4px 14px rgba(236,72,153,0.08)",
+                      }
+                    : undefined
+                }
+              >
+                <div className="mb-3 text-xs font-semibold tracking-[0.14em] uppercase" style={{ color: form.color }}>
+                  Preview
+                </div>
+                <div
+                  className={`relative flex items-center gap-3 rounded-[1.25rem] border px-3.5 py-3.5 shadow-[0_10px_22px_rgba(184,134,11,0.05)] ${form.isGrand ? "overflow-hidden border-[#f2bf7b] bg-[linear-gradient(145deg,#fffdf8_0%,#fff7ee_100%)]" : "border-[#eadfd2] bg-white"}`}
+                >
+                  {form.isGrand ? (
+                    <div className="absolute top-0 right-0 rounded-tr-[1.15rem] rounded-bl-[1rem] bg-[linear-gradient(135deg,#f9c529_0%,#ffb347_46%,#ff72bc_100%)] px-4 py-1 text-[11px] font-black tracking-[0.04em] text-white">
+                      Giải đặc biệt
+                    </div>
+                  ) : null}
+                  <LogoPreview
+                    logo={form.logo}
+                    brand={form.brand || "Voucher"}
+                    color={form.color}
+                    isGrand={form.isGrand}
+                  />
+                  <div className="min-w-0 flex-1">
+                    <div
+                      className={`truncate text-[13px] font-semibold ${form.isGrand ? "text-[#ff4fb5]" : ""}`}
+                      style={form.isGrand ? undefined : { color: form.color }}
+                    >
+                      {form.brand || "Brand voucher"}
+                    </div>
+                    <div
+                      className={`truncate text-[17px] leading-tight font-black ${form.isGrand ? "text-[#241629]" : "text-[#241629]"}`}
+                    >
+                      {form.discount || "Title voucher"}
+                    </div>
+                    <div className={`mt-1 truncate text-[12px] ${form.isGrand ? "text-[#7a7280]" : "text-[#7a7280]"}`}>
+                      {form.desc || "Mo ta voucher 1 dong, dai thi se tu cat."}
+                    </div>
+                  </div>
+                  <div
+                    className={`min-w-[82px] shrink-0 rounded-full px-3.5 py-1 text-center text-[13px] font-bold ${form.isGrand ? "border border-[rgba(255,210,31,0.14)] bg-[linear-gradient(135deg,#4f3409_0%,#2d200c_100%)] font-black tracking-[0.04em] text-[#ffd21f] shadow-[0_10px_18px_rgba(0,0,0,0.24)]" : "text-white"}`}
+                    style={
+                      form.isGrand
+                        ? undefined
+                        : {
+                            background: `linear-gradient(135deg, ${form.color}, ${form.color}bb)`,
+                          }
+                    }
+                  >
+                    {form.kind === "bpoint" && !form.isGrand ? `${form.cost || 0} BP` : form.isGrand ? "MAX" : "Nhận"}
+                  </div>
+                </div>
+              </div>
+
+              <div className="grid gap-4">
+                <div className="space-y-1.5">
+                  <Label>Mã voucher</Label>
+                  <Input value={form.code || "Sẽ tự động tạo khi lưu"} readOnly />
+                </div>
+                <div className="space-y-1.5">
+                  <Label>Grand prize</Label>
+                  <div className="flex items-center justify-between rounded-lg border px-3 py-2">
+                    <div className="text-muted-foreground text-xs">Giải đặc biệt</div>
+                    <Switch
+                      checked={form.isGrand}
+                      onCheckedChange={(checked) =>
+                        setForm((current) => ({
+                          ...current,
+                          isGrand: checked,
+                          cost: checked ? "" : current.cost || "0",
+                        }))
+                      }
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="space-y-2 sm:col-span-2">
+              <Label>Logo voucher</Label>
+              <div className="flex flex-col gap-3 rounded-[1.1rem] border border-[#eadfd2] bg-[linear-gradient(145deg,#fffdf8,#fff6ea)] p-3.5 shadow-[0_10px_24px_rgba(184,134,11,0.06)] sm:flex-row sm:items-center sm:justify-between">
+                <div className="flex items-center gap-3">
+                  <LogoPreview logo={form.logo} brand={form.brand || "Voucher"} color={form.color} />
+                  <div className="text-sm">
+                    <div className="font-medium text-[#241629]">
+                      {isImageLogo(form.logo) ? "Đã chọn logo ảnh" : "Đang dùng logo chữ"}
+                    </div>
+                    <div className="text-xs text-[#7a7280]">Khuyến nghị ảnh vuông, dung lượng dưới 512KB.</div>
+                  </div>
+                </div>
+                <div className="flex gap-2">
+                  <label className="inline-flex cursor-pointer items-center gap-2 rounded-[0.95rem] border border-[#eadfd2] bg-white px-3 py-2 text-sm font-medium text-[#241629] shadow-[0_8px_18px_rgba(184,134,11,0.05)]">
+                    <ImagePlus className="size-4" />
+                    Chọn ảnh
+                    <input type="file" accept="image/*" className="hidden" onChange={handleLogoFileChange} />
+                  </label>
+                  {form.logo ? (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="rounded-[0.95rem] border-[#eadfd2] bg-white text-[#241629] shadow-[0_8px_18px_rgba(184,134,11,0.05)]"
+                      onClick={() => setForm((current) => ({ ...current, logo: "" }))}
+                    >
+                      Xóa logo
+                    </Button>
+                  ) : null}
+                </div>
+              </div>
+            </div>
+
+            <div className="space-y-2 sm:col-span-2">
+              <Label>Màu sắc voucher</Label>
+              <div className="flex flex-wrap gap-2">
+                {COLOR_OPTIONS.map((color) => {
+                  const active = form.color.toLowerCase() === color.toLowerCase();
+                  return (
+                    <button
+                      key={color}
+                      type="button"
+                      onClick={() => setForm((current) => ({ ...current, color }))}
+                      className={`h-9 w-9 rounded-full border-2 transition ${active ? "scale-105 border-[#111827]" : "border-white/70"}`}
+                      style={{ backgroundColor: color }}
+                      aria-label={`Chon mau ${color}`}
+                    />
+                  );
+                })}
+                <label className="inline-flex h-9 items-center gap-2 rounded-full border px-3 text-xs font-medium">
+                  Màu tuỳ chỉnh
+                  <input
+                    type="color"
+                    value={form.color}
+                    onChange={(event) => setForm((current) => ({ ...current, color: event.target.value }))}
+                    className="h-6 w-6 cursor-pointer rounded-full border-0 bg-transparent p-0"
+                  />
+                </label>
+              </div>
+            </div>
+
+            <div
+              className={`grid gap-4 ${form.kind === "bpoint" ? "sm:col-span-2 sm:grid-cols-[minmax(0,7fr)_minmax(0,3fr)]" : "sm:col-span-2"}`}
+            >
+              <div className="space-y-1.5">
+                <Label>Tiêu đề</Label>
+                <Input
+                  value={form.discount}
+                  onChange={(event) => setForm((current) => ({ ...current, discount: event.target.value }))}
+                />
+              </div>
+              {form.kind === "bpoint" ? (
+                <div className="space-y-1.5">
+                  <Label>So diem BPoint</Label>
+                  <Input
+                    type="number"
+                    min="0"
+                    inputMode="numeric"
+                    value={form.cost}
+                    disabled={form.isGrand}
+                    placeholder={form.isGrand ? "Giải đặc biệt" : "Nhap so diem"}
+                    onChange={(event) =>
+                      setForm((current) => ({
+                        ...current,
+                        cost: event.target.value.replace(/[^\d]/g, ""),
+                      }))
+                    }
+                  />
+                </div>
+              ) : null}
+            </div>
+            <div className="space-y-1.5 sm:col-span-2">
+              <Label>Mo ta</Label>
+              <Textarea
+                value={form.desc}
+                onChange={(event) => setForm((current) => ({ ...current, desc: event.target.value }))}
+              />
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDialogOpen(false)}>
+              Huy
+            </Button>
+            <Button onClick={() => void handleSave()} disabled={isSaving}>
+              {isSaving ? "Dang luu..." : isEditing ? "Luu thay doi" : "Tao voucher"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}

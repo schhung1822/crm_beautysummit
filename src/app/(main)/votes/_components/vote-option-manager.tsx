@@ -280,7 +280,7 @@ function VotePreviewCard({
         </div>
 
         <div className="mb-5 rounded-[1.1rem] border border-[#eadfd2] bg-white p-4 shadow-[0_10px_22px_rgba(184,134,11,0.06)]">
-          <div className="mb-2 text-xs font-semibold tracking-[0.16em] text-[#9a8f9d] uppercase">Tom tat</div>
+          <div className="mb-2 text-xs font-semibold tracking-[0.16em] text-[#9a8f9d] uppercase">Tóm tắt</div>
           <p className="text-sm leading-6 text-[#5b5360]">
             {summary.trim() || `${productLabel} dang duoc de cu trong hang muc "${categoryLabel}".`}
           </p>
@@ -288,7 +288,7 @@ function VotePreviewCard({
 
         <div className="mb-6">
           <div className="mb-2 flex items-center justify-between text-xs">
-            <span className="text-[#8a7e8b]">Ty le vote</span>
+            <span className="text-[#8a7e8b]">Tỷ lệ vote</span>
             <span className="font-semibold" style={{ color: accentColor }}>
               100%
             </span>

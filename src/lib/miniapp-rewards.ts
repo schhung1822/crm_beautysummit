@@ -160,6 +160,11 @@ function buildMissionPointMap(): Record<string, number> {
 }
 
 const MISSION_POINT_MAP = buildMissionPointMap();
+const MISSION_ID_MAP = {
+  STANDARD: Object.keys(MISSION_POINT_MAP).filter((missionId) => missionId.startsWith("STANDARD-")),
+  PREMIUM: Object.keys(MISSION_POINT_MAP).filter((missionId) => missionId.startsWith("PREMIUM-")),
+  VIP: Object.keys(MISSION_POINT_MAP).filter((missionId) => missionId.startsWith("VIP-")),
+} as const;
 
 function parseString(value: unknown): string {
   return String(value ?? "").trim();
@@ -282,6 +287,15 @@ function mapVoucherRow(row: MiniAppVoucherRow): MiniAppVoucherRecord {
 
 function computeTotalPoints(completedIds: string[]): number {
   return uniqueStringArray(completedIds).reduce((sum, missionId) => sum + (MISSION_POINT_MAP[missionId] ?? 0), 0);
+}
+
+function hasCompletedAllTierMissions(completedIds: string[]): boolean {
+  const completedSet = new Set(uniqueStringArray(completedIds));
+
+  return Object.values(MISSION_ID_MAP).some(
+    (requiredMissionIds) =>
+      requiredMissionIds.length > 0 && requiredMissionIds.every((missionId) => completedSet.has(missionId)),
+  );
 }
 
 function buildRewardStatePayload(
@@ -798,6 +812,10 @@ export async function redeemMiniAppVoucher(identity: RewardIdentity, voucherId: 
   const current = await ensureMiniAppRewardState(identity);
   if (current.redeemedVoucherIds.includes(voucher.id)) {
     return buildRewardStatePayload(current);
+  }
+
+  if (voucher.isGrand && !hasCompletedAllTierMissions(current.completedIds)) {
+    throw new Error("Complete 100% missions to unlock the grand prize");
   }
 
   const voucherCost = Number(voucher.cost ?? 0);

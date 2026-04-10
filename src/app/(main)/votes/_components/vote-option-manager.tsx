@@ -3,7 +3,7 @@
 
 import * as React from "react";
 
-import { ImagePlus, Pencil, Plus, Tags, ThumbsUp, Trash2 } from "lucide-react";
+import { ImagePlus, Pencil, Plus, Tags, ThumbsUp, Trash2, X } from "lucide-react";
 import { toast } from "sonner";
 
 import { CreatableSearchSelect, type CreatableSearchSelectOption } from "@/components/creatable-search-select";
@@ -121,6 +121,13 @@ function buildLogoFallback(product: string): string {
     .join("");
 }
 
+function getPreviewAccent(category: string): string {
+  const palette = ["#e91e63", "#8b34ff", "#f97316", "#0ea5e9", "#14b8a6", "#b8860b"];
+  const normalized = category.trim().toLowerCase();
+  const index = normalized.split("").reduce((sum, char) => sum + char.charCodeAt(0), 0) % palette.length;
+  return palette[index] ?? palette[0];
+}
+
 function resizeImageFileToDataUrl(file: File, size: number): Promise<string> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -181,41 +188,125 @@ function VoteLogoPreview({ logo, product, compact = false }: { logo: string; pro
   );
 }
 
-function VotePreviewCard({ category, product, logo }: Pick<VoteOptionFormState, "category" | "product" | "logo">) {
+function VotePreviewCard({
+  category,
+  product,
+  logo,
+  summary,
+}: Pick<VoteOptionFormState, "category" | "product" | "logo" | "summary">) {
+  const productLabel = product || "Ten san pham";
+  const categoryLabel = category || "The loai";
+  const accentColor = getPreviewAccent(categoryLabel);
+
   return (
-    <div className="mx-auto w-full max-w-[420px] rounded-[1.5rem] border border-[#f0e4d8] bg-[linear-gradient(145deg,#fffdf9,#fff8f1)] p-4 shadow-[0_14px_32px_rgba(184,134,11,0.06)]">
-      <div className="mb-3 flex items-center justify-between">
-        <div className="text-[11px] font-semibold tracking-[0.16em] text-[#8a7e8b] uppercase">Preview</div>
-        <div className="rounded-full border border-[#f4e7da] bg-white px-2.5 py-1 text-[10px] font-semibold text-[#b088a6]">
-          Vote card
+    <div className="space-y-3">
+      <div className="rounded-[1.5rem] border border-[#f0e4d8] bg-[linear-gradient(145deg,#fffdf9,#fff8f1)] p-4 shadow-[0_14px_32px_rgba(184,134,11,0.06)]">
+        <div className="mb-3 flex items-center justify-between">
+          <div className="text-[11px] font-semibold tracking-[0.16em] text-[#8a7e8b] uppercase">Preview</div>
+          <div className="rounded-full border border-[#f4e7da] bg-white px-2.5 py-1 text-[10px] font-semibold text-[#b088a6]">
+            Vote card
+          </div>
+        </div>
+
+        <div className="overflow-hidden rounded-[1.2rem] border border-[#eadfd2] bg-white shadow">
+          <div className="flex items-center gap-3 px-2.5 py-2.5">
+            <div className="flex min-w-0 flex-1 items-center gap-3 text-left">
+              <VoteLogoPreview logo={logo} product={productLabel} compact />
+
+              <div className="min-w-0">
+                <div className="mt-1 truncate text-[0.95rem] font-black text-[#1f2937]">{productLabel}</div>
+                <div className="inline-flex max-w-full rounded bg-[#f4e8ff] px-1.5 py-0.5 text-[11px] font-semibold text-[#8b34ff]">
+                  <span className="truncate">{categoryLabel}</span>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex shrink-0 flex-col items-end gap-2">
+              <div className="flex items-baseline gap-1 text-right">
+                <span className="text-[0.95rem] font-bold text-[#111827]">156</span>
+                <span className="text-[11px] text-[#8a7e8b]">vote</span>
+              </div>
+              <div className="inline-flex min-w-[82px] items-center justify-center gap-1 rounded-full border border-[#ece7f2] bg-[#faf8fc] px-2.5 py-1 text-xs font-semibold text-[#4a5568] shadow-sm">
+                <ThumbsUp className="size-3" />
+                <span>Vote</span>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
 
-      <div className="overflow-hidden rounded-[1.2rem] border border-[#eadfd2] bg-white shadow-[0_10px_22px_rgba(91,74,117,0.08)]">
-        <div className="relative flex items-center gap-3 px-2.5 py-2">
-          <div className="absolute top-4 right-4 text-[0.95rem] font-semibold text-[#7d6f8a]">#1</div>
-          <div className="shrink-0">
-            <VoteLogoPreview logo={logo} product={product} compact />
+      <div className="rounded-[1.5rem] border border-[#f0e4d8] bg-[linear-gradient(145deg,#fffdf9,#fff8f1)] p-4 shadow-[0_14px_32px_rgba(184,134,11,0.06)]">
+        <div className="mx-auto mb-4 h-1.5 w-12 rounded-full bg-[#e3d8df]" />
+
+        <div className="mb-5 flex items-start justify-between gap-4">
+          <div className="flex min-w-0 items-start gap-3">
+            <VoteLogoPreview logo={logo} product={productLabel} />
+            <div className="min-w-0">
+              <div
+                className="mb-2 inline-flex rounded-full border px-3 py-1 text-[11px] font-semibold"
+                style={{
+                  borderColor: `${accentColor}33`,
+                  color: accentColor,
+                  background: `${accentColor}12`,
+                }}
+              >
+                {categoryLabel}
+              </div>
+              <div className="truncate text-[1.2rem] font-black text-[#241629]">{productLabel}</div>
+              <div className="mt-1 text-[12px] font-medium text-[#8a7e8b]">Da dong bo du lieu</div>
+            </div>
           </div>
-          <div className="min-w-0 flex-1">
-            <div className="mt-1 truncate text-[0.95rem] font-black text-[#1f2937]">{product || "Ten san pham"}</div>
-            <div className="inline-flex max-w-full rounded bg-[#f4e8ff] px-1.5 py-0.5 text-[11px] font-semibold text-[#8b34ff]">
-              <span className="truncate">{category || "The loai"}</span>
-            </div>
-            <div className="mt-1">
-              <span className="me-1 font-medium text-[#111827]">156</span>
-              <span className="text-[11px] text-[#8a7e8b]">vote</span>
-            </div>
-          </div>
-          <div className="shrink-0 self-end">
-            <div className="inline-flex items-center gap-1 rounded-full border border-[#ece7f2] bg-[#faf8fc] px-2.5 py-1 text-xs font-semibold text-[#4a5568] shadow-sm">
-              <ThumbsUp className="size-3" />
-              Vote
-            </div>
+
+          <div className="rounded-full border border-[#eadfd2] bg-white p-2 text-[#8a7e8b]">
+            <X className="size-4" />
           </div>
         </div>
-        <div className="h-1.5 bg-[#d8dde8]">
-          <div className="h-full w-[74%] bg-[#98a6ba]" />
+
+        <div className="mb-5 grid grid-cols-3 gap-3">
+          <div className="rounded-[1rem] border border-[#eadfd2] bg-white px-3 py-3.5 text-center">
+            <div className="text-lg font-black" style={{ color: accentColor }}>
+              1
+            </div>
+            <div className="mt-1 text-[11px] text-[#8a7e8b]">Luot vote</div>
+          </div>
+          <div className="rounded-[1rem] border border-[#eadfd2] bg-white px-3 py-3.5 text-center">
+            <div className="text-lg font-black text-[#241629]">#1</div>
+            <div className="mt-1 text-[11px] text-[#8a7e8b]">Xep hang</div>
+          </div>
+          <div className="rounded-[1rem] border border-[#eadfd2] bg-white px-3 py-3.5 text-center">
+            <div className="text-lg font-black text-[#b8860b]">1</div>
+            <div className="mt-1 text-[11px] text-[#8a7e8b]">Ung vien</div>
+          </div>
+        </div>
+
+        <div className="mb-5 rounded-[1.1rem] border border-[#eadfd2] bg-white p-4 shadow-[0_10px_22px_rgba(184,134,11,0.06)]">
+          <div className="mb-2 text-xs font-semibold tracking-[0.16em] text-[#9a8f9d] uppercase">Tom tat</div>
+          <p className="text-sm leading-6 text-[#5b5360]">
+            {summary.trim() || `${productLabel} dang duoc de cu trong hang muc "${categoryLabel}".`}
+          </p>
+        </div>
+
+        <div className="mb-6">
+          <div className="mb-2 flex items-center justify-between text-xs">
+            <span className="text-[#8a7e8b]">Ty le vote</span>
+            <span className="font-semibold" style={{ color: accentColor }}>
+              100%
+            </span>
+          </div>
+          <div className="h-2 rounded-full bg-[#efe8f0]">
+            <div
+              className="h-2 rounded-full"
+              style={{
+                width: "100%",
+                background: `linear-gradient(90deg, ${accentColor}, ${accentColor}cc)`,
+              }}
+            />
+          </div>
+        </div>
+
+        <div className="flex w-full items-center justify-center gap-2 rounded-2xl border border-[#eadfd2] bg-white px-4 py-3 text-sm font-bold text-[#5f5662]">
+          <ThumbsUp className="size-4" />
+          Bo chon muc nay
         </div>
       </div>
     </div>
@@ -421,7 +512,7 @@ export function VoteOptionManager({ initialData }: VoteOptionManagerProps) {
       );
       setDialogOpen(false);
       setForm(DEFAULT_FORM);
-      toast.success(form.id ? "Da cap nhat vote" : "Da tao vote moi");
+      toast.success(form.id ? "Đã cập nhật vote" : "Đã tạo vote mới");
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Khong the luu vote");
     } finally {
@@ -430,7 +521,7 @@ export function VoteOptionManager({ initialData }: VoteOptionManagerProps) {
   }, [form]);
 
   const handleDelete = React.useCallback(async (item: VoteOptionRecord) => {
-    const confirmed = window.confirm(`Xoa vote ${item.product}?`);
+    const confirmed = window.confirm(`Xóa vote ${item.product}?`);
     if (!confirmed) {
       return;
     }
@@ -546,10 +637,6 @@ export function VoteOptionManager({ initialData }: VoteOptionManagerProps) {
               <DialogTitle className="text-[2rem] font-black text-[#111827]">
                 {form.id ? "Sửa vote" : "Thêm vote"}
               </DialogTitle>
-              <p className="max-w-2xl text-sm leading-6 text-[#7a7280]">
-                Chon the loai, san pham, logo va gioi thieu. Cac gia tri trong dropdown co the tim, them moi hoac xoa
-                ngay.
-              </p>
             </DialogHeader>
           </div>
 
@@ -632,7 +719,12 @@ export function VoteOptionManager({ initialData }: VoteOptionManagerProps) {
             </div>
 
             <div className="w-full lg:w-[400px] lg:shrink-0">
-              <VotePreviewCard category={form.category} product={form.product} logo={form.logo} />
+              <VotePreviewCard
+                category={form.category}
+                product={form.product}
+                logo={form.logo}
+                summary={form.summary}
+              />
             </div>
           </div>
 

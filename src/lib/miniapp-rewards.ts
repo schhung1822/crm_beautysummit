@@ -425,7 +425,7 @@ async function syncMiniAppVoteRecord(
   const normalizedOrderCode = parseString(orderCode);
   const normalizedPhone = toDatabasePhone(identity.phone) ?? "";
   const validBrandIds = uniqueStringArray(candidateBrandIds);
-  if (!normalizedOrderCode || !normalizedPhone || validBrandIds.length === 0) {
+  if (!normalizedPhone || validBrandIds.length === 0) {
     return;
   }
 
@@ -434,11 +434,10 @@ async function syncMiniAppVoteRecord(
   await db.query(
     `
     DELETE FROM voted
-    WHERE ordercode = ?
-      AND ${normalizedPhoneSql} IN (?)
+    WHERE ${normalizedPhoneSql} = ?
       AND brand_id IN (${placeholders})
     `,
-    [normalizedOrderCode, normalizedPhone, ...validBrandIds],
+    [normalizedPhone, ...validBrandIds],
   );
 
   if (!selectedBrandId) {
@@ -476,7 +475,7 @@ async function syncMiniAppVoteRecord(
       "miniapp",
       "miniapp",
       nextOrder,
-      normalizedOrderCode,
+      normalizedOrderCode || null,
       parseString(identity.name) || null,
       normalizedPhone,
       null,

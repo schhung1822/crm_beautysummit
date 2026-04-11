@@ -18,7 +18,7 @@ const PUBLIC_ROUTES = [
 const AUTH_ROUTES = ["/auth/v2/login"];
 
 // eslint-disable-next-line complexity
-export async function middleware(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const isApiRoute = pathname.startsWith("/api/");
 
@@ -88,7 +88,7 @@ export async function middleware(request: NextRequest) {
   return isApiRoute ? applyCorsHeaders(request, response) : response;
 }
 
-// Configure which routes to run middleware on
+// Configure which routes to run proxy on
 export const config = {
   matcher: [
     /*

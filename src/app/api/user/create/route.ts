@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 
-import { getCurrentUser, hashPassword } from "@/lib/auth";
+import { getCurrentUser } from "@/lib/auth";
+import { hashPassword } from "@/lib/password";
 import { toDatabasePhone } from "@/lib/phone";
 import { prisma } from "@/lib/prisma";
 

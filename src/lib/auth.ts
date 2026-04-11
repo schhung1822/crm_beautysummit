@@ -1,6 +1,5 @@
 import { cookies } from "next/headers";
 
-import bcrypt from "bcryptjs";
 import { SignJWT, jwtVerify } from "jose";
 
 const JWT_SECRET = new TextEncoder().encode(process.env.JWT_SECRET ?? "your-secret-key-change-this-in-production");
@@ -17,24 +16,6 @@ export interface JWTPayload {
   name?: string;
   phone?: string;
   avatar?: string;
-}
-
-/**
- * Hash password
- */
-export async function hashPassword(password: string): Promise<string> {
-  return bcrypt.hash(password, 10);
-}
-
-/**
- * Verify password
- */
-export async function verifyPassword(password: string, hashedPassword: string | null | undefined): Promise<boolean> {
-  if (!hashedPassword) {
-    return false;
-  }
-
-  return bcrypt.compare(password, hashedPassword);
 }
 
 /**

@@ -6,11 +6,11 @@ import { getOrdersByCustomer } from "@/lib/ordersByCustomer";
 import { DataTable } from "./_components/data-table";
 
 type PageProps = {
-  params: Promise<{ customerId: string }> | { customerId: string };
+  params: Promise<{ customerId: string }>;
 };
 
 export default async function Page({ params }: PageProps) {
-  const { customerId: rawCustomerId = "" } = await Promise.resolve(params);
+  const { customerId: rawCustomerId = "" } = await params;
   const customerId = String(rawCustomerId).trim();
 
   if (!customerId) {

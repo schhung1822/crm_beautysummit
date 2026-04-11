@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 
-import { verifyPassword, createToken, setAuthCookie } from "@/lib/auth";
+import { createToken, setAuthCookie } from "@/lib/auth";
+import { verifyPassword } from "@/lib/password";
 import { toDisplayPhone } from "@/lib/phone";
 import { prisma } from "@/lib/prisma";
 

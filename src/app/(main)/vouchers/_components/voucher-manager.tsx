@@ -326,8 +326,8 @@ export default function VoucherManager({ initialData }: VoucherManagerProps) {
         throw new Error(result.message ?? "Khong the tai bo loc du lieu");
       }
 
-      setBrandOptions((current) => mergeOptionLists(current, result.data.brands));
-      setProductOptions((current) => mergeOptionLists(current, result.data.products));
+      setBrandOptions((current) => mergeOptionLists(current, result?.data?.brands ?? []));
+      setProductOptions((current) => mergeOptionLists(current, result?.data?.products ?? []));
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Khong the tai bo loc du lieu");
     }

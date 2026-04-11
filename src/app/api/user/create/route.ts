@@ -16,6 +16,7 @@ function ensureCreateUserPermission(currentUser: Awaited<ReturnType<typeof getCu
   return null;
 }
 
+// eslint-disable-next-line complexity
 export async function POST(request: NextRequest) {
   try {
     const currentUser = await getCurrentUser();
@@ -23,6 +24,7 @@ export async function POST(request: NextRequest) {
     if (permissionError) {
       return permissionError;
     }
+    const actorName = currentUser?.username ?? "system";
 
     const body = await request.json();
     const { username, email, password, name, role, phone } = body as {
@@ -60,8 +62,8 @@ export async function POST(request: NextRequest) {
         role: role ?? "user",
         phone: normalizedPhone,
         status: "active",
-        created_by: currentUser.username,
-        updated_by: currentUser.username,
+        created_by: actorName,
+        updated_by: actorName,
       },
     });
 

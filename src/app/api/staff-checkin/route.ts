@@ -101,23 +101,21 @@ function buildGuest(ticket: TicketOrderRow, zone: StaffCheckinZone): StaffChecki
   };
 }
 
-async function ensureStaffAccess(): Promise<{ user: JWTPayload | null; response: NextResponse | null }> {
+async function ensureStaffAccess(): Promise<{ user?: JWTPayload; response?: NextResponse }> {
   const currentUser = await getCurrentUser();
   if (!currentUser) {
     return {
-      user: null,
       response: json({ message: "Chua dang nhap" }, { status: 401 }),
     };
   }
 
   if (!["admin", "receptionist"].includes(currentUser.role)) {
     return {
-      user: null,
       response: json({ message: "Ban khong co quyen su dung staff check-in" }, { status: 403 }),
     };
   }
 
-  return { user: currentUser, response: null };
+  return { user: currentUser };
 }
 
 async function findTicketOrder(ticketCode: string, phone: string | null): Promise<TicketOrderRow | null> {
@@ -330,8 +328,11 @@ export async function GET() {
 
 export async function POST(request: NextRequest) {
   const access = await ensureStaffAccess();
-  if (access.response || !access.user) {
+  if (access.response) {
     return access.response;
+  }
+  if (!access.user) {
+    return json({ message: "Chua dang nhap" }, { status: 401 });
   }
 
   try {

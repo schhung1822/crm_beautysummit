@@ -3,10 +3,10 @@ import { ensureDefaultTemplate, getTemplateBySlug } from "@/lib/form-template/re
 
 export default async function Page({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
-  await ensureDefaultTemplate();
+  await ensureDefaultTemplate(slug);
 
   const tpl = await getTemplateBySlug(slug);
-  if (!tpl || !tpl.isActive) {
+  if (!tpl) {
     return <div className="p-6">Template không tồn tại hoặc đã tắt.</div>;
   }
 

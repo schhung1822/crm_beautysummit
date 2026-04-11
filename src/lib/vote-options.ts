@@ -55,6 +55,14 @@ type VoteOptionInput = {
   summary?: string;
 };
 
+type NormalizedVoteOptionInput = {
+  brandId: string;
+  category: string;
+  product: string;
+  logo: string;
+  summary: string;
+};
+
 const CATEGORY_COLORS = ["#0EA5E9", "#E11D48", "#8B5CF6", "#F59E0B", "#14B8A6", "#EC4899"];
 
 function parseString(value: unknown): string {
@@ -90,7 +98,7 @@ function mapVoteOptionRow(row: VoteOptionRow): VoteOptionRecord {
   };
 }
 
-function normalizeVoteOptionInput(input: VoteOptionInput): VoteOptionInput {
+function normalizeVoteOptionInput(input: VoteOptionInput): NormalizedVoteOptionInput {
   return {
     brandId: parseString(input.brandId),
     category: parseString(input.category),
@@ -100,7 +108,7 @@ function normalizeVoteOptionInput(input: VoteOptionInput): VoteOptionInput {
   };
 }
 
-function validateVoteOptionInput(input: VoteOptionInput): string | null {
+function validateVoteOptionInput(input: NormalizedVoteOptionInput): string | null {
   if (!input.category) {
     return "The loai la bat buoc";
   }

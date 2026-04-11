@@ -336,8 +336,9 @@ export function VoteOptionManager({ initialData }: VoteOptionManagerProps) {
         throw new Error(result.message ?? "Khong the tai bo loc");
       }
 
-      setCategoryOptions((current) => mergeOptionLists(current, result.data.categories));
-      setProductOptions((current) => mergeOptionLists(current, result.data.products));
+      setCategoryOptions((current) => mergeOptionLists(current, result?.data?.categories ?? []));
+
+      setProductOptions((current) => mergeOptionLists(current, result?.data?.products ?? []));
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Khong the tai du lieu bo loc");
     }

@@ -50,6 +50,8 @@ const DEFAULT_ZALO_SDK_NAME = "User Name";
 
 const normalizedPhoneSql =
   "REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(COALESCE(phone, ''), ' ', ''), '-', ''), '.', ''), '+', ''), '(', ''), ')', '')";
+const normalizedBuyerPhoneSql =
+  "REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(COALESCE(CASE WHEN JSON_VALID(note) THEN JSON_UNQUOTE(JSON_EXTRACT(note, '$.buyer_phone')) ELSE '' END, ''), ' ', ''), '-', ''), '.', ''), '+', ''), '(', ''), ')', '')";
 
 function jsonWithCors(request: NextRequest, body: unknown, init?: ResponseInit): NextResponse {
   return applyCorsHeaders(request, NextResponse.json(body, init), ["GET", "POST", "OPTIONS"]);
@@ -119,9 +121,21 @@ function toIsoString(value: Date | string | null): string | null {
   return Number.isNaN(parsed.getTime()) ? null : parsed.toISOString();
 }
 
-function mapTicketRow(row: TicketOrderRow) {
+function isTransferLockedForViewer(row: TicketOrderRow, viewerPhone?: string): boolean {
+  const meta = parseTicketOrderNote(row.note);
+  const viewerDigits = normalizeDigits(viewerPhone);
+  const holderDigits = normalizeDigits(row.phone);
+  const buyerDigits = normalizeDigits(meta.buyer_phone);
+
+  return Boolean(
+    viewerDigits && buyerDigits && viewerDigits === buyerDigits && holderDigits && holderDigits !== viewerDigits,
+  );
+}
+
+function mapTicketRow(row: TicketOrderRow, viewerPhone?: string) {
   const meta = parseTicketOrderNote(row.note);
   const checkedIn = meta.is_checkin === 1 || meta.status_checkin === CHECKIN_DONE_STATUS;
+  const transferLocked = isTransferLockedForViewer(row, viewerPhone);
 
   return {
     code: String(row.ordercode ?? "").trim(),
@@ -129,10 +143,17 @@ function mapTicketRow(row: TicketOrderRow) {
     phone: toDisplayPhone(row.phone),
     ticketClass: String(row.ticketClass ?? ""),
     status: checkedIn ? "checked_in" : "pending",
-    statusLabel: checkedIn ? "Đã check-in" : "Chưa check-in",
+    statusLabel: transferLocked ? "Da chuyen ve" : checkedIn ? "Đã check-in" : "Chưa check-in",
     checkedIn,
+    disabled: transferLocked,
+    transferLocked,
+    canOpen: !transferLocked,
     checkinTime: meta.checkin_time,
     createdAt: toIsoString(row.create_time),
+    buyerName: meta.buyer_name ?? "",
+    buyerPhone: toDisplayPhone(meta.buyer_phone),
+    holderName: meta.holder_name ?? String(row.name ?? ""),
+    holderPhone: toDisplayPhone(meta.holder_phone ?? row.phone),
   };
 }
 
@@ -155,11 +176,11 @@ async function queryTicketRowsByPhone(phone: string): Promise<TicketOrderRow[]> 
     WHERE kenh_ban = ?
       AND order_ID IS NOT NULL
       AND TRIM(order_ID) <> ''
-      AND ${normalizedPhoneSql} IN (${placeholders})
+      AND (${normalizedPhoneSql} IN (${placeholders}) OR ${normalizedBuyerPhoneSql} IN (${placeholders}))
     ORDER BY create_time DESC
     LIMIT 50
     `,
-    [TICKET_ORDER_CHANNEL, ...phoneVariants],
+    [TICKET_ORDER_CHANNEL, ...phoneVariants, ...phoneVariants],
   );
 
   return rows;
@@ -283,7 +304,7 @@ export async function GET(request: NextRequest) {
 
   try {
     const rows = await queryTicketRowsByPhone(phone);
-    const tickets = rows.map((row) => mapTicketRow(row)).filter((ticket) => Boolean(ticket.code));
+    const tickets = rows.map((row) => mapTicketRow(row, phone)).filter((ticket) => Boolean(ticket.code));
 
     return jsonWithCors(request, { data: tickets }, { status: 200 });
   } catch (error) {
@@ -314,7 +335,7 @@ export async function POST(request: NextRequest) {
 
     if (action === "list") {
       const rows = await queryTicketRowsByPhone(phone);
-      const tickets = rows.map((row) => mapTicketRow(row)).filter((ticket) => Boolean(ticket.code));
+      const tickets = rows.map((row) => mapTicketRow(row, phone)).filter((ticket) => Boolean(ticket.code));
       return jsonWithCors(request, { data: tickets }, { status: 200 });
     }
 
@@ -348,12 +369,21 @@ export async function POST(request: NextRequest) {
       return jsonWithCors(request, { message: "Ticket code not found" }, { status: 404 });
     }
 
+    const transferLocked = isTransferLockedForViewer(ticket, phone);
+    if (transferLocked) {
+      return jsonWithCors(
+        request,
+        { message: "Ticket da chuyen cho nguoi khac", data: mapTicketRow(ticket, phone) },
+        { status: 409 },
+      );
+    }
+
     const ticketMeta = parseTicketOrderNote(ticket.note);
     const checkedIn = ticketMeta.is_checkin === 1 || ticketMeta.status_checkin === CHECKIN_DONE_STATUS;
     if (checkedIn) {
       return jsonWithCors(
         request,
-        { message: "Ticket already checked in", data: mapTicketRow(ticket) },
+        { message: "Ticket already checked in", data: mapTicketRow(ticket, phone) },
         { status: 409 },
       );
     }
@@ -365,6 +395,13 @@ export async function POST(request: NextRequest) {
     const nextNote = buildTicketOrderNote({
       ...ticketMeta,
       source: "zalo-miniapp",
+      buyer_name: ticketMeta.buyer_name ?? String(ticket.name ?? ""),
+      buyer_phone: ticketMeta.buyer_phone ?? ticket.phone,
+      holder_name: nextName,
+      holder_phone: phone,
+      claimed_from_name: String(ticket.name ?? ""),
+      claimed_from_phone: ticket.phone,
+      claimed_at: now.toISOString(),
     });
 
     await db.query(
@@ -392,12 +429,15 @@ export async function POST(request: NextRequest) {
       ticketCode,
     });
 
-    const claimedTicket = mapTicketRow({
-      ...ticket,
-      name: nextName,
+    const claimedTicket = mapTicketRow(
+      {
+        ...ticket,
+        name: nextName,
+        phone,
+        note: nextNote,
+      },
       phone,
-      note: nextNote,
-    });
+    );
 
     return jsonWithCors(request, { data: claimedTicket }, { status: 200 });
   } catch (error) {

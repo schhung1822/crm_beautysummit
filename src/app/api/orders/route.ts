@@ -9,6 +9,7 @@ import {
   buildTicketOrderNote,
   CHECKIN_DONE_STATUS,
   CHECKIN_PENDING_STATUS,
+  parseTicketOrderNote,
   TICKET_ORDER_BRAND,
   TICKET_ORDER_CHANNEL,
   TICKET_PRODUCT_ID,
@@ -245,7 +246,9 @@ async function ensureUniqueOrderCode(preferred?: string | null, excludeOrderCode
   throw new Error("Unable to generate a unique ticket code");
 }
 
-function buildOrderNote(payload: NormalizedOrderPayload) {
+function buildOrderNote(payload: NormalizedOrderPayload, previousNote?: string | null) {
+  const previousMeta = parseTicketOrderNote(previousNote);
+
   return buildTicketOrderNote({
     email: payload.email,
     gender: payload.gender,
@@ -260,7 +263,30 @@ function buildOrderNote(payload: NormalizedOrderPayload) {
     send_noti: payload.send_noti,
     voucher: payload.voucher,
     voucher_status: payload.voucher_status,
+    buyer_name: previousMeta.buyer_name ?? payload.name,
+    buyer_phone: previousMeta.buyer_phone ?? payload.phone,
+    holder_name: payload.name ?? previousMeta.holder_name ?? previousMeta.buyer_name,
+    holder_phone: payload.phone ?? previousMeta.holder_phone ?? previousMeta.buyer_phone,
+    claimed_from_name: previousMeta.claimed_from_name,
+    claimed_from_phone: previousMeta.claimed_from_phone,
+    claimed_at: previousMeta.claimed_at,
   });
+}
+
+async function findTicketOrderNote(orderCode: string): Promise<string | null> {
+  const db = getDB();
+  const [rows] = await db.query<Array<RowDataPacket & { note: string | null }>>(
+    `
+    SELECT note
+    FROM orders
+    WHERE order_ID = ?
+      AND kenh_ban = ?
+    LIMIT 1
+    `,
+    [orderCode, TICKET_ORDER_CHANNEL],
+  );
+
+  return rows[0]?.note ?? null;
 }
 
 function buildCustomerNote(payload: NormalizedOrderPayload) {
@@ -545,6 +571,7 @@ async function insertTicketOrder(orderCode: string, payload: NormalizedOrderPayl
 async function updateTicketOrder(originalOrderCode: string, payload: NormalizedOrderPayload) {
   const db = getDB();
   const nextOrderCode = await ensureUniqueOrderCode(payload.ordercode ?? originalOrderCode, originalOrderCode);
+  const previousNote = await findTicketOrderNote(originalOrderCode);
 
   await db.query(
     `
@@ -583,7 +610,7 @@ async function updateTicketOrder(originalOrderCode: string, payload: NormalizedO
       null,
       null,
       TICKET_ORDER_CHANNEL,
-      buildOrderNote(payload),
+      buildOrderNote(payload, previousNote),
       Math.round(payload.money),
       0,
       Math.round(payload.money_VAT),

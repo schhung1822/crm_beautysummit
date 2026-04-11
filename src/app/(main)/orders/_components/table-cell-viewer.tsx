@@ -106,7 +106,7 @@ export function TableCellViewer({ item, stats, onRowUpdated, triggerElement }: V
   const [isSaving, setIsSaving] = React.useState(false);
   const [form, setForm] = React.useState<z.infer<typeof channelSchema>>(item);
 
-  const ticketClassOptions = ["STANDARD", "GOLD", "RUBY", "VIP"];
+  const ticketClassOptions = ["GOLD", "RUBY", "VIP"];
   const paymentStatusOptions = ["paydone", "new", "cancelled", "refunded", "present"];
   const checkinStatusOptions = ["chưa checkin", "đã checkin"];
   const careerQuickOptions = ["Khác", "Chủ spa/ TMV/ Phòng khám", "Bác sĩ", "Dược sĩ", "Kỹ thuật viên", "Sale"];

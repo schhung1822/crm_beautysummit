@@ -20,6 +20,13 @@ export type TicketOrderMeta = {
   send_noti: number;
   voucher: string | null;
   voucher_status: string | null;
+  buyer_name: string | null;
+  buyer_phone: string | null;
+  holder_name: string | null;
+  holder_phone: string | null;
+  claimed_from_name: string | null;
+  claimed_from_phone: string | null;
+  claimed_at: string | null;
 };
 
 function toNullableString(value: unknown): string | null {
@@ -83,6 +90,13 @@ export function buildTicketOrderNote(value: Partial<TicketOrderMeta>): string {
     send_noti: toNullableInteger(value.send_noti) ?? 0,
     voucher: toNullableString(value.voucher),
     voucher_status: toNullableString(value.voucher_status),
+    buyer_name: toNullableString(value.buyer_name),
+    buyer_phone: toNullableString(value.buyer_phone),
+    holder_name: toNullableString(value.holder_name),
+    holder_phone: toNullableString(value.holder_phone),
+    claimed_from_name: toNullableString(value.claimed_from_name),
+    claimed_from_phone: toNullableString(value.claimed_from_phone),
+    claimed_at: toNullableIsoDate(value.claimed_at),
   };
 
   return JSON.stringify(note);
@@ -105,6 +119,13 @@ export function parseTicketOrderNote(value: unknown): TicketOrderMeta {
       send_noti: 0,
       voucher: null,
       voucher_status: null,
+      buyer_name: null,
+      buyer_phone: null,
+      holder_name: null,
+      holder_phone: null,
+      claimed_from_name: null,
+      claimed_from_phone: null,
+      claimed_at: null,
     };
   }
 
@@ -125,6 +146,13 @@ export function parseTicketOrderNote(value: unknown): TicketOrderMeta {
       send_noti: toNullableInteger(parsed.send_noti) ?? 0,
       voucher: toNullableString(parsed.voucher),
       voucher_status: toNullableString(parsed.voucher_status),
+      buyer_name: toNullableString(parsed.buyer_name),
+      buyer_phone: toNullableString(parsed.buyer_phone),
+      holder_name: toNullableString(parsed.holder_name),
+      holder_phone: toNullableString(parsed.holder_phone),
+      claimed_from_name: toNullableString(parsed.claimed_from_name),
+      claimed_from_phone: toNullableString(parsed.claimed_from_phone),
+      claimed_at: toNullableIsoDate(parsed.claimed_at),
     };
   } catch {
     return {
@@ -142,6 +170,13 @@ export function parseTicketOrderNote(value: unknown): TicketOrderMeta {
       send_noti: 0,
       voucher: null,
       voucher_status: null,
+      buyer_name: null,
+      buyer_phone: null,
+      holder_name: null,
+      holder_phone: null,
+      claimed_from_name: null,
+      claimed_from_phone: null,
+      claimed_at: null,
     };
   }
 }

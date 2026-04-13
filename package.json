@@ -13,7 +13,8 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "prepare": "husky",
-    "generate:presets": "ts-node -P tsconfig.scripts.json src/scripts/generate-theme-presets.ts"
+    "generate:presets": "ts-node -P tsconfig.scripts.json src/scripts/generate-theme-presets.ts",
+    "seed:mock": "ts-node -P tsconfig.scripts.json prisma/seed-mock-data.ts"
   },
   "lint-staged": {
     "*.{js,ts,jsx,tsx}": [
@@ -64,6 +65,7 @@
     "tailwind-merge": "^3.4.0",
     "vaul": "^1.1.2",
     "xlsx": "^0.18.5",
+    "zmp-openapi-nodejs": "^2.4.1",
     "zod": "^3.25.76",
     "zustand": "^5.0.8"
   },

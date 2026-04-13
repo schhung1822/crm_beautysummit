@@ -41,6 +41,8 @@ model brand {
   link       String?   @db.Text
 
   @@index([nc_order], map: "brand_order_idx")
+  @@index([brand_id(length: 64)], map: "brand_brand_id_idx")
+  @@index([category(length: 64)], map: "brand_category_idx")
 }
 
 model voted {
@@ -59,6 +61,8 @@ model voted {
   brand_id   String?   @db.Text
 
   @@index([nc_order], map: "voted_order_idx")
+  @@index([brand_id(length: 64)], map: "voted_brand_id_idx")
+  @@index([phone(length: 32)], map: "voted_phone_idx")
 }
 
 model checkin {
@@ -125,6 +129,8 @@ model customer {
   rewardPoint           BigInt?
 
   @@index([nc_order], map: "customer_order_idx")
+  @@index([customer_ID(length: 64)], map: "customer_customer_id_idx")
+  @@index([phone(length: 32)], map: "customer_phone_idx")
 }
 
 model orders {
@@ -140,6 +146,7 @@ model orders {
   name_customer String?   @db.Text
   customer_ID   String?   @db.Text
   phone         String?   @db.Text
+  buyer_phone   String?   @db.VarChar(32)
   address       String?   @db.Text
   seller        String?   @db.Text
   kenh_ban      String?   @db.Text
@@ -154,6 +161,10 @@ model orders {
   quantity      BigInt?
 
   @@index([nc_order], map: "order_order_idx")
+  @@index([order_ID(length: 64), kenh_ban(length: 64)], map: "orders_order_id_channel_idx")
+  @@index([kenh_ban(length: 64), phone(length: 32)], map: "orders_channel_phone_idx")
+  @@index([kenh_ban(length: 64), buyer_phone], map: "orders_channel_buyer_phone_idx")
+  @@index([customer_ID(length: 64)], map: "orders_customer_id_idx")
 }
 
 model product {
@@ -228,6 +239,7 @@ model user {
   update_time DateTime? @updatedAt @db.DateTime(0)
 
   @@index([nc_order], map: "user_order_idx")
+  @@index([phone(length: 32)], map: "user_phone_idx")
 }
 
 model user_zaloOA {

@@ -3,9 +3,10 @@ import { randomBytes, randomUUID } from "node:crypto";
 
 import type { ResultSetHeader, RowDataPacket } from "mysql2/promise";
 
+import { createApiTrace, maskPhoneForLogs, shortIdForLogs } from "@/lib/api-observability";
 import { getDB } from "@/lib/db";
 import { buildPhoneVariants, toDatabasePhone } from "@/lib/phone";
-import { listVoteCategories } from "@/lib/vote-options";
+import { clearVoteCategoryCache, listVoteCategories } from "@/lib/vote-options";
 
 export type MiniAppVoucherKind = "bpoint" | "free";
 
@@ -110,9 +111,6 @@ type AdminVoucherInput = {
   isActive?: boolean;
 };
 
-const normalizedPhoneSql =
-  "REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(COALESCE(phone, ''), ' ', ''), '-', ''), '.', ''), '+', ''), '(', ''), ')', '')";
-
 const BASE_MISSION_POINTS = [
   ["b1", 10],
   ["b2", 10],
@@ -137,6 +135,24 @@ const VIP_MISSION_POINTS = [
 ] as const;
 
 const VALID_MILESTONES = new Set([30, 50, 100]);
+const ACCESS_CACHE_TTL_MS = Math.max(1000, Number(process.env.MINIAPP_ACCESS_CACHE_TTL_MS) || 10000);
+const VOUCHER_CACHE_TTL_MS = Math.max(1000, Number(process.env.MINIAPP_VOUCHER_CACHE_TTL_MS) || 15000);
+
+const miniAppAccessCache = new Map<
+  string,
+  {
+    value: boolean;
+    expiresAt: number;
+  }
+>();
+
+const voucherRowCache = new Map<
+  "active" | "all",
+  {
+    value: MiniAppVoucherRow[];
+    expiresAt: number;
+  }
+>();
 
 function addMissionPoints(
   map: Record<string, number>,
@@ -390,6 +406,25 @@ function buildVoucherId(): string {
   return `voucher-${randomUUID().replace(/-/g, "").slice(0, 12)}`;
 }
 
+function readTimedCache<T>(entry: { value: T; expiresAt: number } | null | undefined): T | null {
+  if (!entry || entry.expiresAt <= Date.now()) {
+    return null;
+  }
+
+  return entry.value;
+}
+
+function writeTimedCache<T>(ttlMs: number, value: T): { value: T; expiresAt: number } {
+  return {
+    value,
+    expiresAt: Date.now() + ttlMs,
+  };
+}
+
+function clearMiniAppVoucherCache(): void {
+  voucherRowCache.clear();
+}
+
 function normalizeAdminVoucherInput(value: AdminVoucherInput): AdminVoucherInput {
   const kind = normalizeVoucherKind(value.kind);
   const isGrand = Boolean(value.isGrand);
@@ -438,20 +473,22 @@ async function syncMiniAppVoteRecord(
 ): Promise<void> {
   const normalizedOrderCode = parseString(orderCode);
   const normalizedPhone = toDatabasePhone(identity.phone) ?? "";
+  const phoneVariants = buildPhoneVariants(normalizedPhone);
   const validBrandIds = uniqueStringArray(candidateBrandIds);
-  if (!normalizedPhone || validBrandIds.length === 0) {
+  if (!normalizedPhone || validBrandIds.length === 0 || phoneVariants.length === 0) {
     return;
   }
 
   const db = getDB();
+  const phonePlaceholders = phoneVariants.map(() => "?").join(", ");
   const placeholders = validBrandIds.map(() => "?").join(", ");
   await db.query(
     `
     DELETE FROM voted
-    WHERE ${normalizedPhoneSql} = ?
+    WHERE COALESCE(phone, '') IN (${phonePlaceholders})
       AND brand_id IN (${placeholders})
     `,
-    [normalizedPhone, ...validBrandIds],
+    [...phoneVariants, ...validBrandIds],
   );
 
   if (!selectedBrandId) {
@@ -537,22 +574,38 @@ export async function hasMiniAppUserAccess(zid: string, phone: string): Promise<
     return false;
   }
 
+  const normalizedZid = parseString(zid);
+  const normalizedPhone = toDatabasePhone(phone) ?? phoneVariants[0] ?? "";
+  const cacheKey = `${normalizedZid}:${normalizedPhone}`;
+  const cachedValue = readTimedCache(miniAppAccessCache.get(cacheKey));
+  if (cachedValue != null) {
+    return cachedValue;
+  }
+
   const placeholders = phoneVariants.map(() => "?").join(", ");
   const [rows] = await db.query<UserAccessRow[]>(
     `
     SELECT id
     FROM user
     WHERE zid = ?
-      AND ${normalizedPhoneSql} IN (${placeholders})
+      AND COALESCE(phone, '') IN (${placeholders})
     LIMIT 1
     `,
-    [parseString(zid), ...phoneVariants],
+    [normalizedZid, ...phoneVariants],
   );
 
-  return rows.length > 0;
+  const hasAccess = rows.length > 0;
+  miniAppAccessCache.set(cacheKey, writeTimedCache(ACCESS_CACHE_TTL_MS, hasAccess));
+  return hasAccess;
 }
 
 async function queryVoucherRows(includeInactive: boolean): Promise<MiniAppVoucherRow[]> {
+  const cacheKey: "active" | "all" = includeInactive ? "all" : "active";
+  const cachedRows = readTimedCache(voucherRowCache.get(cacheKey));
+  if (cachedRows) {
+    return cachedRows;
+  }
+
   const db = getDB();
   const conditions = includeInactive ? "" : "WHERE COALESCE(is_active, 1) = 1";
   const [rows] = await db.query<MiniAppVoucherRow[]>(
@@ -577,6 +630,7 @@ async function queryVoucherRows(includeInactive: boolean): Promise<MiniAppVouche
     ORDER BY kind ASC, COALESCE(nc_order, id) ASC, id ASC
     `,
   );
+  voucherRowCache.set(cacheKey, writeTimedCache(VOUCHER_CACHE_TTL_MS, rows));
   return rows;
 }
 
@@ -626,47 +680,102 @@ export async function ensureMiniAppRewardState(identity: RewardIdentity): Promis
   const avatar = parseString(identity.avatar);
   const now = new Date();
   const db = getDB();
+  const trace = createApiTrace("miniapp-rewards.ensure_state", {
+    zid: shortIdForLogs(zid),
+    phone: maskPhoneForLogs(phone),
+    hasName: Boolean(name),
+    hasAvatar: Boolean(avatar),
+  });
+  const existingState = await trace.step("find_reward_state", () => findRewardStateRow(zid));
 
-  await db.query(
-    `
-    INSERT INTO miniapp_user_reward_state
-      (
-        created_at,
-        updated_at,
-        created_by,
-        updated_by,
-        zid,
-        phone,
-        name,
-        avatar,
-        completed_mission_ids,
-        claimed_free_voucher_ids,
-        redeemed_voucher_ids,
-        claimed_milestone_pcts,
-        votes_json,
-        spent_points,
-        total_points,
-        available_points,
-        create_time
-      )
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    ON DUPLICATE KEY UPDATE
-      phone = VALUES(phone),
-      name = IF(VALUES(name) <> '', VALUES(name), name),
-      avatar = IF(VALUES(avatar) <> '', VALUES(avatar), avatar),
-      updated_at = VALUES(updated_at),
-      updated_by = VALUES(updated_by),
-      update_time = VALUES(create_time)
-    `,
-    [now, now, "miniapp", "miniapp", zid, phone, name, avatar, "[]", "[]", "[]", "[]", "{}", 0, 0, 0, now],
-  );
+  if (!existingState) {
+    await trace.step("insert_reward_state", () =>
+      db.query(
+        `
+        INSERT INTO miniapp_user_reward_state
+          (
+            created_at,
+            updated_at,
+            created_by,
+            updated_by,
+            zid,
+            phone,
+            name,
+            avatar,
+            completed_mission_ids,
+            claimed_free_voucher_ids,
+            redeemed_voucher_ids,
+            claimed_milestone_pcts,
+            votes_json,
+            spent_points,
+            total_points,
+            available_points,
+            create_time
+          )
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `,
+        [now, now, "miniapp", "miniapp", zid, phone, name, avatar, "[]", "[]", "[]", "[]", "{}", 0, 0, 0, now],
+      ),
+    );
 
-  const state = await findRewardStateRow(zid);
-  if (!state) {
-    throw new Error("Unable to initialize mini app reward state");
+    const createdState = await trace.step("reload_inserted_reward_state", () => findRewardStateRow(zid));
+    if (!createdState) {
+      trace.mark("missing_reward_state_row");
+      throw new Error("Unable to initialize mini app reward state");
+    }
+
+    trace.done({
+      mode: "insert",
+      completedMissionCount: createdState.completedIds.length,
+      availablePoints: createdState.availablePoints,
+    });
+    return createdState;
   }
 
-  return state;
+  const shouldUpdateIdentity =
+    (phone.length > 0 && existingState.phone !== phone) ||
+    (name.length > 0 && existingState.name !== name) ||
+    (avatar.length > 0 && existingState.avatar !== avatar);
+
+  if (!shouldUpdateIdentity) {
+    trace.done({
+      mode: "reuse",
+      completedMissionCount: existingState.completedIds.length,
+      availablePoints: existingState.availablePoints,
+    });
+    return existingState;
+  }
+
+  await trace.step("update_reward_identity", () =>
+    db.query(
+      `
+      UPDATE miniapp_user_reward_state
+      SET
+        phone = ?,
+        name = IF(? <> '', ?, name),
+        avatar = IF(? <> '', ?, avatar),
+        updated_at = ?,
+        updated_by = ?,
+        update_time = ?
+      WHERE id = ?
+      LIMIT 1
+      `,
+      [phone || existingState.phone, name, name, avatar, avatar, now, "miniapp", now, existingState.rowId],
+    ),
+  );
+
+  const refreshedState = await trace.step("reload_updated_reward_state", () => findRewardStateRow(zid));
+  if (!refreshedState) {
+    trace.mark("missing_reward_state_row_after_update");
+    throw new Error("Unable to refresh mini app reward state");
+  }
+
+  trace.done({
+    mode: "update_identity",
+    completedMissionCount: refreshedState.completedIds.length,
+    availablePoints: refreshedState.availablePoints,
+  });
+  return refreshedState;
 }
 
 async function saveMiniAppRewardState(nextState: StoredRewardState): Promise<StoredRewardState> {
@@ -716,7 +825,18 @@ async function saveMiniAppRewardState(nextState: StoredRewardState): Promise<Sto
 }
 
 export async function loadMiniAppRewards(identity: RewardIdentity): Promise<MiniAppRewardsBundle> {
-  const [state, vouchers] = await Promise.all([ensureMiniAppRewardState(identity), listMiniAppVouchers()]);
+  const trace = createApiTrace("miniapp-rewards.load_bundle", {
+    zid: shortIdForLogs(identity.zid),
+    phone: maskPhoneForLogs(identity.phone),
+  });
+  const [state, vouchers] = await trace.step("load_state_and_vouchers", () =>
+    Promise.all([ensureMiniAppRewardState(identity), listMiniAppVouchers()]),
+  );
+  trace.done({
+    completedMissionCount: state.completedIds.length,
+    bpointVoucherCount: vouchers.bpoint.length,
+    freeVoucherCount: vouchers.free.length,
+  });
 
   return {
     state: buildRewardStatePayload(state),
@@ -750,19 +870,29 @@ export async function updateMiniAppVote(
 ): Promise<MiniAppRewardState> {
   const normalizedCategoryId = parseString(categoryId);
   const normalizedBrandId = parseString(brandId);
+  const trace = createApiTrace("miniapp-rewards.toggle_vote", {
+    zid: shortIdForLogs(identity.zid),
+    phone: maskPhoneForLogs(identity.phone),
+    categoryId: normalizedCategoryId,
+    brandId: shortIdForLogs(normalizedBrandId),
+    orderCode: shortIdForLogs(orderCode),
+  });
   if (!normalizedCategoryId || !normalizedBrandId) {
+    trace.mark("missing_vote_fields");
     throw new Error("categoryId and brandId are required");
   }
 
-  const current = await ensureMiniAppRewardState(identity);
-  const voteCategories = await listVoteCategories();
+  const current = await trace.step("ensure_reward_state", () => ensureMiniAppRewardState(identity));
+  const voteCategories = await trace.step("load_vote_categories", () => listVoteCategories());
   const category = voteCategories.find((item) => item.id === normalizedCategoryId);
   if (!category) {
+    trace.mark("category_not_found");
     throw new Error("Vote category is not supported");
   }
 
   const candidateBrandIds = category.brands.map((item) => item.id);
   if (!candidateBrandIds.includes(normalizedBrandId)) {
+    trace.mark("brand_not_found_in_category");
     throw new Error("Vote brand is not supported");
   }
 
@@ -773,15 +903,17 @@ export async function updateMiniAppVote(
     nextVotes[normalizedCategoryId] = normalizedBrandId;
   }
 
-  await syncMiniAppVoteRecord(
-    identity,
-    parseString(orderCode),
-    candidateBrandIds,
-    nextVotes[normalizedCategoryId] ?? null,
+  await trace.step("sync_vote_record", () =>
+    syncMiniAppVoteRecord(identity, parseString(orderCode), candidateBrandIds, nextVotes[normalizedCategoryId] ?? null),
   );
+  clearVoteCategoryCache();
 
   const nextState = buildStoredStateUpdate(current, { votes: nextVotes });
-  await saveMiniAppRewardState(nextState);
+  await trace.step("save_reward_state", () => saveMiniAppRewardState(nextState));
+  trace.done({
+    selectedBrandId: shortIdForLogs(nextVotes[normalizedCategoryId]),
+    activeVoteCount: Object.keys(nextState.votes).length,
+  });
   return buildRewardStatePayload(nextState);
 }
 
@@ -919,6 +1051,7 @@ export async function createMiniAppVoucher(input: AdminVoucherInput): Promise<Mi
     throw new Error("Unable to create voucher");
   }
 
+  clearMiniAppVoucherCache();
   return voucher;
 }
 
@@ -981,6 +1114,7 @@ export async function updateMiniAppVoucher(voucherId: string, input: AdminVouche
     throw new Error("Unable to update voucher");
   }
 
+  clearMiniAppVoucherCache();
   return voucher;
 }
 
@@ -994,5 +1128,6 @@ export async function deleteMiniAppVoucher(voucherId: string): Promise<number> {
     `,
     [parseString(voucherId)],
   );
+  clearMiniAppVoucherCache();
   return result.affectedRows;
 }

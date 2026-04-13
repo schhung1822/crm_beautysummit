@@ -1,7 +1,9 @@
+/* eslint-disable max-lines */
 import { randomUUID } from "node:crypto";
 
 import type { ResultSetHeader, RowDataPacket } from "mysql2/promise";
 
+import { createApiTrace } from "@/lib/api-observability";
 import { getDB } from "@/lib/db";
 
 type VoteOptionRow = RowDataPacket & {
@@ -64,6 +66,12 @@ type NormalizedVoteOptionInput = {
 };
 
 const CATEGORY_COLORS = ["#0EA5E9", "#E11D48", "#8B5CF6", "#F59E0B", "#14B8A6", "#EC4899"];
+const VOTE_CATEGORY_CACHE_TTL_MS = Math.max(1000, Number(process.env.VOTE_CATEGORY_CACHE_TTL_MS) || 5000);
+
+let voteCategoryCache: {
+  value: VoteCategoryRecord[];
+  expiresAt: number;
+} | null = null;
 
 function parseString(value: unknown): string {
   return String(value ?? "").trim();
@@ -171,7 +179,14 @@ export async function listVoteOptions(): Promise<VoteOptionRecord[]> {
 }
 
 export async function listVoteCategories(): Promise<VoteCategoryRecord[]> {
-  const [options, voteCountRows] = await Promise.all([listVoteOptions(), queryVoteCountRows()]);
+  if (voteCategoryCache && voteCategoryCache.expiresAt > Date.now()) {
+    return voteCategoryCache.value;
+  }
+
+  const trace = createApiTrace("vote-options.list_categories");
+  const [options, voteCountRows] = await trace.step("load_options_and_counts", () =>
+    Promise.all([listVoteOptions(), queryVoteCountRows()]),
+  );
   const voteCountMap = buildVoteCountMap(voteCountRows);
   const grouped = new Map<string, VoteOptionRecord[]>();
 
@@ -182,7 +197,7 @@ export async function listVoteCategories(): Promise<VoteCategoryRecord[]> {
     grouped.set(key, current);
   });
 
-  return Array.from(grouped.entries()).map(([title, items], index) => {
+  const categories = Array.from(grouped.entries()).map(([title, items], index) => {
     const rankedBrands = items
       .map((item) => ({
         id: item.brandId,
@@ -214,6 +229,23 @@ export async function listVoteCategories(): Promise<VoteCategoryRecord[]> {
       brands: rankedBrands,
     };
   });
+
+  trace.done({
+    optionCount: options.length,
+    voteCountRowCount: voteCountRows.length,
+    categoryCount: categories.length,
+  });
+
+  voteCategoryCache = {
+    value: categories,
+    expiresAt: Date.now() + VOTE_CATEGORY_CACHE_TTL_MS,
+  };
+
+  return categories;
+}
+
+export function clearVoteCategoryCache(): void {
+  voteCategoryCache = null;
 }
 
 export async function createVoteOption(input: VoteOptionInput): Promise<VoteOptionRecord> {
@@ -273,6 +305,7 @@ export async function createVoteOption(input: VoteOptionInput): Promise<VoteOpti
     throw new Error("Khong the tao vote");
   }
 
+  clearVoteCategoryCache();
   return created;
 }
 
@@ -317,6 +350,7 @@ export async function updateVoteOption(optionId: number, input: VoteOptionInput)
     throw new Error("Khong the cap nhat vote");
   }
 
+  clearVoteCategoryCache();
   return updated;
 }
 
@@ -330,5 +364,6 @@ export async function deleteVoteOption(optionId: number): Promise<number> {
     `,
     [optionId],
   );
+  clearVoteCategoryCache();
   return result.affectedRows;
 }

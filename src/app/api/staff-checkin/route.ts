@@ -68,9 +68,6 @@ type StaffCheckinGuest = {
   checkinTime: string | null;
 };
 
-const normalizedPhoneSql =
-  "REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(COALESCE(phone, ''), ' ', ''), '-', ''), '.', ''), '+', ''), '(', ''), ')', '')";
-
 function json(body: unknown, init?: ResponseInit): NextResponse {
   return NextResponse.json(body, init);
 }
@@ -123,7 +120,7 @@ async function findTicketOrder(ticketCode: string, phone: string | null): Promis
   const normalizedCode = normalizeTicketCode(ticketCode);
   const phoneVariants = phone ? buildPhoneVariants(phone) : [];
   const phoneCondition =
-    phoneVariants.length > 0 ? ` AND ${normalizedPhoneSql} IN (${phoneVariants.map(() => "?").join(", ")})` : "";
+    phoneVariants.length > 0 ? ` AND COALESCE(phone, '') IN (${phoneVariants.map(() => "?").join(", ")})` : "";
 
   const [rows] = await db.query<TicketOrderRow[]>(
     `

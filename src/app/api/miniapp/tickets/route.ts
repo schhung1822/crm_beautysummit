@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 
 import type { RowDataPacket } from "mysql2/promise";
 
+import { createApiTrace, maskPhoneForLogs, shortIdForLogs } from "@/lib/api-observability";
 import { applyCorsHeaders, buildCorsHeaders } from "@/lib/cors";
 import { getDB } from "@/lib/db";
 import { buildPhoneVariants, normalizePhoneDigits, toDatabasePhone, toDisplayPhone } from "@/lib/phone";
@@ -19,6 +20,7 @@ type TicketOrderRow = RowDataPacket & {
   ordercode: string | null;
   name: string | null;
   phone: string | null;
+  buyer_phone: string | null;
   ticketClass: string | null;
   status: string | null;
   create_time: Date | string | null;
@@ -47,11 +49,6 @@ type UserAccessRow = RowDataPacket & {
 };
 
 const DEFAULT_ZALO_SDK_NAME = "User Name";
-
-const normalizedPhoneSql =
-  "REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(COALESCE(phone, ''), ' ', ''), '-', ''), '.', ''), '+', ''), '(', ''), ')', '')";
-const normalizedBuyerPhoneSql =
-  "REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(COALESCE(CASE WHEN JSON_VALID(note) THEN JSON_UNQUOTE(JSON_EXTRACT(note, '$.buyer_phone')) ELSE '' END, ''), ' ', ''), '-', ''), '.', ''), '+', ''), '(', ''), ')', '')";
 
 function jsonWithCors(request: NextRequest, body: unknown, init?: ResponseInit): NextResponse {
   return applyCorsHeaders(request, NextResponse.json(body, init), ["GET", "POST", "OPTIONS"]);
@@ -103,7 +100,7 @@ async function hasMiniAppUserAccess(zid: string, phone: string): Promise<boolean
     SELECT id
     FROM user
     WHERE zid = ?
-      AND ${normalizedPhoneSql} IN (${placeholders})
+      AND COALESCE(phone, '') IN (${placeholders})
     LIMIT 1
     `,
     [zid.trim(), ...phoneVariants],
@@ -125,7 +122,7 @@ function isTransferLockedForViewer(row: TicketOrderRow, viewerPhone?: string): b
   const meta = parseTicketOrderNote(row.note);
   const viewerDigits = normalizeDigits(viewerPhone);
   const holderDigits = normalizeDigits(row.phone);
-  const buyerDigits = normalizeDigits(meta.buyer_phone);
+  const buyerDigits = normalizeDigits(row.buyer_phone ?? meta.buyer_phone);
 
   return Boolean(
     viewerDigits && buyerDigits && viewerDigits === buyerDigits && holderDigits && holderDigits !== viewerDigits,
@@ -151,7 +148,7 @@ function mapTicketRow(row: TicketOrderRow, viewerPhone?: string) {
     checkinTime: meta.checkin_time,
     createdAt: toIsoString(row.create_time),
     buyerName: meta.buyer_name ?? "",
-    buyerPhone: toDisplayPhone(meta.buyer_phone),
+    buyerPhone: toDisplayPhone(row.buyer_phone ?? meta.buyer_phone),
     holderName: meta.holder_name ?? String(row.name ?? ""),
     holderPhone: toDisplayPhone(meta.holder_phone ?? row.phone),
   };
@@ -164,11 +161,12 @@ async function queryTicketRowsByPhone(phone: string): Promise<TicketOrderRow[]> 
   const [rows] = await db.query<TicketOrderRow[]>(
     `
     SELECT
-      id,
-      COALESCE(order_ID, '') AS ordercode,
-      COALESCE(name_customer, '') AS name,
-      COALESCE(phone, '') AS phone,
-      COALESCE(brand_pro, '') AS ticketClass,
+        id,
+        COALESCE(order_ID, '') AS ordercode,
+        COALESCE(name_customer, '') AS name,
+        COALESCE(phone, '') AS phone,
+        COALESCE(buyer_phone, '') AS buyer_phone,
+        COALESCE(brand_pro, '') AS ticketClass,
       COALESCE(status, '') AS status,
       create_time,
       note
@@ -176,7 +174,10 @@ async function queryTicketRowsByPhone(phone: string): Promise<TicketOrderRow[]> 
     WHERE kenh_ban = ?
       AND order_ID IS NOT NULL
       AND TRIM(order_ID) <> ''
-      AND (${normalizedPhoneSql} IN (${placeholders}) OR ${normalizedBuyerPhoneSql} IN (${placeholders}))
+      AND (
+        COALESCE(phone, '') IN (${placeholders})
+        OR COALESCE(buyer_phone, '') IN (${placeholders})
+      )
     ORDER BY create_time DESC
     LIMIT 50
     `,
@@ -292,22 +293,34 @@ export async function GET(request: NextRequest) {
   const phone = request.nextUrl.searchParams.get("phone")?.trim() ?? "";
   const zid = request.nextUrl.searchParams.get("zid")?.trim() ?? "";
   const phoneVariants = buildPhoneVariants(phone);
+  const trace = createApiTrace("miniapp/tickets.GET", {
+    zid: shortIdForLogs(zid),
+    phone: maskPhoneForLogs(phone),
+  });
 
   if (!zid || !phoneVariants.length) {
+    trace.mark("invalid_request");
     return jsonWithCors(request, { message: "zid and phone are required", data: [] }, { status: 400 });
   }
 
-  const hasAccess = await hasMiniAppUserAccess(zid, phone);
+  const hasAccess = await trace.step("access_check", () => hasMiniAppUserAccess(zid, phone));
   if (!hasAccess) {
+    trace.mark("access_denied");
     return jsonWithCors(request, { message: "Mini app account is not authorized", data: [] }, { status: 403 });
   }
 
   try {
-    const rows = await queryTicketRowsByPhone(phone);
+    const rows = await trace.step("query_ticket_rows", () => queryTicketRowsByPhone(phone));
     const tickets = rows.map((row) => mapTicketRow(row, phone)).filter((ticket) => Boolean(ticket.code));
+    trace.mark("map_ticket_rows", {
+      rowCount: rows.length,
+      ticketCount: tickets.length,
+    });
+    trace.done({ ticketCount: tickets.length });
 
     return jsonWithCors(request, { data: tickets }, { status: 200 });
   } catch (error) {
+    trace.fail(error);
     console.error("Mini app ticket lookup error:", error);
     return jsonWithCors(request, { message: "Unable to load ticket orders", data: [] }, { status: 500 });
   }
@@ -323,54 +336,73 @@ export async function POST(request: NextRequest) {
     const zid = String(body.id ?? "").trim();
     const name = normalizeMiniAppName(body.name);
     const avatar = String(body.avatar ?? "").trim();
+    const trace = createApiTrace("miniapp/tickets.POST", {
+      action,
+      zid: shortIdForLogs(zid),
+      phone: maskPhoneForLogs(phone),
+      ticketCode: shortIdForLogs(body.code),
+    });
 
     if (!phone || !zid) {
+      trace.mark("invalid_request");
       return jsonWithCors(request, { message: "id and phone are required" }, { status: 400 });
     }
 
-    const hasAccess = await hasMiniAppUserAccess(zid, phone);
+    const hasAccess = await trace.step("access_check", () => hasMiniAppUserAccess(zid, phone));
     if (!hasAccess) {
+      trace.mark("access_denied");
       return jsonWithCors(request, { message: "Mini app account is not authorized" }, { status: 403 });
     }
 
     if (action === "list") {
-      const rows = await queryTicketRowsByPhone(phone);
+      const rows = await trace.step("query_ticket_rows", () => queryTicketRowsByPhone(phone));
       const tickets = rows.map((row) => mapTicketRow(row, phone)).filter((ticket) => Boolean(ticket.code));
+      trace.mark("map_ticket_rows", {
+        rowCount: rows.length,
+        ticketCount: tickets.length,
+      });
+      trace.done({ ticketCount: tickets.length });
       return jsonWithCors(request, { data: tickets }, { status: 200 });
     }
 
     const ticketCode = normalizeTicketCode(body.code);
     if (action !== "claim" || !ticketCode) {
+      trace.mark("invalid_claim_request");
       return jsonWithCors(request, { message: "code is required for ticket claim" }, { status: 400 });
     }
 
     const db = getDB();
-    const [rows] = await db.query<TicketOrderRow[]>(
-      `
-      SELECT
-        id,
-        COALESCE(order_ID, '') AS ordercode,
-        COALESCE(name_customer, '') AS name,
-        COALESCE(phone, '') AS phone,
-        COALESCE(brand_pro, '') AS ticketClass,
-        COALESCE(status, '') AS status,
-        create_time,
-        note
-      FROM orders
-      WHERE order_ID = ?
-        AND kenh_ban = ?
-      LIMIT 1
-      `,
-      [ticketCode, TICKET_ORDER_CHANNEL],
+    const [rows] = await trace.step("query_ticket_by_code", () =>
+      db.query<TicketOrderRow[]>(
+        `
+        SELECT
+          id,
+          COALESCE(order_ID, '') AS ordercode,
+          COALESCE(name_customer, '') AS name,
+          COALESCE(phone, '') AS phone,
+          COALESCE(buyer_phone, '') AS buyer_phone,
+          COALESCE(brand_pro, '') AS ticketClass,
+          COALESCE(status, '') AS status,
+          create_time,
+          note
+        FROM orders
+        WHERE order_ID = ?
+          AND kenh_ban = ?
+        LIMIT 1
+        `,
+        [ticketCode, TICKET_ORDER_CHANNEL],
+      ),
     );
     const ticket = rows.length > 0 ? rows[0] : null;
 
     if (!ticket) {
+      trace.mark("ticket_not_found");
       return jsonWithCors(request, { message: "Ticket code not found" }, { status: 404 });
     }
 
     const transferLocked = isTransferLockedForViewer(ticket, phone);
     if (transferLocked) {
+      trace.mark("ticket_transfer_locked", { ticketId: ticket.id });
       return jsonWithCors(
         request,
         { message: "Ticket da chuyen cho nguoi khac", data: mapTicketRow(ticket, phone) },
@@ -381,6 +413,7 @@ export async function POST(request: NextRequest) {
     const ticketMeta = parseTicketOrderNote(ticket.note);
     const checkedIn = ticketMeta.is_checkin === 1 || ticketMeta.status_checkin === CHECKIN_DONE_STATUS;
     if (checkedIn) {
+      trace.mark("ticket_already_checked_in", { ticketId: ticket.id });
       return jsonWithCors(
         request,
         { message: "Ticket already checked in", data: mapTicketRow(ticket, phone) },
@@ -396,7 +429,7 @@ export async function POST(request: NextRequest) {
       ...ticketMeta,
       source: "zalo-miniapp",
       buyer_name: ticketMeta.buyer_name ?? String(ticket.name ?? ""),
-      buyer_phone: ticketMeta.buyer_phone ?? ticket.phone,
+      buyer_phone: ticket.buyer_phone ?? ticketMeta.buyer_phone ?? ticket.phone,
       holder_name: nextName,
       holder_phone: phone,
       claimed_from_name: String(ticket.name ?? ""),
@@ -404,40 +437,59 @@ export async function POST(request: NextRequest) {
       claimed_at: now.toISOString(),
     });
 
-    await db.query(
-      `
-      UPDATE orders
-      SET
-        name_customer = ?,
-        phone = ?,
-        customer_ID = ?,
-        note = ?,
-        updated_by = ?,
-        updated_at = ?
-      WHERE id = ?
-      LIMIT 1
-      `,
-      [nextName, phone, customerId, nextNote, "zalo-miniapp", now, ticket.id],
+    await trace.step("update_order_claim", () =>
+      db.query(
+        `
+        UPDATE orders
+        SET
+          name_customer = ?,
+          phone = ?,
+          buyer_phone = ?,
+          customer_ID = ?,
+          note = ?,
+          updated_by = ?,
+          updated_at = ?
+        WHERE id = ?
+        LIMIT 1
+        `,
+        [
+          nextName,
+          phone,
+          ticket.buyer_phone ?? ticketMeta.buyer_phone ?? ticket.phone,
+          customerId,
+          nextNote,
+          "zalo-miniapp",
+          now,
+          ticket.id,
+        ],
+      ),
     );
 
-    await syncCustomerFromMiniAppTicket({
-      phone,
-      name: nextName,
-      ticketClass,
-      zid,
-      avatar,
-      ticketCode,
-    });
+    await trace.step("sync_customer", () =>
+      syncCustomerFromMiniAppTicket({
+        phone,
+        name: nextName,
+        ticketClass,
+        zid,
+        avatar,
+        ticketCode,
+      }),
+    );
 
     const claimedTicket = mapTicketRow(
       {
         ...ticket,
         name: nextName,
         phone,
+        buyer_phone: ticket.buyer_phone ?? ticketMeta.buyer_phone ?? ticket.phone,
         note: nextNote,
       },
       phone,
     );
+    trace.done({
+      ticketId: ticket.id,
+      claimedCode: shortIdForLogs(claimedTicket.code),
+    });
 
     return jsonWithCors(request, { data: claimedTicket }, { status: 200 });
   } catch (error) {

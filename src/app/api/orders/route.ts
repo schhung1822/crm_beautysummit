@@ -515,6 +515,7 @@ async function syncCustomerFromTicket(payload: NormalizedOrderPayload) {
 
 async function insertTicketOrder(orderCode: string, payload: NormalizedOrderPayload) {
   const db = getDB();
+  const orderNote = buildOrderNote(payload);
 
   await db.query(
     `
@@ -526,6 +527,7 @@ async function insertTicketOrder(orderCode: string, payload: NormalizedOrderPayl
         name_customer,
         customer_ID,
         phone,
+        buyer_phone,
         address,
         seller,
         kenh_ban,
@@ -550,10 +552,11 @@ async function insertTicketOrder(orderCode: string, payload: NormalizedOrderPayl
       payload.name,
       payload.customer_id,
       payload.phone,
+      payload.phone,
       null,
       null,
       TICKET_ORDER_CHANNEL,
-      buildOrderNote(payload),
+      orderNote,
       Math.round(payload.money),
       0,
       Math.round(payload.money_VAT),
@@ -572,6 +575,9 @@ async function updateTicketOrder(originalOrderCode: string, payload: NormalizedO
   const db = getDB();
   const nextOrderCode = await ensureUniqueOrderCode(payload.ordercode ?? originalOrderCode, originalOrderCode);
   const previousNote = await findTicketOrderNote(originalOrderCode);
+  const previousMeta = parseTicketOrderNote(previousNote);
+  const nextBuyerPhone = previousMeta.buyer_phone ?? payload.phone;
+  const nextOrderNote = buildOrderNote(payload, previousNote);
 
   await db.query(
     `
@@ -583,6 +589,7 @@ async function updateTicketOrder(originalOrderCode: string, payload: NormalizedO
       name_customer = ?,
       customer_ID = ?,
       phone = ?,
+      buyer_phone = ?,
       address = ?,
       seller = ?,
       kenh_ban = ?,
@@ -607,10 +614,11 @@ async function updateTicketOrder(originalOrderCode: string, payload: NormalizedO
       payload.name,
       payload.customer_id,
       payload.phone,
+      nextBuyerPhone,
       null,
       null,
       TICKET_ORDER_CHANNEL,
-      buildOrderNote(payload, previousNote),
+      nextOrderNote,
       Math.round(payload.money),
       0,
       Math.round(payload.money_VAT),

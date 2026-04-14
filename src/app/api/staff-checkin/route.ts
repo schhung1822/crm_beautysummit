@@ -235,6 +235,10 @@ async function insertCheckinLog(ticket: TicketOrderRow, zone: StaffCheckinZone, 
 async function loadSnapshot() {
   const db = getDB();
   const likePattern = `${STAFF_CHECKIN_EVENT_PREFIX} | %`;
+  const startOfToday = new Date();
+  startOfToday.setHours(0, 0, 0, 0);
+  const startOfTomorrow = new Date(startOfToday);
+  startOfTomorrow.setDate(startOfTomorrow.getDate() + 1);
 
   const [historyRows] = await db.query<CheckinHistoryRow[]>(
     `
@@ -262,10 +266,11 @@ async function loadSnapshot() {
       COUNT(*) AS total
     FROM checkin
     WHERE event_name LIKE ?
-      AND DATE(submit_time) = CURDATE()
+      AND submit_time >= ?
+      AND submit_time < ?
     GROUP BY COALESCE(q2, '')
     `,
-    [likePattern],
+    [likePattern, startOfToday, startOfTomorrow],
   );
 
   const stats = {

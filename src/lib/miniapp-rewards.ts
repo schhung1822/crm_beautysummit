@@ -588,7 +588,7 @@ export async function hasMiniAppUserAccess(zid: string, phone: string): Promise<
     SELECT id
     FROM user
     WHERE zid = ?
-      AND COALESCE(phone, '') IN (${placeholders})
+      AND phone IN (${placeholders})
     LIMIT 1
     `,
     [normalizedZid, ...phoneVariants],

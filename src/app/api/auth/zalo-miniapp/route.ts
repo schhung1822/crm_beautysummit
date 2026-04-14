@@ -3,8 +3,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { createApiTrace, maskPhoneForLogs, shortIdForLogs } from "@/lib/api-observability";
 import { createToken, setAuthCookie } from "@/lib/auth";
 import { applyCorsHeaders, buildCorsHeaders } from "@/lib/cors";
+import { normalizeMiniAppName, upsertMiniAppUser } from "@/lib/miniapp-users";
 import { toDatabasePhone } from "@/lib/phone";
-import { prisma } from "@/lib/prisma";
 
 interface ZaloMiniAppPayload {
   id?: string;
@@ -12,16 +12,6 @@ interface ZaloMiniAppPayload {
   phone?: string;
   avatar?: string;
 }
-
-const DEFAULT_ZALO_SDK_NAME = "User Name";
-const normalizeMiniAppName = (value?: string): string | undefined => {
-  const normalizedValue = value?.trim() ?? "";
-  if (!normalizedValue || normalizedValue === DEFAULT_ZALO_SDK_NAME) {
-    return undefined;
-  }
-
-  return normalizedValue;
-};
 
 const jsonWithCors = (request: NextRequest, body: unknown, init?: ResponseInit): NextResponse => {
   return applyCorsHeaders(request, NextResponse.json(body, init), ["POST", "OPTIONS"]);
@@ -51,30 +41,12 @@ export async function POST(request: NextRequest) {
       phone: maskPhoneForLogs(phone),
       hasName: Boolean(name),
     });
-    const now = new Date();
     const userRecord = await trace.step("upsert_user", () =>
-      prisma.user.upsert({
-        where: { zid },
-        update: {
-          phone,
-          avatar,
-          ...(name ? { name } : {}),
-          status: "active",
-          last_login: now,
-          updated_by: "zalo-miniapp",
-        },
-        create: {
-          zid,
-          phone,
-          avatar,
-          name: name ?? `Zalo ${zid}`,
-          password: null,
-          role: "user",
-          status: "active",
-          last_login: now,
-          created_by: "zalo-miniapp",
-          updated_by: "zalo-miniapp",
-        },
+      upsertMiniAppUser({
+        zid,
+        phone,
+        avatar,
+        name,
       }),
     );
 

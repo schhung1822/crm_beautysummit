@@ -6,6 +6,8 @@ import type { RowDataPacket } from "mysql2/promise";
 import { createApiTrace, maskPhoneForLogs, shortIdForLogs } from "@/lib/api-observability";
 import { applyCorsHeaders, buildCorsHeaders } from "@/lib/cors";
 import { getDB } from "@/lib/db";
+import { hasMiniAppUserAccess as sharedHasMiniAppUserAccess } from "@/lib/miniapp-rewards";
+import { mapMiniAppTicketRow, queryMiniAppTicketRowsByPhone, type MiniAppTicketRow } from "@/lib/miniapp-tickets";
 import { buildPhoneVariants, normalizePhoneDigits, toDatabasePhone, toDisplayPhone } from "@/lib/phone";
 import {
   buildTicketOrderNote,
@@ -14,18 +16,6 @@ import {
   TICKET_ORDER_BRAND,
   TICKET_ORDER_CHANNEL,
 } from "@/lib/ticket-orders";
-
-type TicketOrderRow = RowDataPacket & {
-  id: number;
-  ordercode: string | null;
-  name: string | null;
-  phone: string | null;
-  buyer_phone: string | null;
-  ticketClass: string | null;
-  status: string | null;
-  create_time: Date | string | null;
-  note: string | null;
-};
 
 type CustomerRow = RowDataPacket & {
   id: number;
@@ -118,7 +108,7 @@ function toIsoString(value: Date | string | null): string | null {
   return Number.isNaN(parsed.getTime()) ? null : parsed.toISOString();
 }
 
-function isTransferLockedForViewer(row: TicketOrderRow, viewerPhone?: string): boolean {
+function isTransferLockedForViewer(row: MiniAppTicketRow, viewerPhone?: string): boolean {
   const meta = parseTicketOrderNote(row.note);
   const viewerDigits = normalizeDigits(viewerPhone);
   const holderDigits = normalizeDigits(row.phone);
@@ -129,7 +119,7 @@ function isTransferLockedForViewer(row: TicketOrderRow, viewerPhone?: string): b
   );
 }
 
-function mapTicketRow(row: TicketOrderRow, viewerPhone?: string) {
+function mapTicketRow(row: MiniAppTicketRow, viewerPhone?: string) {
   const meta = parseTicketOrderNote(row.note);
   const checkedIn = meta.is_checkin === 1 || meta.status_checkin === CHECKIN_DONE_STATUS;
   const transferLocked = isTransferLockedForViewer(row, viewerPhone);
@@ -154,11 +144,11 @@ function mapTicketRow(row: TicketOrderRow, viewerPhone?: string) {
   };
 }
 
-async function queryTicketRowsByPhone(phone: string): Promise<TicketOrderRow[]> {
+async function queryTicketRowsByPhone(phone: string): Promise<MiniAppTicketRow[]> {
   const db = getDB();
   const phoneVariants = buildPhoneVariants(phone);
   const placeholders = phoneVariants.map(() => "?").join(", ");
-  const [rows] = await db.query<TicketOrderRow[]>(
+  const [rows] = await db.query<MiniAppTicketRow[]>(
     `
     SELECT
         id,
@@ -303,15 +293,15 @@ export async function GET(request: NextRequest) {
     return jsonWithCors(request, { message: "zid and phone are required", data: [] }, { status: 400 });
   }
 
-  const hasAccess = await trace.step("access_check", () => hasMiniAppUserAccess(zid, phone));
+  const hasAccess = await trace.step("access_check", () => sharedHasMiniAppUserAccess(zid, phone));
   if (!hasAccess) {
     trace.mark("access_denied");
     return jsonWithCors(request, { message: "Mini app account is not authorized", data: [] }, { status: 403 });
   }
 
   try {
-    const rows = await trace.step("query_ticket_rows", () => queryTicketRowsByPhone(phone));
-    const tickets = rows.map((row) => mapTicketRow(row, phone)).filter((ticket) => Boolean(ticket.code));
+    const rows = await trace.step("query_ticket_rows", () => queryMiniAppTicketRowsByPhone(phone));
+    const tickets = rows.map((row) => mapMiniAppTicketRow(row, phone)).filter((ticket) => Boolean(ticket.code));
     trace.mark("map_ticket_rows", {
       rowCount: rows.length,
       ticketCount: tickets.length,
@@ -348,15 +338,15 @@ export async function POST(request: NextRequest) {
       return jsonWithCors(request, { message: "id and phone are required" }, { status: 400 });
     }
 
-    const hasAccess = await trace.step("access_check", () => hasMiniAppUserAccess(zid, phone));
+    const hasAccess = await trace.step("access_check", () => sharedHasMiniAppUserAccess(zid, phone));
     if (!hasAccess) {
       trace.mark("access_denied");
       return jsonWithCors(request, { message: "Mini app account is not authorized" }, { status: 403 });
     }
 
     if (action === "list") {
-      const rows = await trace.step("query_ticket_rows", () => queryTicketRowsByPhone(phone));
-      const tickets = rows.map((row) => mapTicketRow(row, phone)).filter((ticket) => Boolean(ticket.code));
+      const rows = await trace.step("query_ticket_rows", () => queryMiniAppTicketRowsByPhone(phone));
+      const tickets = rows.map((row) => mapMiniAppTicketRow(row, phone)).filter((ticket) => Boolean(ticket.code));
       trace.mark("map_ticket_rows", {
         rowCount: rows.length,
         ticketCount: tickets.length,
@@ -373,7 +363,7 @@ export async function POST(request: NextRequest) {
 
     const db = getDB();
     const [rows] = await trace.step("query_ticket_by_code", () =>
-      db.query<TicketOrderRow[]>(
+      db.query<MiniAppTicketRow[]>(
         `
         SELECT
           id,
@@ -405,7 +395,7 @@ export async function POST(request: NextRequest) {
       trace.mark("ticket_transfer_locked", { ticketId: ticket.id });
       return jsonWithCors(
         request,
-        { message: "Ticket da chuyen cho nguoi khac", data: mapTicketRow(ticket, phone) },
+        { message: "Ticket da chuyen cho nguoi khac", data: mapMiniAppTicketRow(ticket, phone) },
         { status: 409 },
       );
     }
@@ -416,7 +406,7 @@ export async function POST(request: NextRequest) {
       trace.mark("ticket_already_checked_in", { ticketId: ticket.id });
       return jsonWithCors(
         request,
-        { message: "Ticket already checked in", data: mapTicketRow(ticket, phone) },
+        { message: "Ticket already checked in", data: mapMiniAppTicketRow(ticket, phone) },
         { status: 409 },
       );
     }
@@ -476,7 +466,7 @@ export async function POST(request: NextRequest) {
       }),
     );
 
-    const claimedTicket = mapTicketRow(
+    const claimedTicket = mapMiniAppTicketRow(
       {
         ...ticket,
         name: nextName,

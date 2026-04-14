@@ -95,6 +95,7 @@ model checkin {
   voucher     String?   @db.Text
 
   @@index([nc_order], map: "checkin_order_idx")
+  @@index([event_name(length: 64), submit_time], map: "checkin_event_time_idx")
 }
 
 model customer {
@@ -162,8 +163,8 @@ model orders {
 
   @@index([nc_order], map: "order_order_idx")
   @@index([order_ID(length: 64), kenh_ban(length: 64)], map: "orders_order_id_channel_idx")
-  @@index([kenh_ban(length: 64), phone(length: 32)], map: "orders_channel_phone_idx")
-  @@index([kenh_ban(length: 64), buyer_phone], map: "orders_channel_buyer_phone_idx")
+  @@index([kenh_ban(length: 64), phone(length: 32), create_time], map: "orders_channel_phone_idx")
+  @@index([kenh_ban(length: 64), buyer_phone, create_time], map: "orders_channel_buyer_phone_idx")
   @@index([customer_ID(length: 64)], map: "orders_customer_id_idx")
 }
 

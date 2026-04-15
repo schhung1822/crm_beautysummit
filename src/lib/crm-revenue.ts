@@ -1,21 +1,29 @@
 import { unstable_cache } from "next/cache";
 
+import type { RowDataPacket } from "mysql2/promise";
+
 import {
   buildRevenueHorizontalBars,
   buildRevenuePie,
   type RevenueGroupRow,
 } from "@/app/(main)/dashboard/crm/_components/crm.config";
 import { getDB } from "@/lib/db";
-import { CHECKIN_PENDING_STATUS, TICKET_ORDER_CHANNEL } from "@/lib/ticket-orders";
+import { CHECKIN_DONE_STATUS, CHECKIN_PENDING_STATUS } from "@/lib/ticket-orders";
 
 type ChartResult = ReturnType<typeof buildRevenuePie>;
+type RevenueRow = RowDataPacket & Record<string, unknown>;
 
-const careerExpr = "COALESCE(NULLIF(JSON_UNQUOTE(JSON_EXTRACT(note, '$.career')), ''), 'Khong ro')";
-const genderExpr = "COALESCE(NULLIF(JSON_UNQUOTE(JSON_EXTRACT(note, '$.gender')), ''), 'Khong ro')";
-const checkinStatusExpr = `COALESCE(NULLIF(JSON_UNQUOTE(JSON_EXTRACT(note, '$.status_checkin')), ''), '${CHECKIN_PENDING_STATUS}')`;
-const ticketClassExpr = "COALESCE(NULLIF(brand_pro, ''), 'Khong ro')";
+const moneyExpr = "COALESCE(CAST(NULLIF(money, '') AS UNSIGNED), 0)";
+const moneyVatExpr = "COALESCE(CAST(NULLIF(money_VAT, '') AS UNSIGNED), 0)";
+const ticketClassExpr = "COALESCE(NULLIF(class, ''), 'Khong ro')";
+const careerExpr = "COALESCE(NULLIF(career, ''), 'Khong ro')";
+const genderExpr = "COALESCE(NULLIF(gender, ''), 'Khong ro')";
+const checkinStatusExpr = `CASE
+  WHEN COALESCE(is_checkin, 0) = 1 OR COALESCE(number_checkin, 0) > 0 OR checkin_time IS NOT NULL THEN '${CHECKIN_DONE_STATUS}'
+  ELSE '${CHECKIN_PENDING_STATUS}'
+END`;
 
-function mapRows(rows: any[]): RevenueGroupRow[] {
+function mapRows(rows: Array<Record<string, unknown>>): RevenueGroupRow[] {
   return (rows ?? []).map((row) => ({
     name: String(row.name ?? "Khong ro"),
     revenue: Number(row.revenue) || 0,
@@ -23,8 +31,8 @@ function mapRows(rows: any[]): RevenueGroupRow[] {
 }
 
 function buildDateFilter(from?: Date, to?: Date) {
-  const clauses = ["kenh_ban = ?"];
-  const params: (Date | number | string)[] = [TICKET_ORDER_CHANNEL];
+  const clauses = ["ordercode IS NOT NULL", "TRIM(ordercode) <> ''"];
+  const params: Array<Date | number | string> = [];
 
   if (from) {
     clauses.push("create_time >= ?");
@@ -44,15 +52,15 @@ export const getRevenueByChannelChart = unstable_cache(
     const db = getDB();
     const dateFilter = buildDateFilter(from, to);
 
-    const [rows] = await db.query<any[]>(
+    const [rows] = await db.query<RevenueRow[]>(
       `
-      SELECT
-        ${ticketClassExpr} AS name,
-        SUM(COALESCE(thanh_tien, 0)) AS revenue
-      FROM orders
-      WHERE ${dateFilter.clause}
-      GROUP BY ${ticketClassExpr}
-      ORDER BY revenue DESC
+        SELECT
+          ${ticketClassExpr} AS name,
+          SUM(${moneyVatExpr}) AS revenue
+        FROM orders
+        WHERE ${dateFilter.clause}
+        GROUP BY ${ticketClassExpr}
+        ORDER BY revenue DESC
       `,
       dateFilter.params,
     );
@@ -68,16 +76,16 @@ export const getRevenueByBranchBarChart = unstable_cache(
     const db = getDB();
     const dateFilter = buildDateFilter(from, to);
 
-    const [rows] = await db.query<any[]>(
+    const [rows] = await db.query<RevenueRow[]>(
       `
-      SELECT
-        ${careerExpr} AS name,
-        SUM(COALESCE(thanh_tien, 0)) AS revenue
-      FROM orders
-      WHERE ${dateFilter.clause}
-      GROUP BY ${careerExpr}
-      ORDER BY revenue DESC
-      LIMIT ?
+        SELECT
+          ${careerExpr} AS name,
+          SUM(${moneyVatExpr}) AS revenue
+        FROM orders
+        WHERE ${dateFilter.clause}
+        GROUP BY ${careerExpr}
+        ORDER BY revenue DESC
+        LIMIT ?
       `,
       [...dateFilter.params, limit],
     );
@@ -93,15 +101,15 @@ export const getCRMStats = unstable_cache(
     const db = getDB();
     const dateFilter = buildDateFilter(from, to);
 
-    const [rows] = await db.query<any[]>(
+    const [rows] = await db.query<RevenueRow[]>(
       `
-      SELECT
-        COUNT(DISTINCT order_ID) AS totalOrders,
-        SUM(COALESCE(quantity, 1)) AS totalQuantity,
-        SUM(COALESCE(tien_hang, 0)) AS totalTienHang,
-        SUM(COALESCE(thanh_tien, 0)) AS totalThanhTien
-      FROM orders
-      WHERE ${dateFilter.clause}
+        SELECT
+          COUNT(DISTINCT ordercode) AS totalOrders,
+          COUNT(*) AS totalQuantity,
+          SUM(${moneyExpr}) AS totalTienHang,
+          SUM(${moneyVatExpr}) AS totalThanhTien
+        FROM orders
+        WHERE ${dateFilter.clause}
       `,
       dateFilter.params,
     );
@@ -123,16 +131,16 @@ export const getBrandConversionFunnel = unstable_cache(
     const db = getDB();
     const dateFilter = buildDateFilter(from, to);
 
-    const [rows] = await db.query<any[]>(
+    const [rows] = await db.query<RevenueRow[]>(
       `
-      SELECT
-        ${checkinStatusExpr} AS brand,
-        COUNT(DISTINCT order_ID) AS orders
-      FROM orders
-      WHERE ${dateFilter.clause}
-      GROUP BY ${checkinStatusExpr}
-      ORDER BY orders DESC
-      LIMIT 5
+        SELECT
+          ${checkinStatusExpr} AS brand,
+          COUNT(DISTINCT ordercode) AS orders
+        FROM orders
+        WHERE ${dateFilter.clause}
+        GROUP BY ${checkinStatusExpr}
+        ORDER BY orders DESC
+        LIMIT 5
       `,
       dateFilter.params,
     );
@@ -154,37 +162,37 @@ export const getChannelSalesSummary = unstable_cache(
     const db = getDB();
     const dateFilter = buildDateFilter(from, to);
 
-    const [rows] = await db.query<any[]>(
+    const [rows] = await db.query<RevenueRow[]>(
       `
-      SELECT
-        ${ticketClassExpr} AS kenh_ban,
-        COUNT(DISTINCT order_ID) AS orders,
-        SUM(COALESCE(quantity, 1)) AS quantity,
-        SUM(COALESCE(tien_hang, 0)) AS tien_hang,
-        SUM(COALESCE(giam_gia, 0)) AS giam_gia,
-        SUM(COALESCE(thanh_tien, 0)) AS thanh_tien,
-        SUM(
-          CASE
-            WHEN LOWER(COALESCE(status, '')) = 'paydone' THEN 1
-            ELSE 0
-          END
-        ) AS paydone_count,
-        SUM(
-          CASE
-            WHEN LOWER(COALESCE(status, '')) = 'paydone' THEN COALESCE(tien_hang, 0)
-            ELSE 0
-          END
-        ) AS paydone_money,
-        SUM(
-          CASE
-            WHEN LOWER(COALESCE(status, '')) = 'paydone' THEN COALESCE(thanh_tien, 0)
-            ELSE 0
-          END
-        ) AS paydone_money_vat
-      FROM orders
-      WHERE ${dateFilter.clause}
-      GROUP BY ${ticketClassExpr}
-      ORDER BY thanh_tien DESC
+        SELECT
+          ${ticketClassExpr} AS kenh_ban,
+          COUNT(DISTINCT ordercode) AS orders,
+          COUNT(*) AS quantity,
+          SUM(${moneyExpr}) AS tien_hang,
+          0 AS giam_gia,
+          SUM(${moneyVatExpr}) AS thanh_tien,
+          SUM(
+            CASE
+              WHEN LOWER(COALESCE(status, '')) = 'paydone' THEN 1
+              ELSE 0
+            END
+          ) AS paydone_count,
+          SUM(
+            CASE
+              WHEN LOWER(COALESCE(status, '')) = 'paydone' THEN ${moneyExpr}
+              ELSE 0
+            END
+          ) AS paydone_money,
+          SUM(
+            CASE
+              WHEN LOWER(COALESCE(status, '')) = 'paydone' THEN ${moneyVatExpr}
+              ELSE 0
+            END
+          ) AS paydone_money_vat
+        FROM orders
+        WHERE ${dateFilter.clause}
+        GROUP BY ${ticketClassExpr}
+        ORDER BY thanh_tien DESC
       `,
       dateFilter.params,
     );
@@ -210,16 +218,16 @@ export const getTopProductsByQuantity = unstable_cache(
     const db = getDB();
     const dateFilter = buildDateFilter(from, to);
 
-    const [rows] = await db.query<any[]>(
+    const [rows] = await db.query<RevenueRow[]>(
       `
-      SELECT
-        ${careerExpr} AS product,
-        SUM(COALESCE(quantity, 1)) AS totalQuantity
-      FROM orders
-      WHERE ${dateFilter.clause}
-      GROUP BY ${careerExpr}
-      ORDER BY totalQuantity DESC
-      LIMIT ?
+        SELECT
+          ${ticketClassExpr} AS product,
+          COUNT(*) AS totalQuantity
+        FROM orders
+        WHERE ${dateFilter.clause}
+        GROUP BY ${ticketClassExpr}
+        ORDER BY totalQuantity DESC
+        LIMIT ?
       `,
       [...dateFilter.params, limit],
     );
@@ -244,17 +252,17 @@ export const getTopSalesByRevenue = unstable_cache(
     const db = getDB();
     const dateFilter = buildDateFilter(from, to);
 
-    const [rows] = await db.query<any[]>(
+    const [rows] = await db.query<RevenueRow[]>(
       `
-      SELECT
-        ${genderExpr} AS seller,
-        SUM(COALESCE(thanh_tien, 0)) AS totalRevenue,
-        COUNT(DISTINCT order_ID) AS totalOrders
-      FROM orders
-      WHERE ${dateFilter.clause}
-      GROUP BY ${genderExpr}
-      ORDER BY totalRevenue DESC
-      LIMIT ?
+        SELECT
+          ${genderExpr} AS seller,
+          SUM(${moneyVatExpr}) AS totalRevenue,
+          COUNT(DISTINCT ordercode) AS totalOrders
+        FROM orders
+        WHERE ${dateFilter.clause}
+        GROUP BY ${genderExpr}
+        ORDER BY totalRevenue DESC
+        LIMIT ?
       `,
       [...dateFilter.params, limit],
     );

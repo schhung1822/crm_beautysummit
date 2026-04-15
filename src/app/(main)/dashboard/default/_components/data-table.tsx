@@ -5,24 +5,28 @@ import * as React from "react";
 import { useSearchParams } from "next/navigation";
 
 import { Search } from "lucide-react";
+import { toast } from "sonner";
 
 import { DataTable as DataTableNew } from "@/components/data-table/data-table";
 import { DataTableViewOptions } from "@/components/data-table/data-table-view-options";
-import { withDndColumn } from "@/components/data-table/table-utils";
+import { toggleFilteredRows } from "@/components/data-table/selection-toggle";
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useDataTableInstance } from "@/hooks/use-data-table-instance";
+import { matchesSearchTerm } from "@/lib/search-utils";
 import { fetchChannelsByDateRange } from "@/server/server-actions";
 
 import { dashboardColumns as makeColumns, type Stats } from "./columns";
 import type { Channel } from "./schema";
 
 export function DataTable({ data: initialData = [], stats }: { data?: Channel[]; stats: Stats }) {
-  const columns = withDndColumn(makeColumns(stats));
+  const columns = makeColumns(stats);
   const searchParams = useSearchParams();
 
   const [data, setData] = React.useState<Channel[]>(() => initialData);
   const [searchTerm, setSearchTerm] = React.useState("");
   const [isLoading, setIsLoading] = React.useState(false);
+  const [isDeleting, setIsDeleting] = React.useState(false);
 
   // Fetch data khi date range thay đổi
   React.useEffect(() => {
@@ -48,16 +52,7 @@ export function DataTable({ data: initialData = [], stats }: { data?: Channel[];
   }, [searchParams, initialData]);
 
   const filteredData = React.useMemo(() => {
-    if (!searchTerm.trim()) return data;
-
-    const term = searchTerm.toLowerCase();
-    return data.filter(
-      (item) =>
-        item.name.toLowerCase().includes(term) ||
-        item.ordercode.toLowerCase().includes(term) ||
-        (item.phone ? item.phone.toLowerCase().includes(term) : false) ||
-        (item.email ? item.email.toLowerCase().includes(term) : false),
-    );
+    return data.filter((item) => matchesSearchTerm(searchTerm, [item.name, item.ordercode, item.phone, item.email]));
   }, [data, searchTerm]);
 
   const table = useDataTableInstance({
@@ -65,6 +60,42 @@ export function DataTable({ data: initialData = [], stats }: { data?: Channel[];
     columns,
     getRowId: (row) => `${row.ordercode || row.phone || ""}-${row.create_time?.toString() ?? ""}`,
   });
+  const selectedItems = table.getSelectedRowModel().rows.map((row) => row.original);
+
+  const handleDeleteSelected = React.useCallback(async () => {
+    if (!selectedItems.length) {
+      toast.warning("Vui long chon don hang can xoa");
+      return;
+    }
+
+    if (!window.confirm(`Xoa ${selectedItems.length} don hang da chon?`)) {
+      return;
+    }
+
+    setIsDeleting(true);
+    try {
+      const orderCodes = selectedItems.map((item) => item.ordercode).filter((value): value is string => Boolean(value));
+      const response = await fetch("/api/orders", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ orderCodes }),
+      });
+
+      const result = (await response.json().catch(() => ({}))) as { error?: string };
+      if (!response.ok) {
+        throw new Error(result.error ?? "Khong the xoa don hang");
+      }
+
+      const deletedSet = new Set(orderCodes);
+      setData((previous) => previous.filter((item) => !deletedSet.has(item.ordercode)));
+      table.resetRowSelection();
+      toast.success(`Da xoa ${orderCodes.length} don hang`);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Khong the xoa don hang");
+    } finally {
+      setIsDeleting(false);
+    }
+  }, [selectedItems, table]);
 
   return (
     <div className="flex w-full flex-col gap-6">
@@ -80,11 +111,22 @@ export function DataTable({ data: initialData = [], stats }: { data?: Channel[];
           />
         </div>
         <div className="flex items-center gap-2">
+          <Button size="sm" variant="outline" onClick={() => toggleFilteredRows(table, true)}>
+            Chon tat ca
+          </Button>
+          <Button size="sm" variant="outline" onClick={() => toggleFilteredRows(table, false)}>
+            Bo chon tat ca
+          </Button>
+          {selectedItems.length > 0 ? (
+            <Button size="sm" variant="destructive" onClick={handleDeleteSelected} disabled={isDeleting}>
+              {isDeleting ? "Dang xoa..." : `Xoa (${selectedItems.length})`}
+            </Button>
+          ) : null}
           <DataTableViewOptions table={table} />
         </div>
       </div>
       <div className="nice-scroll overflow-hidden rounded-lg">
-        <DataTableNew dndEnabled table={table} columns={columns} onReorder={setData} />
+        <DataTableNew table={table} columns={columns} />
       </div>
     </div>
   );

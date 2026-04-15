@@ -7,21 +7,14 @@ import { getCurrentUser, type JWTPayload } from "@/lib/auth";
 import { getDB } from "@/lib/db";
 import { buildPhoneVariants, toDatabasePhone, toDisplayPhone } from "@/lib/phone";
 import {
-  buildStaffCheckinEventName,
   getStaffCheckinZone,
   normalizeStaffTicketTier,
   normalizeTicketCode,
   parseStaffQrPayload,
-  STAFF_CHECKIN_EVENT_PREFIX,
   type StaffCheckinTier,
   type StaffCheckinZone,
 } from "@/lib/staff-checkin";
-import {
-  buildTicketOrderNote,
-  CHECKIN_DONE_STATUS,
-  parseTicketOrderNote,
-  TICKET_ORDER_CHANNEL,
-} from "@/lib/ticket-orders";
+import { buildCheckinStatusLabel, isTicketCheckedIn } from "@/lib/ticket-orders";
 
 type StaffCheckinPayload = {
   payload?: string;
@@ -37,18 +30,23 @@ type TicketOrderRow = RowDataPacket & {
   phone: string | null;
   ticketClass: string | null;
   customerId: string | null;
-  note: string | null;
+  status: string | null;
+  is_checkin: number | string | null;
+  number_checkin: number | string | null;
+  checkin_time: Date | string | null;
+  ref: string | null;
+  source: string | null;
 };
 
-type CheckinHistoryRow = RowDataPacket & {
+type HistoryRow = RowDataPacket & {
   id: number;
   name: string | null;
   phone: string | null;
-  ticketCode: string | null;
+  ordercode: string | null;
   ticketClass: string | null;
-  zoneId: string | null;
-  zoneName: string | null;
-  submit_time: Date | string | null;
+  ref: string | null;
+  source: string | null;
+  checkin_time: Date | string | null;
 };
 
 type StatsRow = RowDataPacket & {
@@ -81,10 +79,21 @@ function toIsoString(value: Date | string | null): string | null {
   return Number.isNaN(parsed.getTime()) ? null : parsed.toISOString();
 }
 
-function buildGuest(ticket: TicketOrderRow, zone: StaffCheckinZone): StaffCheckinGuest {
-  const meta = parseTicketOrderNote(ticket.note);
-  const checkedIn = meta.is_checkin === 1 || meta.status_checkin === CHECKIN_DONE_STATUS;
+function buildZoneSource(zone: StaffCheckinZone): string {
+  return `staff-checkin:${zone.id}:${zone.name}`;
+}
 
+function parseZoneSource(value: string | null | undefined): { zoneId: string; zoneName: string } {
+  const source = String(value ?? "");
+  if (!source.startsWith("staff-checkin:")) {
+    return { zoneId: "", zoneName: "" };
+  }
+
+  const [, zoneId = "", zoneName = ""] = source.split(":");
+  return { zoneId, zoneName };
+}
+
+function buildGuest(ticket: TicketOrderRow, zone: StaffCheckinZone): StaffCheckinGuest {
   return {
     code: normalizeTicketCode(ticket.ordercode),
     name: String(ticket.name ?? ""),
@@ -93,23 +102,19 @@ function buildGuest(ticket: TicketOrderRow, zone: StaffCheckinZone): StaffChecki
     ticketClass: String(ticket.ticketClass ?? ""),
     zoneId: zone.id,
     zoneName: zone.name,
-    checkedIn,
-    checkinTime: meta.checkin_time,
+    checkedIn: isTicketCheckedIn(ticket),
+    checkinTime: toIsoString(ticket.checkin_time),
   };
 }
 
 async function ensureStaffAccess(): Promise<{ user?: JWTPayload; response?: NextResponse }> {
   const currentUser = await getCurrentUser();
   if (!currentUser) {
-    return {
-      response: json({ message: "Chua dang nhap" }, { status: 401 }),
-    };
+    return { response: json({ message: "Chua dang nhap" }, { status: 401 }) };
   }
 
   if (!["admin", "receptionist"].includes(currentUser.role)) {
-    return {
-      response: json({ message: "Ban khong co quyen su dung staff check-in" }, { status: 403 }),
-    };
+    return { response: json({ message: "Ban khong co quyen su dung staff check-in" }, { status: 403 }) };
   }
 
   return { user: currentUser };
@@ -119,26 +124,29 @@ async function findTicketOrder(ticketCode: string, phone: string | null): Promis
   const db = getDB();
   const normalizedCode = normalizeTicketCode(ticketCode);
   const phoneVariants = phone ? buildPhoneVariants(phone) : [];
-  const phoneCondition =
-    phoneVariants.length > 0 ? ` AND COALESCE(phone, '') IN (${phoneVariants.map(() => "?").join(", ")})` : "";
+  const phoneCondition = phoneVariants.length > 0 ? ` AND phone IN (${phoneVariants.map(() => "?").join(", ")})` : "";
 
   const [rows] = await db.query<TicketOrderRow[]>(
     `
     SELECT
       id,
-      COALESCE(order_ID, '') AS ordercode,
-      COALESCE(name_customer, '') AS name,
+      COALESCE(ordercode, '') AS ordercode,
+      COALESCE(name, '') AS name,
       COALESCE(phone, '') AS phone,
-      COALESCE(brand_pro, '') AS ticketClass,
-      COALESCE(customer_ID, '') AS customerId,
-      note
+      COALESCE(class, '') AS ticketClass,
+      COALESCE(customer_id, '') AS customerId,
+      COALESCE(status, '') AS status,
+      COALESCE(is_checkin, 0) AS is_checkin,
+      COALESCE(number_checkin, 0) AS number_checkin,
+      checkin_time,
+      COALESCE(ref, '') AS ref,
+      COALESCE(source, '') AS source
     FROM orders
-    WHERE order_ID = ?
-      AND kenh_ban = ?
+    WHERE ordercode = ?
       ${phoneCondition}
     LIMIT 1
     `,
-    [normalizedCode, TICKET_ORDER_CHANNEL, ...phoneVariants],
+    [normalizedCode, ...phoneVariants],
   );
 
   return rows.length > 0 ? rows[0] : null;
@@ -146,131 +154,74 @@ async function findTicketOrder(ticketCode: string, phone: string | null): Promis
 
 async function markTicketCheckedIn(ticket: TicketOrderRow, currentUser: JWTPayload, zone: StaffCheckinZone) {
   const db = getDB();
-  const meta = parseTicketOrderNote(ticket.note);
   const now = new Date();
-  const nextNote = buildTicketOrderNote({
-    ...meta,
-    status_checkin: CHECKIN_DONE_STATUS,
-    checkin_time: now.toISOString(),
-    is_checkin: 1,
-    source: `staff-checkin:${zone.id}`,
-  });
+  const nextNumberCheckin = Math.max(1, Number(ticket.number_checkin ?? 0) + 1);
 
   await db.query(
     `
     UPDATE orders
     SET
-      note = ?,
+      is_checkin = 1,
+      number_checkin = ?,
+      checkin_time = ?,
+      ref = ?,
+      source = ?,
       updated_by = ?,
       updated_at = ?
     WHERE id = ?
     LIMIT 1
     `,
-    [nextNote, currentUser.username, now, ticket.id],
+    [nextNumberCheckin, now, zone.id, buildZoneSource(zone), currentUser.username, now, ticket.id],
   );
 
   return {
     ...ticket,
-    note: nextNote,
+    is_checkin: 1,
+    number_checkin: nextNumberCheckin,
+    checkin_time: now,
+    ref: zone.id,
+    source: buildZoneSource(zone),
   };
-}
-
-async function insertCheckinLog(ticket: TicketOrderRow, zone: StaffCheckinZone, currentUser: JWTPayload) {
-  const db = getDB();
-  const now = new Date();
-  const tier = normalizeStaffTicketTier(ticket.ticketClass);
-
-  await db.query(
-    `
-    INSERT INTO checkin
-      (
-        phone,
-        event_name,
-        name,
-        title_q1,
-        q1,
-        title_q2,
-        q2,
-        title_q3,
-        q3,
-        title_q4,
-        q4,
-        title_q5,
-        q5,
-        user_id,
-        submit_time,
-        create_time,
-        created_by,
-        updated_by,
-        created_at,
-        updated_at
-      )
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `,
-    [
-      toDatabasePhone(ticket.phone) ?? "",
-      buildStaffCheckinEventName(zone),
-      String(ticket.name ?? ""),
-      "ticket_code",
-      normalizeTicketCode(ticket.ordercode),
-      "ticket_class",
-      tier,
-      "zone_id",
-      zone.id,
-      "zone_name",
-      zone.name,
-      "source",
-      "staff-checkin",
-      String(ticket.customerId ?? normalizeTicketCode(ticket.ordercode)),
-      now,
-      now,
-      currentUser.username,
-      currentUser.username,
-      now,
-      now,
-    ],
-  );
 }
 
 async function loadSnapshot() {
   const db = getDB();
-  const likePattern = `${STAFF_CHECKIN_EVENT_PREFIX} | %`;
   const startOfToday = new Date();
   startOfToday.setHours(0, 0, 0, 0);
   const startOfTomorrow = new Date(startOfToday);
   startOfTomorrow.setDate(startOfTomorrow.getDate() + 1);
 
-  const [historyRows] = await db.query<CheckinHistoryRow[]>(
+  const [historyRows] = await db.query<HistoryRow[]>(
     `
     SELECT
       id,
       COALESCE(name, '') AS name,
       COALESCE(phone, '') AS phone,
-      COALESCE(q1, '') AS ticketCode,
-      COALESCE(q2, '') AS ticketClass,
-      COALESCE(q3, '') AS zoneId,
-      COALESCE(q4, '') AS zoneName,
-      submit_time
-    FROM checkin
-    WHERE event_name LIKE ?
-    ORDER BY submit_time DESC, id DESC
+      COALESCE(ordercode, '') AS ordercode,
+      COALESCE(class, '') AS ticketClass,
+      ref,
+      source,
+      checkin_time
+    FROM orders
+    WHERE COALESCE(is_checkin, 0) = 1
+      AND checkin_time IS NOT NULL
+    ORDER BY checkin_time DESC, id DESC
     LIMIT 20
     `,
-    [likePattern],
   );
 
   const [statsRows] = await db.query<StatsRow[]>(
     `
     SELECT
-      COALESCE(q2, '') AS ticketClass,
+      COALESCE(class, '') AS ticketClass,
       COUNT(*) AS total
-    FROM checkin
-    WHERE event_name LIKE ?
-      AND submit_time >= ?
-      AND submit_time < ?
-    GROUP BY COALESCE(q2, '')
+    FROM orders
+    WHERE COALESCE(is_checkin, 0) = 1
+      AND checkin_time >= ?
+      AND checkin_time < ?
+    GROUP BY COALESCE(class, '')
     `,
-    [likePattern, startOfToday, startOfTomorrow],
+    [startOfToday, startOfTomorrow],
   );
 
   const stats = {
@@ -298,17 +249,22 @@ async function loadSnapshot() {
     stats.standard += total;
   }
 
-  const history = historyRows.map((row) => ({
-    id: row.id,
-    name: String(row.name ?? ""),
-    phone: toDisplayPhone(row.phone),
-    code: normalizeTicketCode(row.ticketCode),
-    tier: normalizeStaffTicketTier(row.ticketClass),
-    ticketClass: String(row.ticketClass ?? ""),
-    zoneId: String(row.zoneId ?? ""),
-    zoneName: String(row.zoneName ?? ""),
-    time: toIsoString(row.submit_time),
-  }));
+  const history = historyRows.map((row) => {
+    const zoneMeta = parseZoneSource(row.source);
+
+    return {
+      id: row.id,
+      name: String(row.name ?? ""),
+      phone: toDisplayPhone(row.phone),
+      code: normalizeTicketCode(row.ordercode),
+      tier: normalizeStaffTicketTier(row.ticketClass),
+      ticketClass: String(row.ticketClass ?? ""),
+      zoneId: row.ref ?? zoneMeta.zoneId,
+      zoneName: zoneMeta.zoneName,
+      time: toIsoString(row.checkin_time),
+      statusLabel: buildCheckinStatusLabel(1),
+    };
+  });
 
   return { history, stats };
 }
@@ -351,15 +307,7 @@ export async function POST(request: NextRequest) {
 
     const ticket = await findTicketOrder(ticketCode, phone);
     if (!ticket) {
-      return json(
-        {
-          data: {
-            status: "error",
-            message: "Khong tim thay ve hop le trong he thong",
-          },
-        },
-        { status: 200 },
-      );
+      return json({ data: { status: "error", message: "Khong tim thay ve hop le trong he thong" } }, { status: 200 });
     }
 
     const guest = buildGuest(ticket, zone);
@@ -394,7 +342,6 @@ export async function POST(request: NextRequest) {
     }
 
     const updatedTicket = await markTicketCheckedIn(ticket, access.user, zone);
-    await insertCheckinLog(updatedTicket, zone, access.user);
     const snapshot = await loadSnapshot();
 
     return json(

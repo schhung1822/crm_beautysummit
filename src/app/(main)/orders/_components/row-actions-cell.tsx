@@ -26,28 +26,23 @@ import {
 import type { Channel } from "./schema";
 import { TableCellViewer } from "./table-cell-viewer";
 
-type Stats = {
-  totalOrders: number;
-  totalMoney: number;
-  totalMoneyVAT: number;
-};
-
 type OnRowUpdated = (updated: Channel, originalOrderCode: string) => void;
 type OnDeleteRow = (row: Channel) => Promise<void> | void;
 
 type RowActionsCellProps = {
   row: Channel;
-  stats: Stats;
   onRowUpdated?: OnRowUpdated;
   onDeleteRow?: OnDeleteRow;
 };
 
-export function RowActionsCell({ row, stats, onRowUpdated, onDeleteRow }: RowActionsCellProps) {
+export function RowActionsCell({ row, onRowUpdated, onDeleteRow }: RowActionsCellProps) {
   const [deleteOpen, setDeleteOpen] = React.useState(false);
   const [isDeleting, setIsDeleting] = React.useState(false);
 
   const handleDelete = React.useCallback(async () => {
-    if (!onDeleteRow) return;
+    if (!onDeleteRow) {
+      return;
+    }
 
     setIsDeleting(true);
     try {
@@ -69,10 +64,9 @@ export function RowActionsCell({ row, stats, onRowUpdated, onDeleteRow }: RowAct
         <DropdownMenuContent align="end" className="w-36">
           <TableCellViewer
             item={row}
-            stats={stats}
             onRowUpdated={onRowUpdated}
             triggerElement={
-              <DropdownMenuItem onSelect={(event) => event.preventDefault()}>Xem chi tiết</DropdownMenuItem>
+              <DropdownMenuItem onSelect={(event) => event.preventDefault()}>Xem chi tiet</DropdownMenuItem>
             }
           />
           <DropdownMenuSeparator />
@@ -80,12 +74,15 @@ export function RowActionsCell({ row, stats, onRowUpdated, onDeleteRow }: RowAct
             variant="destructive"
             onSelect={(event) => {
               event.preventDefault();
-              if (!onDeleteRow || isDeleting) return;
+              if (!onDeleteRow || isDeleting) {
+                return;
+              }
+
               setDeleteOpen(true);
             }}
             disabled={!onDeleteRow || isDeleting}
           >
-            Xóa
+            Xoa
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
@@ -93,19 +90,19 @@ export function RowActionsCell({ row, stats, onRowUpdated, onDeleteRow }: RowAct
       <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Xóa bản ghi này?</AlertDialogTitle>
+            <AlertDialogTitle>Xoa ban ghi nay?</AlertDialogTitle>
             <AlertDialogDescription>
-              Bạn có chắc chắn muốn xóa đơn <strong>{row.ordercode}</strong>? Hành động này không thể hoàn tác.
+              Ban co chac chan muon xoa don <strong>{row.ordercode}</strong>? Hanh dong nay khong the hoan tac.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={isDeleting}>Hủy</AlertDialogCancel>
+            <AlertDialogCancel disabled={isDeleting}>Huy</AlertDialogCancel>
             <AlertDialogAction
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
               onClick={handleDelete}
               disabled={isDeleting}
             >
-              {isDeleting ? "Đang xóa..." : "Xóa"}
+              {isDeleting ? "Dang xoa..." : "Xoa"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

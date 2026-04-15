@@ -1,23 +1,26 @@
+/* eslint-disable max-lines */
 "use client";
 
 import * as React from "react";
 
 import {
+  DndContext,
   KeyboardSensor,
   MouseSensor,
   TouchSensor,
+  closestCenter,
+  type DragEndEvent,
+  type UniqueIdentifier,
   useSensor,
   useSensors,
-  DndContext,
-  closestCenter,
-  type UniqueIdentifier,
-  type DragEndEvent,
 } from "@dnd-kit/core";
 import { restrictToVerticalAxis } from "@dnd-kit/modifiers";
-import { SortableContext, verticalListSortingStrategy, arrayMove } from "@dnd-kit/sortable";
+import { SortableContext, arrayMove, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { ColumnDef, flexRender, type Table as TanStackTable } from "@tanstack/react-table";
+import { ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -29,6 +32,36 @@ interface DataTableProps<TData, TValue> {
   columns: ColumnDef<TData, TValue>[];
   dndEnabled?: boolean;
   onReorder?: (newData: TData[]) => void;
+}
+
+function getColumnPixelSize(columnId: string, size: number) {
+  if (columnId === "drag") {
+    return 40;
+  }
+
+  if (columnId === "select") {
+    return 44;
+  }
+
+  if (columnId === "actions") {
+    return 64;
+  }
+
+  return size;
+}
+
+function getCellTooltipValue(row: { getValue: (columnId: string) => unknown }, columnId: string) {
+  const rawValue = row.getValue(columnId);
+  if (rawValue == null) {
+    return undefined;
+  }
+
+  if (typeof rawValue === "string" || typeof rawValue === "number" || typeof rawValue === "boolean") {
+    const normalized = String(rawValue).trim();
+    return normalized.length > 0 ? normalized : undefined;
+  }
+
+  return undefined;
 }
 
 function renderTableBody<TData, TValue>({
@@ -68,9 +101,38 @@ function renderTableBody<TData, TValue>({
       data-state={row.getIsSelected() && "selected"}
       className="data-[state=selected]:bg-emerald-500/10"
     >
-      {row.getVisibleCells().map((cell) => (
-        <TableCell key={cell.id}>{flexRender(cell.column.columnDef.cell, cell.getContext())}</TableCell>
-      ))}
+      {row.getVisibleCells().map((cell) => {
+        const columnSize = getColumnPixelSize(cell.column.id, cell.column.getSize());
+
+        return (
+          <TableCell
+            key={cell.id}
+            style={{ width: columnSize, maxWidth: columnSize }}
+            title={
+              cell.column.id === "select" || cell.column.id === "actions"
+                ? undefined
+                : getCellTooltipValue(row, cell.column.id)
+            }
+            className={
+              cell.column.id === "drag"
+                ? "w-10 max-w-10 min-w-10 p-0 text-center"
+                : cell.column.id === "select"
+                  ? "w-11 max-w-11 min-w-11 p-0 text-center"
+                  : cell.column.id === "actions"
+                    ? "w-16 max-w-16 min-w-16"
+                    : "max-w-0"
+            }
+          >
+            {cell.column.id === "select" || cell.column.id === "actions" ? (
+              flexRender(cell.column.columnDef.cell, cell.getContext())
+            ) : (
+              <div className="max-w-full min-w-0 overflow-hidden text-ellipsis whitespace-nowrap [&>*]:max-w-full">
+                {flexRender(cell.column.columnDef.cell, cell.getContext())}
+              </div>
+            )}
+          </TableCell>
+        );
+      })}
     </TableRow>
   ));
 }
@@ -81,32 +143,63 @@ export function DataTable<TData, TValue>({
   dndEnabled = false,
   onReorder,
 }: DataTableProps<TData, TValue>) {
-  // ---- Phân trang cục bộ ----
-  const [pageSize, setPageSize] = React.useState(10);
-  const [pageIndex, setPageIndex] = React.useState(0);
+  const { pageIndex, pageSize } = table.getState().pagination;
+  const [pageInput, setPageInput] = React.useState("1");
 
-  const allRows = table.getRowModel().rows; // đã sort/filter xong
-  const pageCount = Math.max(1, Math.ceil(allRows.length / pageSize));
-  const safePageIndex = Math.min(pageIndex, pageCount - 1);
-
-  const start = safePageIndex * pageSize;
-  const end = start + pageSize;
-  const pageRows = allRows.slice(start, end);
-
+  const pageRows = table.getRowModel().rows;
+  const pageCount = table.getPageCount();
+  const safePageIndex = pageCount === 0 ? 0 : Math.min(pageIndex, pageCount - 1);
   const dataIds: UniqueIdentifier[] = pageRows.map((row) => row.id as UniqueIdentifier);
+  const selectionEnabled = table.options.enableRowSelection !== false;
 
   const sortableId = React.useId();
   const sensors = useSensors(useSensor(MouseSensor, {}), useSensor(TouchSensor, {}), useSensor(KeyboardSensor, {}));
 
+  const selectedCount = table.getFilteredSelectedRowModel().rows.length;
+  const totalFiltered = table.getFilteredRowModel().rows.length;
+  const canPrev = safePageIndex > 0;
+  const canNext = pageCount > 0 && safePageIndex < pageCount - 1;
+
+  React.useEffect(() => {
+    if (pageCount === 0) {
+      setPageInput("0");
+      return;
+    }
+
+    setPageInput(String(safePageIndex + 1));
+  }, [pageCount, safePageIndex]);
+
+  const commitPageInput = React.useCallback(() => {
+    if (pageCount === 0) {
+      setPageInput("0");
+      return;
+    }
+
+    const parsed = Number(pageInput);
+    if (!Number.isFinite(parsed)) {
+      setPageInput(String(safePageIndex + 1));
+      return;
+    }
+
+    const nextPageNumber = Math.min(Math.max(Math.trunc(parsed), 1), pageCount);
+    table.setPageIndex(nextPageNumber - 1);
+    setPageInput(String(nextPageNumber));
+  }, [pageCount, pageInput, safePageIndex, table]);
+
   function handleDragEnd(event: DragEndEvent) {
     const { active, over } = event;
-    if (active && over && active.id !== over.id && onReorder) {
-      const oldIndex = dataIds.indexOf(active.id);
-      const newIndex = dataIds.indexOf(over.id);
-
-      const newData = arrayMove(table.options.data, oldIndex, newIndex);
-      onReorder(newData);
+    if (!over || active.id === over.id || !onReorder) {
+      return;
     }
+
+    const oldIndex = dataIds.indexOf(active.id);
+    const newIndex = dataIds.indexOf(over.id);
+    if (oldIndex < 0 || newIndex < 0) {
+      return;
+    }
+
+    const newData = arrayMove(table.options.data, oldIndex, newIndex);
+    onReorder(newData);
   }
 
   const tableElement = (
@@ -115,8 +208,32 @@ export function DataTable<TData, TValue>({
         {table.getHeaderGroups().map((headerGroup) => (
           <TableRow key={headerGroup.id}>
             {headerGroup.headers.map((header) => (
-              <TableHead key={header.id} colSpan={header.colSpan}>
-                {header.isPlaceholder ? null : flexRender(header.column.columnDef.header, header.getContext())}
+              <TableHead
+                key={header.id}
+                colSpan={header.colSpan}
+                style={{
+                  width: getColumnPixelSize(header.column.id, header.getSize()),
+                  maxWidth: getColumnPixelSize(header.column.id, header.getSize()),
+                }}
+                className={
+                  header.column.id === "drag"
+                    ? "w-10 max-w-10 min-w-10 p-0 text-center"
+                    : header.column.id === "select"
+                      ? "w-11 max-w-11 min-w-11 p-0 text-center"
+                      : header.column.id === "actions"
+                        ? "w-16 max-w-16 min-w-16"
+                        : undefined
+                }
+              >
+                <div
+                  style={{
+                    width: getColumnPixelSize(header.column.id, header.getSize()),
+                    maxWidth: getColumnPixelSize(header.column.id, header.getSize()),
+                  }}
+                  className="min-w-0 overflow-hidden text-ellipsis whitespace-nowrap"
+                >
+                  {header.isPlaceholder ? null : flexRender(header.column.columnDef.header, header.getContext())}
+                </div>
               </TableHead>
             ))}
           </TableRow>
@@ -147,13 +264,6 @@ export function DataTable<TData, TValue>({
     tableElement
   );
 
-  // ---- Footer phân trang ----
-  const selectedCount = table.getFilteredSelectedRowModel().rows.length;
-  const totalFiltered = table.getFilteredRowModel().rows.length;
-
-  const canPrev = safePageIndex > 0;
-  const canNext = safePageIndex < pageCount - 1;
-
   return (
     <div className="flex flex-col gap-2">
       <div className="scrollbar-thin scrollbar-thumb-muted-foreground/40 scrollbar-track-transparent hover:scrollbar-thumb-muted-foreground/60 overflow-hidden rounded-lg border">
@@ -161,22 +271,24 @@ export function DataTable<TData, TValue>({
       </div>
 
       <div className="flex items-center justify-between px-4 py-2">
-        <div className="text-muted-foreground hidden flex-1 text-sm lg:flex">
-          {selectedCount} của {totalFiltered} hàng đã chọn
-        </div>
+        {selectionEnabled ? (
+          <div className="text-muted-foreground hidden flex-1 text-sm lg:flex">
+            {selectedCount} cua {totalFiltered} hang da chon
+          </div>
+        ) : (
+          <div className="hidden flex-1 lg:flex" />
+        )}
 
         <div className="flex w-full items-center gap-8 lg:w-fit">
-          {/* Số hàng mỗi trang */}
           <div className="hidden items-center gap-2 lg:flex">
             <Label htmlFor="rows-per-page" className="text-sm font-medium">
-              Số hàng mỗi trang
+              So hang moi trang
             </Label>
             <Select
               value={String(pageSize)}
               onValueChange={(value) => {
-                const newSize = Number(value);
-                setPageSize(newSize);
-                setPageIndex(0); // quay lại trang 1 khi đổi pageSize
+                table.setPageSize(Number(value));
+                table.setPageIndex(0);
               }}
             >
               <SelectTrigger size="sm" className="w-20" id="rows-per-page">
@@ -192,47 +304,74 @@ export function DataTable<TData, TValue>({
             </Select>
           </div>
 
-          {/* Trang X của Y */}
-          <div className="flex w-fit items-center justify-center text-sm font-medium">
-            Trang {safePageIndex + 1} của {pageCount}
+          <div className="flex w-fit items-center justify-center gap-2 text-sm font-medium">
+            <span>Trang</span>
+            <Input
+              value={pageInput}
+              inputMode="numeric"
+              pattern="[0-9]*"
+              className="h-8 w-16 text-center"
+              onChange={(event) => {
+                setPageInput(event.target.value.replace(/[^\d]/g, ""));
+              }}
+              onBlur={commitPageInput}
+              onKeyDown={(event) => {
+                if (event.key === "Enter") {
+                  event.preventDefault();
+                  commitPageInput();
+                }
+              }}
+            />
+            <span>/ {pageCount}</span>
           </div>
 
-          {/* Nút điều hướng */}
           <div className="ml-auto flex items-center gap-2 lg:ml-0">
             <Button
               variant="outline"
               className="hidden h-8 w-8 p-0 lg:flex"
-              onClick={() => setPageIndex(0)}
+              onClick={() => table.setPageIndex(0)}
               disabled={!canPrev}
             >
-              <span className="sr-only">Trang đầu</span>«
+              <span className="sr-only">Trang dau</span>
+              <ChevronsLeft className="size-4" />
             </Button>
             <Button
               variant="outline"
               className="size-8"
               size="icon"
-              onClick={() => canPrev && setPageIndex((p) => p - 1)}
+              onClick={() => {
+                if (canPrev) {
+                  table.previousPage();
+                }
+              }}
               disabled={!canPrev}
             >
-              <span className="sr-only">Trang trước</span>‹
+              <span className="sr-only">Trang truoc</span>
+              <ChevronLeft className="size-4" />
             </Button>
             <Button
               variant="outline"
               className="size-8"
               size="icon"
-              onClick={() => canNext && setPageIndex((p) => p + 1)}
+              onClick={() => {
+                if (canNext) {
+                  table.nextPage();
+                }
+              }}
               disabled={!canNext}
             >
-              <span className="sr-only">Trang tiếp</span>›
+              <span className="sr-only">Trang sau</span>
+              <ChevronRight className="size-4" />
             </Button>
             <Button
               variant="outline"
               className="hidden size-8 lg:flex"
               size="icon"
-              onClick={() => setPageIndex(pageCount - 1)}
+              onClick={() => table.setPageIndex(pageCount - 1)}
               disabled={!canNext}
             >
-              <span className="sr-only">Trang cuối</span>»
+              <span className="sr-only">Trang cuoi</span>
+              <ChevronsRight className="size-4" />
             </Button>
           </div>
         </div>

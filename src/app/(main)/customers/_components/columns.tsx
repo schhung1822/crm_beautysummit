@@ -1,202 +1,65 @@
 import { ColumnDef } from "@tanstack/react-table";
-import { EllipsisVertical } from "lucide-react";
-import { z } from "zod";
 
 import { DataTableColumnHeader } from "@/components/data-table/data-table-column-header";
-import { Button } from "@/components/ui/button";
-import { Checkbox } from "@/components/ui/checkbox";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 
-import { userSchema, Users } from "./schema";
+import { RowActionsCell } from "./row-actions-cell";
+import { type Users } from "./schema";
 import { TableCellViewer } from "./table-cell-viewer";
 
-// Format số với dấu chấm (1.234.567)
-const formatNumber = (n?: number | string) => {
-  const num = Number(n ?? 0) || 0;
-  return String(num).replace(/\B(?=(\d{3})+(?!\d))/g, ".");
-};
+type OnRowUpdated = (updated: Users) => void;
+type OnDuplicateRow = (row: Users) => Promise<void> | void;
+type OnDeleteRow = (row: Users) => Promise<void> | void;
 
-export const dashboardColumns: ColumnDef<Users>[] = [
-  // Checkbox chọn nhiều dòng
-  {
-    id: "select",
-    header: ({ table }) => (
-      <div className="flex items-center justify-center">
-        <Checkbox
-          checked={table.getIsAllPageRowsSelected() || (table.getIsSomePageRowsSelected() && "indeterminate")}
-          onCheckedChange={(value) => table.toggleAllPageRowsSelected(!!value)}
-          aria-label="Select all"
-        />
-      </div>
-    ),
-    cell: ({ row }) => (
-      <div className="flex items-center justify-center">
-        <Checkbox
-          checked={row.getIsSelected()}
-          onCheckedChange={(value) => row.toggleSelected(!!value)}
-          aria-label="Select row"
-        />
-      </div>
-    ),
-    enableSorting: false,
-    enableHiding: false,
-  },
-
-  // Họ tên
+export const dashboardColumns = (
+  onRowUpdated?: OnRowUpdated,
+  onDuplicateRow?: OnDuplicateRow,
+  onDeleteRow?: OnDeleteRow,
+): ColumnDef<Users>[] => [
   {
     accessorKey: "name",
-    header: ({ column }) => <DataTableColumnHeader column={column} title="Họ tên" />,
+    header: ({ column }) => <DataTableColumnHeader column={column} title="Ho ten" />,
     cell: ({ row }) => (
       <div className="max-w-[300px] truncate">
-        <TableCellViewer item={row.original} />
+        <TableCellViewer item={row.original} onUpdated={onRowUpdated} />
       </div>
     ),
     enableSorting: false,
   },
-
-  // Họ tên
   {
     accessorKey: "customer_ID",
-    header: ({ column }) => <DataTableColumnHeader column={column} title="Mã khách hàng" />,
-    cell: ({ row }) => <span className="block max-w-[300px] truncate">{row.original.customer_ID}</span>,
+    header: ({ column }) => <DataTableColumnHeader column={column} title="Ma khach hang" />,
+    cell: ({ row }) => <span className="block max-w-[240px] truncate">{row.original.customer_ID}</span>,
     enableSorting: false,
   },
-
-  // Điện thoại
   {
     accessorKey: "phone",
-    header: ({ column }) => <DataTableColumnHeader column={column} title="Điện thoại" />,
-    cell: ({ row }) => <span className="block max-w-[300px] truncate font-mono">{row.original.phone}</span>,
+    header: ({ column }) => <DataTableColumnHeader column={column} title="Dien thoai" />,
+    cell: ({ row }) => <span className="block max-w-[180px] truncate font-mono">{row.original.phone}</span>,
     enableSorting: false,
   },
-
-  // Phân loại khách
   {
-    accessorKey: "class",
-    header: ({ column }) => <DataTableColumnHeader column={column} title="Phân loại khách" />,
-    cell: ({ row }) => <span className="block max-w-[300px] truncate">{row.original.class}</span>,
+    accessorKey: "email",
+    header: ({ column }) => <DataTableColumnHeader column={column} title="Email" />,
+    cell: ({ row }) => <span className="block max-w-[240px] truncate">{row.original.email}</span>,
     enableSorting: false,
   },
-
-  // Giới tính
   {
     accessorKey: "gender",
-    header: ({ column }) => <DataTableColumnHeader column={column} title="Giới tính" />,
-    cell: ({ row }) => <span className="block max-w-[300px] truncate">{row.original.gender}</span>,
+    header: ({ column }) => <DataTableColumnHeader column={column} title="Gioi tinh" />,
+    cell: ({ row }) => <span className="block max-w-[120px] truncate">{row.original.gender}</span>,
     enableSorting: false,
   },
-
-  // Ngày sinh
   {
-    accessorKey: "birth",
-    header: ({ column }) => <DataTableColumnHeader column={column} title="Ngày sinh" />,
-    cell: ({ row }) => {
-      const birth = row.original.birth;
-      if (!birth) return <span className="block max-w-[300px] truncate text-sm"></span>;
-
-      return (
-        <span className="block max-w-[300px] truncate text-sm">
-          {birth instanceof Date ? birth.toLocaleDateString("vi-VN") : birth}
-        </span>
-      );
-    },
+    accessorKey: "career",
+    header: ({ column }) => <DataTableColumnHeader column={column} title="Nghe nghiep" />,
+    cell: ({ row }) => <span className="block max-w-[220px] truncate">{row.original.career}</span>,
     enableSorting: false,
   },
-
-  // Công ty
-  {
-    accessorKey: "company",
-    header: ({ column }) => <DataTableColumnHeader column={column} title="Công ty" />,
-    cell: ({ row }) => <span className="block max-w-[300px] truncate">{row.original.company}</span>,
-    enableSorting: false,
-  },
-
-  // Địa chỉ
-  {
-    accessorKey: "address",
-    header: ({ column }) => <DataTableColumnHeader column={column} title="Địa chỉ" />,
-    cell: ({ row }) => <span className="block max-w-[300px] truncate">{row.original.address}</span>,
-    enableSorting: false,
-  },
-
-  // Tạo bởi
-  {
-    accessorKey: "create_by",
-    header: ({ column }) => <DataTableColumnHeader column={column} title="Tạo bởi" />,
-    cell: ({ row }) => <span className="block max-w-[300px] truncate">{row.original.create_by}</span>,
-    enableSorting: false,
-  },
-
-  // Lần thanh toán cuối
-  {
-    accessorKey: "last_payment",
-    header: ({ column }) => <DataTableColumnHeader column={column} title="Lần thanh toán cuối" />,
-    cell: ({ row }) => (
-      <span className="block max-w-[300px] truncate text-sm">
-        {row.original.last_payment instanceof Date
-          ? row.original.last_payment.toLocaleDateString("vi-VN")
-          : row.original.last_payment}
-      </span>
-    ),
-    enableSorting: false,
-  },
-
-  // Ghi chú
-  {
-    accessorKey: "note",
-    header: ({ column }) => <DataTableColumnHeader column={column} title="Ghi chú" />,
-    cell: ({ row }) => <span className="block max-w-[300px] truncate">{row.original.note}</span>,
-    enableSorting: false,
-  },
-
-  // Chi nhánh
-  {
-    accessorKey: "branch",
-    header: ({ column }) => <DataTableColumnHeader column={column} title="Chi nhánh" />,
-    cell: ({ row }) => <span className="block max-w-[300px] truncate">{row.original.branch}</span>,
-    enableSorting: false,
-  },
-
-  // Nợ hiện tại
-  {
-    accessorKey: "no_hien_tai",
-    header: ({ column }) => <DataTableColumnHeader className="w-full text-right" column={column} title="Nợ hiện tại" />,
-    cell: ({ row }) => <div className="text-right tabular-nums">{formatNumber(row.original.no_hien_tai || 0)}</div>,
-    enableSorting: false,
-  },
-
-  // Tổng bán
-  {
-    accessorKey: "tong_ban",
-    header: ({ column }) => <DataTableColumnHeader className="w-full text-right" column={column} title="Tổng bán" />,
-    cell: ({ row }) => <div className="text-right tabular-nums">{formatNumber(row.original.tong_ban || 0)}</div>,
-    enableSorting: false,
-  },
-
-  // Nợ sau trừ trả
-  {
-    accessorKey: "tong_ban_tru_tra_hang",
-    header: ({ column }) => (
-      <DataTableColumnHeader className="w-full text-right" column={column} title="Nợ sau trừ trả" />
-    ),
-    cell: ({ row }) => (
-      <div className="text-right tabular-nums">{formatNumber(row.original.tong_ban_tru_tra_hang || 0)}</div>
-    ),
-    enableSorting: false,
-  },
-
-  // Ngày tạo
   {
     accessorKey: "create_time",
-    header: ({ column }) => <DataTableColumnHeader column={column} title="Ngày tạo" />,
+    header: ({ column }) => <DataTableColumnHeader column={column} title="Ngay tao" />,
     cell: ({ row }) => (
-      <span className="block max-w-[300px] truncate text-sm">
+      <span className="block max-w-[180px] truncate text-sm">
         {row.original.create_time instanceof Date
           ? row.original.create_time.toLocaleDateString("vi-VN")
           : row.original.create_time}
@@ -204,25 +67,15 @@ export const dashboardColumns: ColumnDef<Users>[] = [
     ),
     enableSorting: false,
   },
-
-  // Actions
   {
     id: "actions",
-    cell: () => (
-      <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          <Button variant="ghost" className="data-[state=open]:bg-muted text-muted-foreground flex size-8" size="icon">
-            <EllipsisVertical />
-            <span className="sr-only">Mở menu</span>
-          </Button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" className="w-32">
-          <DropdownMenuItem>Xem chi tiết</DropdownMenuItem>
-          <DropdownMenuItem>Tạo bản sao</DropdownMenuItem>
-          <DropdownMenuSeparator />
-          <DropdownMenuItem variant="destructive">Xóa</DropdownMenuItem>
-        </DropdownMenuContent>
-      </DropdownMenu>
+    cell: ({ row }) => (
+      <RowActionsCell
+        row={row.original}
+        onRowUpdated={onRowUpdated}
+        onDuplicateRow={onDuplicateRow}
+        onDeleteRow={onDeleteRow}
+      />
     ),
     enableSorting: false,
   },

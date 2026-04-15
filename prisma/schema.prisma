@@ -65,107 +65,69 @@ model voted {
   @@index([phone(length: 32)], map: "voted_phone_idx")
 }
 
-model checkin {
+model customer {
   id          Int       @id @default(autoincrement()) @db.UnsignedInt
   created_at  DateTime? @db.Timestamp(0)
   updated_at  DateTime? @db.Timestamp(0)
   created_by  String?   @db.VarChar(255)
   updated_by  String?   @db.VarChar(255)
   nc_order    Decimal?  @db.Decimal(10, 2)
-  phone       String?   @db.Text
-  event_name  String?   @db.Text
+  customer_id String?   @db.Text
   name        String?   @db.Text
+  gender      String?   @db.Text
+  phone       String?   @db.Text
   email       String?   @db.Text
-  title_q1    String?   @db.Text
-  q1          String?   @db.Text
-  title_q2    String?   @db.Text
-  q2          String?   @db.Text
-  title_q3    String?   @db.Text
-  q3          String?   @db.Text
-  title_q4    String?   @db.Text
-  q4          String?   @db.Text
-  title_q5    String?   @db.Text
-  q5          String?   @db.Text
-  user_id     String?   @db.Text
+  career      String?   @db.Text
   user_ip     String?   @db.Text
   user_agent  String?   @db.Text
   fbp         String?   @db.Text
   fbc         String?   @db.Text
-  submit_time DateTime? @db.DateTime(0)
-  voucher     String?   @db.Text
-
-  @@index([nc_order], map: "checkin_order_idx")
-  @@index([event_name(length: 64), submit_time], map: "checkin_event_time_idx")
-}
-
-model customer {
-  id                    Int       @id @default(autoincrement()) @db.UnsignedInt
-  created_at            DateTime? @db.Timestamp(0)
-  updated_at            DateTime? @db.Timestamp(0)
-  created_by            String?   @db.VarChar(255)
-  updated_by            String?   @db.VarChar(255)
-  nc_order              Decimal?  @db.Decimal(10, 2)
-  customer_ID           String?   @db.Text
-  name                  String?   @db.Text
-  phone                 String?   @db.Text
-  class                 String?   @db.Text
-  gender                String?   @db.Text
-  birth                 DateTime? @db.Date
-  company               String?   @db.Text
-  address               String?   @db.Text
-  create_by             String?   @db.Text
-  last_payment          DateTime? @db.Date
-  note                  String?   @db.Text
-  branch                String?   @db.Text
-  no_hien_tai           BigInt?
-  tong_ban              BigInt?
-  tong_ban_tru_tra_hang BigInt?
-  create_time           DateTime? @db.DateTime(0)
-  lark_id               String?   @db.Text
-  last_payment_lark     BigInt?
-  create_time_lark      BigInt?
-  birth_lark            BigInt?
-  totalPoint            BigInt?
-  groups                String?   @db.Text
-  rewardPoint           BigInt?
+  create_time DateTime? @db.DateTime(0)
 
   @@index([nc_order], map: "customer_order_idx")
-  @@index([customer_ID(length: 64)], map: "customer_customer_id_idx")
+  @@index([customer_id(length: 64)], map: "customer_customer_id_idx")
   @@index([phone(length: 32)], map: "customer_phone_idx")
 }
 
 model orders {
-  id            Int       @id @default(autoincrement()) @db.UnsignedInt
-  created_at    DateTime? @db.Timestamp(0)
-  updated_at    DateTime? @db.Timestamp(0)
-  created_by    String?   @db.VarChar(255)
-  updated_by    String?   @db.VarChar(255)
-  nc_order      Decimal?  @db.Decimal(10, 2)
-  order_ID      String?   @db.Text
-  brand         String?   @db.Text
-  create_time   DateTime? @db.DateTime(0)
-  name_customer String?   @db.Text
-  customer_ID   String?   @db.Text
-  phone         String?   @db.Text
-  buyer_phone   String?   @db.VarChar(32)
-  address       String?   @db.Text
-  seller        String?   @db.Text
-  kenh_ban      String?   @db.Text
-  note          String?   @db.Text
-  tien_hang     BigInt?
-  giam_gia      BigInt?
-  thanh_tien    BigInt?
-  status        String?   @db.Text
-  pro_ID        String?   @db.Text
-  name_pro      String?   @db.Text
-  brand_pro     String?   @db.Text
-  quantity      BigInt?
+  id             Int       @id @default(autoincrement()) @db.UnsignedInt
+  created_at     DateTime? @db.Timestamp(0)
+  updated_at     DateTime? @db.Timestamp(0)
+  created_by     String?   @db.VarChar(255)
+  updated_by     String?   @db.VarChar(255)
+  nc_order       Decimal?  @db.Decimal(10, 2)
+  ordercode      String?   @db.Text
+  create_time    DateTime? @db.DateTime(0)
+  name           String?   @db.Text
+  phone          String?   @db.Text
+  email          String?   @db.Text
+  gender         String?   @db.Text
+  class          String?   @db.Text
+  money          String?   @db.Text
+  money_VAT      String?   @db.Text
+  status         String?   @db.Text
+  is_gift        BigInt?
+  update_time    DateTime? @db.DateTime(0)
+  is_checkin     BigInt?
+  number_checkin BigInt?
+  checkin_time   DateTime? @db.DateTime(0)
+  career         String?   @db.Text
+  hope           String?   @db.Text
+  ref            String?   @db.Text
+  source         String?   @db.Text
+  send_noti      BigInt?
+  customer_id    String?   @db.Text
+  voucher        String?   @db.Text
+  voucher_status String?   @db.Text
+  utm_source     String?   @db.Text
+  utm_medium     String?   @db.Text
+  utm_campaign   String?   @db.Text
 
   @@index([nc_order], map: "order_order_idx")
-  @@index([order_ID(length: 64), kenh_ban(length: 64)], map: "orders_order_id_channel_idx")
-  @@index([kenh_ban(length: 64), phone(length: 32), create_time], map: "orders_channel_phone_idx")
-  @@index([kenh_ban(length: 64), buyer_phone, create_time], map: "orders_channel_buyer_phone_idx")
-  @@index([customer_ID(length: 64)], map: "orders_customer_id_idx")
+  @@index([ordercode(length: 64)], map: "orders_ordercode_idx")
+  @@index([status(length: 64)], map: "orders_status_idx")
+  @@index([phone(length: 32)], map: "orders_phone_idx")
+  @@index([customer_id(length: 64)], map: "orders_customer_id_idx")
 }
 
 model product {
@@ -199,6 +161,39 @@ model categories {
   update_time DateTime? @updatedAt @db.DateTime(0)
 
   @@index([nc_order], map: "categories_order_idx")
+}
+
+model booth {
+  id          Int       @id @default(autoincrement()) @db.UnsignedInt
+  created_at  DateTime? @db.Timestamp(0)
+  updated_at  DateTime? @db.Timestamp(0)
+  created_by  String?   @db.VarChar(255)
+  updated_by  String?   @db.VarChar(255)
+  nc_order    Decimal?  @db.Decimal(10, 2)
+  create_time DateTime? @db.DateTime(0)
+  name        String?   @db.Text
+  phone       String?   @db.Text
+  email       String?   @db.Text
+
+  @@index([nc_order], map: "booth_order_idx")
+}
+
+model ticket {
+  id         Int       @id @default(autoincrement()) @db.UnsignedInt
+  created_at DateTime? @db.Timestamp(0)
+  updated_at DateTime? @db.Timestamp(0)
+  created_by String?   @db.VarChar(255)
+  updated_by String?   @db.VarChar(255)
+  nc_order   Decimal?  @db.Decimal(10, 2)
+  ticket_id  String?   @db.Text
+  name       String?   @db.Text
+  money      String?   @db.Text
+  money_sale String?   @db.Text
+  time_start DateTime? @db.DateTime(0)
+  time_end   DateTime? @db.DateTime(0)
+
+  @@index([nc_order], map: "ticket_order_idx")
+  @@index([ticket_id(length: 64)], map: "ticket_ticket_id_idx")
 }
 
 model token {

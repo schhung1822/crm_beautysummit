@@ -37,28 +37,28 @@ export function EditOrderDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-2xl">
         <DialogHeader>
-          <DialogTitle>Chỉnh sửa đơn hàng</DialogTitle>
-          <DialogDescription>Cập nhật thông tin bản ghi đã chọn</DialogDescription>
+          <DialogTitle>Chinh sua don hang</DialogTitle>
+          <DialogDescription>Cap nhat thong tin ban ghi da chon</DialogDescription>
         </DialogHeader>
 
         {form && (
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-1.5">
-              <Label>Mã đơn</Label>
+              <Label>Ma don</Label>
               <Input
                 value={form.ordercode}
                 onChange={(event) => onChange((prev) => (prev ? { ...prev, ordercode: event.target.value } : prev))}
               />
             </div>
             <div className="space-y-1.5">
-              <Label>Họ tên</Label>
+              <Label>Ho ten</Label>
               <Input
                 value={form.name}
                 onChange={(event) => onChange((prev) => (prev ? { ...prev, name: event.target.value } : prev))}
               />
             </div>
             <div className="space-y-1.5">
-              <Label>Số điện thoại</Label>
+              <Label>So dien thoai</Label>
               <Input
                 value={form.phone}
                 onChange={(event) => onChange((prev) => (prev ? { ...prev, phone: event.target.value } : prev))}
@@ -72,14 +72,14 @@ export function EditOrderDialog({
               />
             </div>
             <div className="space-y-1.5">
-              <Label>Hạng vé</Label>
+              <Label>Hang ve</Label>
               <Input
                 value={form.class}
                 onChange={(event) => onChange((prev) => (prev ? { ...prev, class: event.target.value } : prev))}
               />
             </div>
             <div className="space-y-1.5">
-              <Label>Thành tiền</Label>
+              <Label>Tien</Label>
               <Input
                 type="number"
                 value={form.money}
@@ -89,43 +89,17 @@ export function EditOrderDialog({
               />
             </div>
             <div className="space-y-1.5">
-              <Label>Thành tiền (VAT)</Label>
-              <Input
-                type="number"
-                value={form.money_VAT}
-                onChange={(event) =>
-                  onChange((prev) => (prev ? { ...prev, money_VAT: Number(event.target.value) || 0 } : prev))
-                }
-              />
-            </div>
-            <div className="space-y-1.5">
-              <Label>Trạng thái thanh toán</Label>
-              <Input
-                value={form.status}
-                onChange={(event) => onChange((prev) => (prev ? { ...prev, status: event.target.value } : prev))}
-              />
-            </div>
-            <div className="space-y-1.5">
-              <Label>Giới tính</Label>
+              <Label>Gioi tinh</Label>
               <Input
                 value={form.gender}
                 onChange={(event) => onChange((prev) => (prev ? { ...prev, gender: event.target.value } : prev))}
               />
             </div>
             <div className="space-y-1.5">
-              <Label>Nghề nghiệp</Label>
+              <Label>Nghe nghiep</Label>
               <Input
                 value={form.career}
                 onChange={(event) => onChange((prev) => (prev ? { ...prev, career: event.target.value } : prev))}
-              />
-            </div>
-            <div className="space-y-1.5">
-              <Label>Trạng thái check-in</Label>
-              <Input
-                value={form.status_checkin}
-                onChange={(event) =>
-                  onChange((prev) => (prev ? { ...prev, status_checkin: event.target.value } : prev))
-                }
               />
             </div>
           </div>
@@ -133,10 +107,10 @@ export function EditOrderDialog({
 
         <DialogFooter>
           <Button variant="outline" onClick={onCancel}>
-            Hủy
+            Huy
           </Button>
           <Button onClick={onSave} disabled={!form || isSaving}>
-            {isSaving ? "Đang lưu..." : "Lưu thay đổi"}
+            {isSaving ? "Dang luu..." : "Luu thay doi"}
           </Button>
         </DialogFooter>
       </DialogContent>

@@ -1,4 +1,3 @@
-// src/app/(main)/dashboard/default/_components/schema.ts
 import { z } from "zod";
 
 export const channelSchema = z.object({
@@ -14,6 +13,8 @@ export const channelSchema = z.object({
   create_time: z.date().nullable(),
   gender: z.string(),
   career: z.string(),
+  is_checkin: z.number().default(0),
+  number_checkin: z.number().default(0),
   status_checkin: z.string(),
   checkin_time: z.date().nullable(),
 });

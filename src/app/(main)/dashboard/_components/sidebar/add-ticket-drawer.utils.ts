@@ -22,8 +22,8 @@ export type VatInvoicePayload = {
   email: string;
   ticketClass: string;
   quantity: number;
-  money: number;
-  moneyVat: number;
+  unitPrice: number;
+  totalAmount: number;
   issuedAt: Date;
 };
 
@@ -35,7 +35,7 @@ type OrderApiResponse = {
 type PreparedOrderSubmission = {
   invoicePayload: VatInvoicePayload;
   requestBody: {
-    orderCode: string;
+    ordercode: string;
     name: string;
     phone: string;
     email: string;
@@ -43,18 +43,18 @@ type PreparedOrderSubmission = {
     money: number;
     money_VAT: number;
     quantity: number;
-    trang_thai_thanh_toan: string;
+    status: string;
     update_time: string;
-    create_at: string;
+    create_time: string;
     gender: "m" | "f";
     career: string;
-    status_checkin: string;
-    date_checkin: string;
+    is_checkin: number;
     number_checkin: number;
+    checkin_time: string | null;
+    is_gift: number;
+    customer_id: string;
   };
 };
-
-const VAT_RATE = 1.08;
 
 let invoiceTemplateCache: string | null = null;
 
@@ -84,20 +84,19 @@ export function parseMoneyInput(value: string): number {
   return parseNumberInput(value, 0);
 }
 
-export function calculateMoneyVat(value: number): number {
-  return Math.round(value * VAT_RATE);
+export function calculateTotalAmount(unitPrice: number, quantity: number): number {
+  return Math.max(0, Math.round(unitPrice)) * Math.max(1, Math.trunc(quantity));
 }
 
 export function prepareOrderSubmission(
   form: AddTicketForm,
   issuedAt: Date,
-  totalMoney: number,
-  totalMoneyVat: number,
+  unitPrice: number,
+  totalAmount: number,
 ): PreparedOrderSubmission {
   const issuedAtIso = issuedAt.toISOString();
   const quantityValue = Math.max(1, parseNumberInput(form.quantity, 1));
-  const moneyPerTicket = totalMoney / quantityValue;
-  const moneyVatPerTicket = totalMoneyVat / quantityValue;
+  const normalizedUnitPrice = form.ticketType === "gift" ? 0 : Math.max(0, Math.round(unitPrice));
   const paymentStatus = form.ticketType === "gift" ? "present" : "paydone";
   const genderValue: "m" | "f" = form.gender === "f" ? "f" : "m";
 
@@ -108,27 +107,29 @@ export function prepareOrderSubmission(
       email: form.email,
       ticketClass: form.class,
       quantity: quantityValue,
-      money: totalMoney,
-      moneyVat: totalMoneyVat,
+      unitPrice: normalizedUnitPrice,
+      totalAmount: form.ticketType === "gift" ? 0 : totalAmount,
       issuedAt,
     },
     requestBody: {
-      orderCode: "",
+      ordercode: "",
       name: form.name,
       phone: form.phone,
       email: form.email,
       class: form.class,
-      money: moneyPerTicket,
-      money_VAT: moneyVatPerTicket,
+      money: normalizedUnitPrice,
+      money_VAT: normalizedUnitPrice,
       quantity: quantityValue,
-      trang_thai_thanh_toan: paymentStatus,
+      status: paymentStatus,
       update_time: issuedAtIso,
-      create_at: issuedAtIso,
+      create_time: issuedAtIso,
       gender: genderValue,
       career: "",
-      status_checkin: "chua checkin",
-      date_checkin: "",
+      is_checkin: 0,
       number_checkin: 0,
+      checkin_time: null,
+      is_gift: form.ticketType === "gift" ? 1 : 0,
+      customer_id: "",
     },
   };
 }
@@ -180,9 +181,9 @@ export async function exportVatInvoicePdf(payload: VatInvoicePayload): Promise<v
   const day = payload.issuedAt.getDate();
   const month = payload.issuedAt.getMonth() + 1;
   const year = payload.issuedAt.getFullYear();
-  const unitPrice = payload.quantity > 0 ? Math.round(payload.money / payload.quantity) : payload.money;
-  const vatAmount = Math.max(0, payload.moneyVat - payload.money);
-  const taxRate = payload.money > 0 ? Math.round((vatAmount / payload.money) * 100) : 8;
+  const unitPrice = payload.unitPrice;
+  const vatAmount = 0;
+  const taxRate = 0;
   const invoiceCode = payload.orderCode ?? "—";
   const buyerName = payload.name.trim() ? payload.name : "—";
 
@@ -193,10 +194,10 @@ export async function exportVatInvoicePdf(payload: VatInvoicePayload): Promise<v
         <td>Ve</td>
         <td>${formatMoney(payload.quantity)}</td>
         <td>${formatMoney(unitPrice)}</td>
-        <td>${formatMoney(payload.money)}</td>
+        <td>${formatMoney(payload.totalAmount)}</td>
         <td>${taxRate}</td>
         <td>${formatMoney(vatAmount)}</td>
-        <td>${formatMoney(payload.moneyVat)}</td>
+        <td>${formatMoney(payload.totalAmount)}</td>
       </tr>
     `;
 
@@ -212,9 +213,9 @@ export async function exportVatInvoicePdf(payload: VatInvoicePayload): Promise<v
     "{{buyer_address}}": "—",
     "{{payment_method}}": "Chuyen khoan",
     "{{items}}": items.trim(),
-    "{{total_before_tax}}": `${formatMoney(payload.money)} d`,
+    "{{total_before_tax}}": `${formatMoney(payload.totalAmount)} d`,
     "{{vat_amount}}": `${formatMoney(vatAmount)} d`,
-    "{{total_payment}}": `${formatMoney(payload.moneyVat)} d`,
+    "{{total_payment}}": `${formatMoney(payload.totalAmount)} d`,
   };
 
   const html = Object.entries(replacements).reduce(

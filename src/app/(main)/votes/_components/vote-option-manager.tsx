@@ -635,13 +635,11 @@ export function VoteOptionManager({ initialData }: VoteOptionManagerProps) {
         <DialogContent className="max-w-[calc(100%-2rem)] rounded-[2rem] border-0 bg-white p-0 shadow-[0_32px_90px_rgba(17,24,39,0.18)] sm:max-w-[1100px]">
           <div className="border-b border-[#f2e8dd] px-8 py-7">
             <DialogHeader className="space-y-2 text-left">
-              <DialogTitle className="text-[2rem] font-black text-[#111827]">
-                {form.id ? "Sửa vote" : "Thêm vote"}
-              </DialogTitle>
+              <DialogTitle className="text-[2rem] text-[#111827]">{form.id ? "Sửa vote" : "Thêm vote"}</DialogTitle>
             </DialogHeader>
           </div>
 
-          <div className="flex flex-col gap-6 px-8 py-7 lg:flex-row lg:items-start">
+          <div className="flex flex-col gap-6 px-8 lg:flex-row lg:items-start">
             <div className="min-w-0 flex-1">
               <div className="flex flex-col gap-5">
                 <div className="flex flex-col gap-4 sm:flex-row sm:items-start">

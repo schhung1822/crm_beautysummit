@@ -1,9 +1,12 @@
 "use client";
 
+import * as React from "react";
+
 import { Table } from "@tanstack/react-table";
-import { ChevronRight, ChevronsRight, ChevronLeft, ChevronsLeft } from "lucide-react";
+import { ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
@@ -13,23 +16,43 @@ interface DataTablePaginationProps<TData> {
 
 export function DataTablePagination<TData>({ table }: DataTablePaginationProps<TData>) {
   const { pageIndex, pageSize } = table.getState().pagination;
+  const pageCount = table.getPageCount();
+  const [pageInput, setPageInput] = React.useState(String(pageCount > 0 ? pageIndex + 1 : 0));
+
+  React.useEffect(() => {
+    setPageInput(String(pageCount > 0 ? pageIndex + 1 : 0));
+  }, [pageCount, pageIndex]);
+
+  const commitPageInput = React.useCallback(() => {
+    if (pageCount === 0) {
+      setPageInput("0");
+      return;
+    }
+
+    const parsed = Number(pageInput);
+    if (!Number.isFinite(parsed)) {
+      setPageInput(String(pageIndex + 1));
+      return;
+    }
+
+    const nextPageNumber = Math.min(Math.max(Math.trunc(parsed), 1), pageCount);
+    table.setPageIndex(nextPageNumber - 1);
+    setPageInput(String(nextPageNumber));
+  }, [pageCount, pageIndex, pageInput, table]);
 
   return (
     <div className="flex items-center justify-between px-4">
       <div className="text-muted-foreground hidden flex-1 text-sm lg:flex">
-        {table.getFilteredSelectedRowModel().rows.length} của {table.getFilteredRowModel().rows.length} hàng đã chọn
+        {table.getFilteredSelectedRowModel().rows.length} cua {table.getFilteredRowModel().rows.length} hang da chon
       </div>
       <div className="flex w-full items-center gap-8 lg:w-fit">
-        {/* Số hàng mỗi trang */}
         <div className="hidden items-center gap-2 lg:flex">
           <Label htmlFor="rows-per-page" className="text-sm font-medium">
-            Số hàng mỗi trang
+            So hang moi trang
           </Label>
           <Select
-            // dùng defaultValue cho chắc (đỡ bị controlled lỗi)
-            defaultValue={String(pageSize)}
+            value={String(pageSize)}
             onValueChange={(value) => {
-              console.log("onValueChange pageSize =", value);
               table.setPageSize(Number(value));
             }}
           >
@@ -46,62 +69,65 @@ export function DataTablePagination<TData>({ table }: DataTablePaginationProps<T
           </Select>
         </div>
 
-        {/* Text Trang X của Y */}
-        <div className="flex w-fit items-center justify-center text-sm font-medium">
-          Trang {pageIndex + 1} của {table.getPageCount()}
+        <div className="flex w-fit items-center justify-center gap-2 text-sm font-medium">
+          <span>Trang</span>
+          <Input
+            value={pageInput}
+            inputMode="numeric"
+            pattern="[0-9]*"
+            className="h-8 w-16 text-center"
+            onChange={(event) => {
+              setPageInput(event.target.value.replace(/[^\d]/g, ""));
+            }}
+            onBlur={commitPageInput}
+            onKeyDown={(event) => {
+              if (event.key === "Enter") {
+                event.preventDefault();
+                commitPageInput();
+              }
+            }}
+          />
+          <span>/ {pageCount}</span>
         </div>
 
-        {/* Các nút điều hướng */}
         <div className="ml-auto flex items-center gap-2 lg:ml-0">
           <Button
             variant="outline"
             className="hidden h-8 w-8 p-0 lg:flex"
-            onClick={() => {
-              console.log("go first page");
-              table.setPageIndex(0);
-            }}
+            onClick={() => table.setPageIndex(0)}
             disabled={!table.getCanPreviousPage()}
           >
-            <span className="sr-only">Trang đầu</span>
+            <span className="sr-only">Trang dau</span>
             <ChevronsLeft />
           </Button>
           <Button
             variant="outline"
             className="size-8"
             size="icon"
-            onClick={() => {
-              console.log("prev page");
-              table.previousPage();
-            }}
+            onClick={() => table.previousPage()}
             disabled={!table.getCanPreviousPage()}
           >
-            <span className="sr-only">Trang trước</span>
+            <span className="sr-only">Trang truoc</span>
             <ChevronLeft />
           </Button>
           <Button
             variant="outline"
             className="size-8"
             size="icon"
-            onClick={() => {
-              console.log("next page");
-              table.nextPage();
-            }}
+            onClick={() => table.nextPage()}
             disabled={!table.getCanNextPage()}
           >
-            <span className="sr-only">Trang tiếp</span>
+            <span className="sr-only">Trang tiep</span>
             <ChevronRight />
           </Button>
           <Button
             variant="outline"
             className="hidden size-8 lg:flex"
             size="icon"
-            onClick={() => {
-              console.log("last page");
-              table.setPageIndex(table.getPageCount() - 1);
-            }}
+            onClick={() => table.setPageIndex(table.getPageCount() - 1)}
             disabled={!table.getCanNextPage()}
           >
-            <span className="sr-only">Trang cuối</span>
+            <span className="sr-only">Trang cuoi</span>
             <ChevronsRight />
           </Button>
         </div>

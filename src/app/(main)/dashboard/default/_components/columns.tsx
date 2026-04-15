@@ -2,9 +2,13 @@ import { ColumnDef } from "@tanstack/react-table";
 import { EllipsisVertical } from "lucide-react";
 
 import { DataTableColumnHeader } from "@/components/data-table/data-table-column-header";
+import {
+  SelectionToggle,
+  getFilteredSelectionState,
+  toggleFilteredRows,
+} from "@/components/data-table/selection-toggle";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Checkbox } from "@/components/ui/checkbox";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -36,21 +40,30 @@ function formatGender(value?: string | null) {
 export const dashboardColumns = (stats: Stats): ColumnDef<Channel>[] => [
   {
     id: "select",
-    header: ({ table }) => (
-      <div className="flex items-center justify-center">
-        <Checkbox
-          checked={table.getIsAllPageRowsSelected() || (table.getIsSomePageRowsSelected() && "indeterminate")}
-          onCheckedChange={(value) => table.toggleAllPageRowsSelected(!!value)}
-        />
-      </div>
-    ),
+    header: ({ table }) => {
+      const selectionState = getFilteredSelectionState(table);
+
+      return (
+        <div className="flex items-center justify-center">
+          <SelectionToggle
+            checked={selectionState.allSelected}
+            indeterminate={selectionState.someSelected}
+            onToggle={() => toggleFilteredRows(table, !selectionState.allSelected)}
+            ariaLabel="Chon tat ca"
+          />
+        </div>
+      );
+    },
     cell: ({ row }) => (
       <div className="flex items-center justify-center">
-        <Checkbox checked={row.getIsSelected()} onCheckedChange={(value) => row.toggleSelected(!!value)} />
+        <SelectionToggle checked={row.getIsSelected()} onToggle={() => row.toggleSelected()} ariaLabel="Chon dong" />
       </div>
     ),
     enableSorting: false,
     enableHiding: false,
+    size: 44,
+    minSize: 44,
+    maxSize: 44,
   },
 
   // Mã đơn (đặt lên cột đầu)

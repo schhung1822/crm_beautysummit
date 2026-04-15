@@ -5,44 +5,36 @@ import * as React from "react";
 import { Download, Search } from "lucide-react";
 import { toast } from "sonner";
 
-import { DataTable as DataTableNew } from "@/components/data-table/data-table";
+import { DataTable as SharedDataTable } from "@/components/data-table/data-table";
 import { DataTableViewOptions } from "@/components/data-table/data-table-view-options";
-import { withDndColumn } from "@/components/data-table/table-utils";
+import { toggleFilteredRows, withSelectionColumn } from "@/components/data-table/selection-toggle";
 import { Button } from "@/components/ui/button";
 import { ExportDialog, type DateRange, type ExportFormat } from "@/components/ui/export-dialog";
 import { Input } from "@/components/ui/input";
 import { useDataTableInstance } from "@/hooks/use-data-table-instance";
 import { exportData, filterDataByDateRange } from "@/lib/export-utils";
+import { matchesSearchTerm } from "@/lib/search-utils";
 
-import { dashboardColumns as makeColumns, type Stats } from "./columns";
+import { dashboardColumns as makeColumns } from "./columns";
 import type { Channel } from "./schema";
 
 function toOrderRowKey(item: Pick<Channel, "ordercode" | "phone" | "create_time">) {
   return `${item.ordercode || item.phone || ""}-${item.create_time?.toString() ?? ""}`;
 }
 
-export function DataTable({ data: initialData = [] }: { data?: Channel[] }) {
+function OrdersDataTable({ data: initialData = [] }: { data?: Channel[] }) {
   const [data, setData] = React.useState<Channel[]>(() => initialData);
   const [searchTerm, setSearchTerm] = React.useState("");
   const [exportDialogOpen, setExportDialogOpen] = React.useState(false);
   const [isExporting, setIsExporting] = React.useState(false);
   const [isDeleting, setIsDeleting] = React.useState(false);
 
-  const stats: Stats = React.useMemo(
-    () => ({
-      totalOrders: data.length,
-      totalMoney: data.reduce((sum, item) => sum + Number(item.money), 0),
-      totalMoneyVAT: data.reduce((sum, item) => sum + Number(item.money_VAT), 0),
-    }),
-    [data],
-  );
-
   React.useEffect(() => {
     setData(initialData);
   }, [initialData]);
 
   const handleRowUpdated = React.useCallback((updated: Channel, originalOrderCode: string) => {
-    setData((prev) => prev.map((item) => (item.ordercode === originalOrderCode ? updated : item)));
+    setData((previous) => previous.map((item) => (item.ordercode === originalOrderCode ? updated : item)));
   }, []);
 
   const handleDeleteRow = React.useCallback(async (row: Channel) => {
@@ -62,7 +54,7 @@ export function DataTable({ data: initialData = [] }: { data?: Channel[] }) {
         throw new Error(result?.error ?? "Không thể xóa bản ghi");
       }
 
-      setData((prev) => prev.filter((item) => item.ordercode !== row.ordercode));
+      setData((previous) => previous.filter((item) => item.ordercode !== row.ordercode));
       toast.success("Đã xóa bản ghi");
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Không thể xóa bản ghi");
@@ -70,36 +62,32 @@ export function DataTable({ data: initialData = [] }: { data?: Channel[] }) {
   }, []);
 
   const columns = React.useMemo(
-    () => withDndColumn(makeColumns(stats, handleRowUpdated, handleDeleteRow)),
-    [handleDeleteRow, handleRowUpdated, stats],
+    () => withSelectionColumn(makeColumns(handleRowUpdated, handleDeleteRow)),
+    [handleDeleteRow, handleRowUpdated],
   );
 
-  const filteredData = React.useMemo(() => {
-    if (!searchTerm.trim()) return data;
-
-    const term = searchTerm.toLowerCase();
-    return data.filter(
-      (item) =>
-        String(item.ordercode).toLowerCase().includes(term) ||
-        String(item.name).toLowerCase().includes(term) ||
-        String(item.phone).toLowerCase().includes(term) ||
-        String(item.email).toLowerCase().includes(term) ||
-        String(item.class).toLowerCase().includes(term),
-    );
-  }, [data, searchTerm]);
+  const filteredData = React.useMemo(
+    () =>
+      data.filter((item) =>
+        matchesSearchTerm(searchTerm, [item.ordercode, item.name, item.phone, item.email, item.class]),
+      ),
+    [data, searchTerm],
+  );
 
   const table = useDataTableInstance({
     data: filteredData,
     columns,
     getRowId: (row) => toOrderRowKey(row),
   });
-
-  const selectedRows = table.getFilteredSelectedRowModel().rows;
-  const selectedItems = selectedRows.map((row) => row.original);
+  const selectedItems = table.getSelectedRowModel().rows.map((row) => row.original);
 
   const handleDeleteSelected = React.useCallback(async () => {
     if (!selectedItems.length) {
-      toast.warning("Vui lòng chọn bản ghi cần xóa");
+      toast.warning("Vui long chon don hang can xoa");
+      return;
+    }
+
+    if (!window.confirm(`Xoa ${selectedItems.length} don hang da chon?`)) {
       return;
     }
 
@@ -115,15 +103,15 @@ export function DataTable({ data: initialData = [] }: { data?: Channel[] }) {
 
       if (!response.ok) {
         const result = await response.json().catch(() => ({}));
-        throw new Error(result?.error ?? "Không thể xóa bản ghi đã chọn");
+        throw new Error(result?.error ?? "Khong the xoa don hang");
       }
 
-      const selectedSet = new Set(orderCodes);
-      setData((prev) => prev.filter((item) => !selectedSet.has(item.ordercode)));
+      const deletedSet = new Set(orderCodes);
+      setData((previous) => previous.filter((item) => !deletedSet.has(item.ordercode)));
       table.resetRowSelection();
-      toast.success(`Đã xóa ${orderCodes.length} bản ghi`);
+      toast.success(`Da xoa ${orderCodes.length} don hang`);
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Có lỗi xảy ra khi xóa dữ liệu");
+      toast.error(error instanceof Error ? error.message : "Khong the xoa don hang");
     } finally {
       setIsDeleting(false);
     }
@@ -145,9 +133,9 @@ export function DataTable({ data: initialData = [] }: { data?: Channel[] }) {
             name: "Họ tên",
             phone: "Số điện thoại",
             email: "Email",
-            class: "Lớp",
+            class: "Hạng vé",
             money: "Tiền",
-            money_VAT: "Tiền (VAT)",
+            money_VAT: "Thành tiền",
             status: "Trạng thái thanh toán",
             update_time: "Cập nhật",
             create_time: "Ngày tạo",
@@ -159,7 +147,7 @@ export function DataTable({ data: initialData = [] }: { data?: Channel[] }) {
           filename: `orders_${new Date().toISOString().split("T")[0]}`,
         });
 
-        toast.success(`Xuất ${dataToExport.length} đơn hàng thành công!`);
+        toast.success(`Xuất ${dataToExport.length} đơn hàng thành công`);
         setExportDialogOpen(false);
       } catch (error) {
         console.error("Export error:", error);
@@ -177,21 +165,25 @@ export function DataTable({ data: initialData = [] }: { data?: Channel[] }) {
         <div className="relative max-w-sm flex-1">
           <Search className="text-muted-foreground absolute top-1/2 left-3 size-4 -translate-y-1/2" />
           <Input
-            placeholder="Tìm kiếm theo mã, tên, SĐT, email, lớp..."
+            placeholder="Tìm kiếm theo mã, tên, SĐT, email, hạng vé..."
             className="pl-10"
             value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
+            onChange={(event) => setSearchTerm(event.target.value)}
           />
         </div>
+
         <div className="flex items-center gap-2">
-          <Button
-            size="sm"
-            variant="destructive"
-            onClick={handleDeleteSelected}
-            disabled={selectedItems.length === 0 || isDeleting}
-          >
-            {isDeleting ? "Đang xóa..." : `Xóa đã chọn (${selectedItems.length})`}
+          <Button size="sm" variant="outline" onClick={() => toggleFilteredRows(table, true)}>
+            Chon tat ca
           </Button>
+          <Button size="sm" variant="outline" onClick={() => toggleFilteredRows(table, false)}>
+            Bo chon tat ca
+          </Button>
+          {selectedItems.length > 0 ? (
+            <Button size="sm" variant="destructive" onClick={handleDeleteSelected} disabled={isDeleting}>
+              {isDeleting ? "Dang xoa..." : `Xoa (${selectedItems.length})`}
+            </Button>
+          ) : null}
           <DataTableViewOptions table={table} />
           <Button
             variant="outline"
@@ -206,7 +198,7 @@ export function DataTable({ data: initialData = [] }: { data?: Channel[] }) {
       </div>
 
       <div className="nice-scroll overflow-x-auto rounded-lg">
-        <DataTableNew dndEnabled table={table} columns={columns} onReorder={setData} />
+        <SharedDataTable table={table} columns={columns} />
       </div>
 
       <ExportDialog
@@ -220,3 +212,5 @@ export function DataTable({ data: initialData = [] }: { data?: Channel[] }) {
     </div>
   );
 }
+
+export default OrdersDataTable;

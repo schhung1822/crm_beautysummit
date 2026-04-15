@@ -1,3 +1,4 @@
+/* eslint-disable max-lines */
 "use client";
 
 import * as React from "react";
@@ -24,7 +25,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { SidebarMenuButton } from "@/components/ui/sidebar";
 
 import {
-  calculateMoneyVat,
+  calculateTotalAmount,
   exportVatInvoicePdf,
   getFirstOrderCode,
   getOrderApiError,
@@ -33,15 +34,25 @@ import {
   prepareOrderSubmission,
 } from "./add-ticket-drawer.utils";
 
-const ticketClassOptions = ["GOLD", "RUBY", "VIP"] as const;
 const ticketTypeOptions = [
   { label: "Ve mua", value: "paid" },
   { label: "Ve tang", value: "gift" },
 ] as const;
+
 const genderOptions = [
   { label: "Nam", value: "m" },
   { label: "Nu", value: "f" },
 ] as const;
+
+type TicketTierOption = {
+  id: number;
+  code: string;
+  name: string;
+  regularPrice: number;
+  promoPrice: number | null;
+  effectivePrice: number;
+  isActive: boolean;
+};
 
 type FormKey = keyof typeof initialAddTicketForm;
 
@@ -51,14 +62,58 @@ export function AddTicketDrawer() {
   const [submitting, setSubmitting] = React.useState(false);
   const [form, setForm] = React.useState(initialAddTicketForm);
   const [now, setNow] = React.useState(() => new Date());
+  const [ticketTiers, setTicketTiers] = React.useState<TicketTierOption[]>([]);
 
-  const moneyValue = React.useMemo(() => parseMoneyInput(form.money), [form.money]);
-  const moneyVatValue = React.useMemo(() => calculateMoneyVat(moneyValue), [moneyValue]);
+  const unitPriceValue = React.useMemo(() => parseMoneyInput(form.money), [form.money]);
+  const quantityValue = React.useMemo(() => Math.max(1, Number(form.quantity || 1) || 1), [form.quantity]);
+  const totalAmountValue = React.useMemo(
+    () => (form.ticketType === "gift" ? 0 : calculateTotalAmount(unitPriceValue, quantityValue)),
+    [form.ticketType, quantityValue, unitPriceValue],
+  );
 
   React.useEffect(() => {
-    if (open) {
-      setNow(new Date());
+    if (!open) {
+      return;
     }
+
+    setNow(new Date());
+
+    let cancelled = false;
+    async function loadTicketTiers() {
+      try {
+        const response = await fetch("/api/ticket-tiers");
+        const result = (await response.json().catch(() => ({}))) as { data?: TicketTierOption[]; message?: string };
+        if (!response.ok) {
+          throw new Error(result.message ?? "Khong the tai hang ve");
+        }
+
+        if (cancelled) {
+          return;
+        }
+
+        const activeTiers = (result.data ?? []).filter((tier) => tier.isActive);
+        setTicketTiers(activeTiers);
+        if (activeTiers.length > 0) {
+          setForm((prev) => {
+            const matchedTier = activeTiers.find((tier) => tier.code === prev.class) ?? activeTiers[0];
+            return {
+              ...prev,
+              class: matchedTier.code,
+              money: prev.ticketType === "gift" ? "0" : String(matchedTier.effectivePrice),
+            };
+          });
+        }
+      } catch (error) {
+        if (!cancelled) {
+          toast.error(error instanceof Error ? error.message : "Khong the tai hang ve");
+        }
+      }
+    }
+
+    void loadTicketTiers();
+    return () => {
+      cancelled = true;
+    };
   }, [open]);
 
   const handleInputChange = React.useCallback(
@@ -68,22 +123,40 @@ export function AddTicketDrawer() {
     [],
   );
 
-  const handleTicketClassChange = React.useCallback((value: string) => {
-    setForm((prev) => ({ ...prev, class: value }));
-  }, []);
+  const handleTicketClassChange = React.useCallback(
+    (value: string) => {
+      setForm((prev) => {
+        const matchedTier = ticketTiers.find((tier) => tier.code === value);
+        return {
+          ...prev,
+          class: value,
+          money: prev.ticketType === "gift" ? "0" : String(matchedTier?.effectivePrice ?? prev.money),
+        };
+      });
+    },
+    [ticketTiers],
+  );
 
-  const handleTicketTypeChange = React.useCallback((value: string) => {
-    setForm((prev) => ({
-      ...prev,
-      ticketType: value === "gift" ? "gift" : "paid",
-    }));
-  }, []);
+  const handleTicketTypeChange = React.useCallback(
+    (value: string) => {
+      setForm((prev) => {
+        const isGift = value === "gift";
+        const matchedTier = ticketTiers.find((tier) => tier.code === prev.class);
+        return {
+          ...prev,
+          ticketType: isGift ? "gift" : "paid",
+          money: isGift ? "0" : String(matchedTier?.effectivePrice ?? prev.money),
+        };
+      });
+    },
+    [ticketTiers],
+  );
 
   const handleGenderChange = React.useCallback((value: string) => {
     setForm((prev) => ({ ...prev, gender: value === "f" ? "f" : "m" }));
   }, []);
 
-  const handleVatInvoiceChange = React.useCallback((checked: boolean | "indeterminate") => {
+  const handleInvoiceChange = React.useCallback((checked: boolean | "indeterminate") => {
     setForm((prev) => ({ ...prev, exportVatInvoice: checked === true }));
   }, []);
 
@@ -98,7 +171,7 @@ export function AddTicketDrawer() {
       setSubmitting(true);
 
       try {
-        const preparedSubmission = prepareOrderSubmission(form, now, moneyValue, moneyVatValue);
+        const preparedSubmission = prepareOrderSubmission(form, now, unitPriceValue, totalAmountValue);
         const response = await fetch("/api/orders", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -132,7 +205,7 @@ export function AddTicketDrawer() {
         setSubmitting(false);
       }
     },
-    [form, moneyValue, moneyVatValue, now, resetDrawer, router],
+    [form, now, resetDrawer, router, totalAmountValue, unitPriceValue],
   );
 
   return (
@@ -204,11 +277,15 @@ export function AddTicketDrawer() {
                       <SelectValue placeholder="Chon hang ve" />
                     </SelectTrigger>
                     <SelectContent>
-                      {ticketClassOptions.map((option) => (
-                        <SelectItem key={option} value={option}>
-                          {option}
-                        </SelectItem>
-                      ))}
+                      {ticketTiers.length > 0 ? (
+                        ticketTiers.map((tier) => (
+                          <SelectItem key={tier.id} value={tier.code}>
+                            {tier.code}
+                          </SelectItem>
+                        ))
+                      ) : (
+                        <SelectItem value={form.class || "STANDARD"}>{form.class || "STANDARD"}</SelectItem>
+                      )}
                     </SelectContent>
                   </Select>
                 </div>
@@ -221,24 +298,6 @@ export function AddTicketDrawer() {
                     value={form.quantity}
                     onChange={handleInputChange("quantity")}
                   />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div className="grid gap-2">
-                  <Label htmlFor="money">Thanh tien</Label>
-                  <Input
-                    id="money"
-                    inputMode="numeric"
-                    placeholder="0"
-                    value={form.money}
-                    onChange={handleInputChange("money")}
-                  />
-                </div>
-
-                <div className="grid gap-2">
-                  <Label htmlFor="money_VAT">Thanh tien (VAT)</Label>
-                  <Input id="money_VAT" value={moneyVatValue.toLocaleString("vi-VN")} readOnly />
                 </div>
               </div>
 
@@ -257,18 +316,33 @@ export function AddTicketDrawer() {
                   </SelectContent>
                 </Select>
               </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div className="grid gap-2">
+                  <Label htmlFor="money">Gia tien</Label>
+                  <Input
+                    id="money"
+                    inputMode="numeric"
+                    placeholder="0"
+                    value={form.money}
+                    onChange={handleInputChange("money")}
+                    disabled={form.ticketType === "gift"}
+                  />
+                </div>
+
+                <div className="grid gap-2">
+                  <Label htmlFor="money_total">Thanh tien</Label>
+                  <Input id="money_total" value={totalAmountValue.toLocaleString("vi-VN")} readOnly />
+                </div>
+              </div>
             </section>
 
             <section className="bg-card/60 space-y-3 rounded-xl border p-3">
               <h4 className="text-sm font-semibold">Tuy chon</h4>
 
               <div className="flex items-center gap-2">
-                <Checkbox
-                  id="exportVatInvoice"
-                  checked={form.exportVatInvoice}
-                  onCheckedChange={handleVatInvoiceChange}
-                />
-                <Label htmlFor="exportVatInvoice">Xuat hoa don VAT (PDF)</Label>
+                <Checkbox id="exportVatInvoice" checked={form.exportVatInvoice} onCheckedChange={handleInvoiceChange} />
+                <Label htmlFor="exportVatInvoice">Xuat hoa don PDF</Label>
               </div>
 
               <div className="grid gap-2">

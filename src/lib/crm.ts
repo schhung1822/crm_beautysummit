@@ -5,24 +5,21 @@ import { getDB } from "@/lib/db";
 import { toDisplayPhone } from "@/lib/phone";
 
 type OrderRow = RowDataPacket & {
-  order_ID: string | null;
-  brand: string | null;
+  ordercode: string | null;
   create_time: Date | string | null;
-  customer_ID: string | null;
-  name_customer: string | null;
+  customer_id: string | null;
+  name: string | null;
   phone: string | null;
-  address: string | null;
-  seller: string | null;
-  kenh_ban: string | null;
-  note: string | null;
-  tien_hang: number | string | null;
-  giam_gia: number | string | null;
-  thanh_tien: number | string | null;
+  email: string | null;
+  gender: string | null;
+  class: string | null;
+  money: number | string | null;
+  money_VAT: number | string | null;
   status: string | null;
-  quantity: number | string | null;
-  pro_ID: string | null;
-  name_pro: string | null;
-  brand_pro: string | null;
+  career: string | null;
+  is_checkin: number | string | null;
+  number_checkin: number | string | null;
+  checkin_time: Date | string | null;
 };
 
 function parseString(value: unknown): string {
@@ -44,24 +41,21 @@ function parseDate(value: unknown): Date {
 
 function mapOrderRow(row: OrderRow): Order {
   return OrderSchema.parse({
-    order_ID: parseString(row.order_ID),
-    brand: parseString(row.brand),
+    ordercode: parseString(row.ordercode),
     create_time: parseDate(row.create_time),
-    customer_ID: parseString(row.customer_ID),
-    name_customer: parseString(row.name_customer),
+    customer_id: parseString(row.customer_id),
+    name: parseString(row.name),
     phone: toDisplayPhone(row.phone),
-    address: parseString(row.address),
-    seller: parseString(row.seller),
-    kenh_ban: parseString(row.kenh_ban),
-    note: row.note ? String(row.note) : null,
-    tien_hang: parseNumber(row.tien_hang),
-    giam_gia: parseNumber(row.giam_gia),
-    thanh_tien: parseNumber(row.thanh_tien),
+    email: parseString(row.email),
+    gender: parseString(row.gender),
+    class: parseString(row.class),
+    money: parseNumber(row.money),
+    money_VAT: parseNumber(row.money_VAT),
     status: parseString(row.status),
-    quantity: parseNumber(row.quantity),
-    pro_ID: parseString(row.pro_ID),
-    name_pro: parseString(row.name_pro),
-    brand_pro: parseString(row.brand_pro),
+    career: parseString(row.career),
+    is_checkin: parseNumber(row.is_checkin),
+    number_checkin: parseNumber(row.number_checkin),
+    checkin_time: row.checkin_time ? parseDate(row.checkin_time) : null,
   });
 }
 
@@ -70,24 +64,21 @@ export async function getOrders(): Promise<Order[]> {
 
   const [rows] = await db.query<OrderRow[]>(`
     SELECT
-      order_ID,
-      brand,
+      ordercode,
       create_time,
-      customer_ID,
-      name_customer,
+      customer_id,
+      name,
       phone,
-      address,
-      seller,
-      kenh_ban,
-      note,
-      tien_hang,
-      giam_gia,
-      thanh_tien,
+      email,
+      gender,
+      class,
+      money,
+      money_VAT,
       status,
-      quantity,
-      pro_ID,
-      name_pro,
-      brand_pro
+      career,
+      is_checkin,
+      number_checkin,
+      checkin_time
     FROM orders
     ORDER BY create_time DESC
   `);

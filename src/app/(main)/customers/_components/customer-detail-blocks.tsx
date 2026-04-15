@@ -1,0 +1,69 @@
+import type { ReactNode } from "react";
+
+function getTooltipText(value: unknown) {
+  if (value == null) {
+    return undefined;
+  }
+
+  if (typeof value === "string" || typeof value === "number" || typeof value === "boolean") {
+    const normalized = String(value).trim();
+    return normalized.length > 0 ? normalized : undefined;
+  }
+
+  return undefined;
+}
+
+export function SectionCard({
+  title,
+  description,
+  children,
+}: {
+  title: string;
+  description?: string;
+  children: ReactNode;
+}) {
+  return (
+    <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm shadow-slate-100">
+      <div className="mb-4">
+        <div className="text-foreground text-sm font-semibold">{title}</div>
+        {description ? (
+          <div className="text-muted-foreground mt-1 truncate text-xs leading-5" title={description}>
+            {description}
+          </div>
+        ) : null}
+      </div>
+      {children}
+    </section>
+  );
+}
+
+export function StatCard({
+  label,
+  value,
+  icon,
+  className,
+  valueClassName,
+}: {
+  label: string;
+  value: string;
+  icon?: ReactNode;
+  className?: string;
+  valueClassName?: string;
+}) {
+  return (
+    <div className={`rounded-xl border border-slate-200 bg-slate-50/80 px-3 py-3 ${className ?? ""}`}>
+      <div className="text-muted-foreground mb-1.5 flex items-center gap-2 text-[11px] font-medium tracking-[0.18em] uppercase">
+        <span className="shrink-0">{icon}</span>
+        <span className="truncate whitespace-nowrap" title={label}>
+          {label}
+        </span>
+      </div>
+      <div
+        className={`text-foreground truncate text-sm font-semibold whitespace-nowrap ${valueClassName ?? ""}`}
+        title={getTooltipText(value)}
+      >
+        {value}
+      </div>
+    </div>
+  );
+}

@@ -1,5 +1,5 @@
-import { useSortable } from "@dnd-kit/sortable";
 import type { UniqueIdentifier } from "@dnd-kit/core";
+import { useSortable } from "@dnd-kit/sortable";
 import { ColumnDef } from "@tanstack/react-table";
 import { GripVertical } from "lucide-react";
 
@@ -16,7 +16,7 @@ function DragHandle({ id }: { id: UniqueIdentifier }) {
       {...listeners}
       variant="ghost"
       size="icon"
-      className="text-muted-foreground size-7 hover:bg-transparent"
+      className="text-muted-foreground size-7 shrink-0 hover:bg-transparent"
     >
       <GripVertical className="text-muted-foreground size-3" />
       <span className="sr-only">Drag to reorder</span>
@@ -30,4 +30,7 @@ export const dragColumn: ColumnDef<any> = {
   cell: ({ row }) => <DragHandle id={row.id} />,
   enableSorting: false,
   enableHiding: false,
+  size: 40,
+  minSize: 40,
+  maxSize: 40,
 };

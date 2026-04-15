@@ -7,6 +7,7 @@ import { Check, ChevronDown, Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { normalizeSearchText } from "@/lib/search-utils";
 import { cn } from "@/lib/utils";
 
 export type CreatableSearchSelectOption = {
@@ -31,6 +32,10 @@ type CreatableSearchSelectProps = {
 
 function normalizeLabel(value: string): string {
   return value.trim().replace(/\s+/g, " ");
+}
+
+function normalizeLookup(value: string): string {
+  return normalizeSearchText(normalizeLabel(value));
 }
 
 export function CreatableSearchSelect({
@@ -59,8 +64,8 @@ export function CreatableSearchSelect({
       return options;
     }
 
-    const lookup = normalizedQuery.toLowerCase();
-    return options.filter((option) => option.label.toLowerCase().includes(lookup));
+    const lookup = normalizeLookup(normalizedQuery);
+    return options.filter((option) => normalizeLookup(option.label).includes(lookup));
   }, [normalizedQuery, options]);
 
   const canCreate = Boolean(

@@ -1,9 +1,8 @@
-/* eslint-disable complexity, max-lines */
+/* eslint-disable complexity */
 "use client";
 
 import * as React from "react";
 
-import { Briefcase, Calendar, CheckCircle2, Mail, Phone, User2, Wallet } from "lucide-react";
 import { toast } from "sonner";
 import { z } from "zod";
 
@@ -19,23 +18,19 @@ import {
   DrawerTitle,
   DrawerTrigger,
 } from "@/components/ui/drawer";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Separator } from "@/components/ui/separator";
 import { useIsMobile } from "@/hooks/use-mobile";
+import * as ticketOrders from "@/lib/ticket-orders";
 
+import {
+  OrderCustomerInfoSection,
+  OrderExtraInfoSection,
+  OrderMetaBadges,
+  OrderQuickEditSection,
+} from "./order-drawer-sections";
 import { channelSchema } from "./schema";
-
-type Stats = {
-  totalOrders: number;
-  totalMoney: number;
-  totalMoneyVAT: number;
-};
 
 type ViewerProps = {
   item: z.infer<typeof channelSchema>;
-  stats: Stats;
   onRowUpdated?: (updated: z.infer<typeof channelSchema>, originalOrderCode: string) => void;
   triggerElement?: React.ReactElement;
 };
@@ -54,52 +49,13 @@ function formatGender(value?: string | null) {
     .trim()
     .toLowerCase();
 
-  if (normalized === "f" || normalized === "female" || normalized === "nữ" || normalized === "nu") return "Nữ";
+  if (normalized === "f" || normalized === "female" || normalized === "nu") return "Nu";
   if (normalized === "m" || normalized === "male" || normalized === "nam") return "Nam";
 
   return value ?? "";
 }
 
-function formatMoney(value: unknown) {
-  const numberValue = typeof value === "number" ? value : Number(String(value ?? 0).replaceAll(",", ""));
-  if (!Number.isFinite(numberValue)) return "0";
-  return numberValue.toLocaleString("vi-VN");
-}
-
-function StatPill({ label, value, sub = "VNĐ" }: { label: string; value: string; sub?: string }) {
-  return (
-    <div className="bg-card/60 rounded-2xl border px-3 py-2">
-      <div className="text-muted-foreground text-[11px]">{label}</div>
-      <div className="mt-0.5 flex items-baseline justify-between gap-2">
-        <div className="text-base leading-none font-semibold tabular-nums">{value}</div>
-        <div className="text-muted-foreground text-[11px]">{sub}</div>
-      </div>
-    </div>
-  );
-}
-
-function Row({ icon, label, value }: { icon: React.ReactNode; label: string; value?: React.ReactNode }) {
-  return (
-    <div className="flex items-start gap-2.5">
-      <div className="text-muted-foreground mt-0.5">{icon}</div>
-      <div className="min-w-0 flex-1">
-        <div className="text-muted-foreground text-[11px]">{label}</div>
-        <div className="text-sm font-medium">{value ?? "—"}</div>
-      </div>
-    </div>
-  );
-}
-
-function Block({ title, children }: { title: string; children: React.ReactNode }) {
-  return (
-    <div className="bg-card/60 rounded-2xl border p-3">
-      <div className="mb-2 text-sm font-semibold">{title}</div>
-      <div className="grid gap-2.5">{children}</div>
-    </div>
-  );
-}
-
-export function TableCellViewer({ item, stats, onRowUpdated, triggerElement }: ViewerProps) {
+export function TableCellViewer({ item, onRowUpdated, triggerElement }: ViewerProps) {
   const isMobile = useIsMobile();
   const [open, setOpen] = React.useState(false);
   const [isEditing, setIsEditing] = React.useState(false);
@@ -107,28 +63,29 @@ export function TableCellViewer({ item, stats, onRowUpdated, triggerElement }: V
   const [form, setForm] = React.useState<z.infer<typeof channelSchema>>(item);
 
   const ticketClassOptions = ["GOLD", "RUBY", "VIP"];
-  const paymentStatusOptions = ["paydone", "new", "cancelled", "refunded", "present"];
-  const checkinStatusOptions = ["chưa checkin", "đã checkin"];
-  const careerQuickOptions = ["Khác", "Chủ spa/ TMV/ Phòng khám", "Bác sĩ", "Dược sĩ", "Kỹ thuật viên", "Sale"];
+  const paymentStatusOptions = ["new", "paydone", "present", "cancelled"];
+  const careerQuickOptions = ["Khac", "Chu spa/ TMV/ Phong kham", "Bac si", "Duoc si", "Ky thuat vien", "Sale"];
 
   React.useEffect(() => {
     setForm(item);
   }, [item]);
 
   const normalizedMoney = Number(form.money) || 0;
-  const computedVat = Number((normalizedMoney * 1.08).toFixed(2));
+  const computedVat = Number(form.money_VAT) || normalizedMoney;
 
   const handleSave = React.useCallback(async () => {
     setIsSaving(true);
 
     try {
-      const isCheckedIn = form.status_checkin === "đã checkin";
+      const isCheckedIn = ticketOrders.normalizeCheckinFlag(form.is_checkin) === 1;
       const payload = channelSchema.parse({
         ...form,
         money: normalizedMoney,
         money_VAT: computedVat,
         status: form.status || "new",
-        status_checkin: isCheckedIn ? "đã checkin" : "chưa checkin",
+        is_checkin: isCheckedIn ? 1 : 0,
+        number_checkin: isCheckedIn ? Math.max(1, Number(form.number_checkin || 0)) : 0,
+        status_checkin: ticketOrders.buildCheckinStatusLabel(isCheckedIn ? 1 : 0),
         update_time: new Date(),
         checkin_time: isCheckedIn ? (form.checkin_time ?? new Date()) : null,
       });
@@ -144,31 +101,24 @@ export function TableCellViewer({ item, stats, onRowUpdated, triggerElement }: V
 
       if (!response.ok) {
         const result = await response.json().catch(() => ({}));
-        throw new Error(result?.error ?? "Không thể cập nhật bản ghi");
+        throw new Error(result?.error ?? "Khong the cap nhat ban ghi");
       }
 
       setForm(payload);
       setIsEditing(false);
       onRowUpdated?.(payload, item.ordercode);
-      toast.success("Đã cập nhật bản ghi");
+      toast.success("Da cap nhat ban ghi");
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Có lỗi xảy ra khi cập nhật");
+      toast.error(error instanceof Error ? error.message : "Co loi xay ra khi cap nhat");
     } finally {
       setIsSaving(false);
     }
   }, [computedVat, form, item.ordercode, normalizedMoney, onRowUpdated]);
 
-  const displayedItem = isEditing
-    ? {
-        ...form,
-        money: normalizedMoney,
-        money_VAT: computedVat,
-      }
-    : form;
-
+  const displayedItem = form;
   const createdAt = displayedItem.create_time ? formatDateVN(displayedItem.create_time) : "";
   const updatedAt = displayedItem.update_time ? formatDateVN(displayedItem.update_time) : "";
-  const checkinAt = displayedItem.checkin_time ? formatDateVN(displayedItem.checkin_time) : "";
+  const displayGender = displayedItem.gender ? formatGender(displayedItem.gender) : null;
 
   return (
     <Drawer
@@ -184,25 +134,31 @@ export function TableCellViewer({ item, stats, onRowUpdated, triggerElement }: V
     >
       <DrawerTrigger asChild>
         {triggerElement ?? (
-          <Button variant="link" className="text-foreground w-fit px-0 text-left">
-            {displayedItem.ordercode}
+          <Button
+            variant="ghost"
+            className="text-foreground block h-auto max-w-full min-w-0 justify-start px-0 py-0 text-left font-medium hover:bg-transparent"
+            title={displayedItem.ordercode || undefined}
+          >
+            <span className="block max-w-full truncate">{displayedItem.ordercode}</span>
           </Button>
         )}
       </DrawerTrigger>
 
-      <DrawerContent className="h-screen sm:ml-auto sm:h-screen sm:max-w-[400px]">
+      <DrawerContent className="h-screen sm:ml-auto sm:h-screen sm:max-w-[420px]">
         <DrawerHeader className="supports-backdrop-filter:bg-background/80 bg-background/95 sticky top-0 z-10 border-b backdrop-blur">
           <div className="min-w-0">
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0">
-                <DrawerTitle className="truncate">Mã đơn: {displayedItem.ordercode}</DrawerTitle>
-                <DrawerDescription className="truncate">
+                <DrawerTitle className="truncate" title={`Ma don: ${displayedItem.ordercode}`}>
+                  Ma don: {displayedItem.ordercode}
+                </DrawerTitle>
+                <DrawerDescription className="truncate" title={displayedItem.class || undefined}>
                   {displayedItem.class ? <>• {displayedItem.class}</> : null}
                 </DrawerDescription>
               </div>
 
               {displayedItem.status ? (
-                <Badge variant="secondary" className="shrink-0 rounded-full">
+                <Badge variant="secondary" className="shrink-0 rounded-full" title={displayedItem.status}>
                   {displayedItem.status}
                 </Badge>
               ) : null}
@@ -212,189 +168,31 @@ export function TableCellViewer({ item, stats, onRowUpdated, triggerElement }: V
 
         <div className="nice-scroll flex-1 overflow-y-auto px-4 py-4">
           <div className="grid gap-3">
-            <Block title="Tổng quan">
-              <div className="grid gap-2">
-                <StatPill label="Tổng đơn" value={stats.totalOrders.toLocaleString("vi-VN")} sub="đơn" />
-                <StatPill label="Tổng tiền" value={formatMoney(stats.totalMoney)} />
-                <StatPill label="Tổng VAT" value={formatMoney(stats.totalMoneyVAT)} />
-              </div>
-            </Block>
-
             {isEditing ? (
-              <Block title="Chỉnh sửa nhanh">
-                <div className="grid gap-3">
-                  <div className="grid gap-1.5">
-                    <Label>Họ tên</Label>
-                    <Input
-                      value={form.name}
-                      onChange={(event) => setForm((prev) => ({ ...prev, name: event.target.value }))}
-                    />
-                  </div>
-
-                  <div className="grid gap-1.5">
-                    <Label>Số điện thoại</Label>
-                    <Input
-                      value={form.phone}
-                      onChange={(event) => setForm((prev) => ({ ...prev, phone: event.target.value }))}
-                    />
-                  </div>
-
-                  <div className="grid gap-1.5">
-                    <Label>Email</Label>
-                    <Input
-                      type="email"
-                      value={form.email}
-                      onChange={(event) => setForm((prev) => ({ ...prev, email: event.target.value }))}
-                    />
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-3">
-                    <div className="grid gap-1.5">
-                      <Label>Giới tính</Label>
-                      <Select
-                        value={form.gender || ""}
-                        onValueChange={(value) => setForm((prev) => ({ ...prev, gender: value }))}
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Chọn" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="m">Nam</SelectItem>
-                          <SelectItem value="f">Nữ</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-
-                    <div className="grid gap-1.5">
-                      <Label>Hạng vé</Label>
-                      <Select
-                        value={form.class || ""}
-                        onValueChange={(value) => setForm((prev) => ({ ...prev, class: value }))}
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Chọn" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {ticketClassOptions.map((option) => (
-                            <SelectItem key={option} value={option}>
-                              {option}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  </div>
-
-                  <div className="grid gap-1.5">
-                    <Label>Trạng thái</Label>
-                    <Select
-                      value={form.status || ""}
-                      onValueChange={(value) => setForm((prev) => ({ ...prev, status: value }))}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Chọn" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {paymentStatusOptions.map((option) => (
-                          <SelectItem key={option} value={option}>
-                            {option}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-3">
-                    <div className="grid gap-1.5">
-                      <Label>Tiền</Label>
-                      <Input
-                        type="number"
-                        value={Number.isFinite(Number(form.money)) ? Number(form.money) : 0}
-                        onChange={(event) => setForm((prev) => ({ ...prev, money: Number(event.target.value) || 0 }))}
-                      />
-                    </div>
-                    <div className="grid gap-1.5">
-                      <Label>Tiền VAT</Label>
-                      <Input value={computedVat} readOnly />
-                    </div>
-                  </div>
-
-                  <div className="grid gap-1.5">
-                    <Label>Trạng thái check-in</Label>
-                    <Select
-                      value={form.status_checkin || ""}
-                      onValueChange={(value) => setForm((prev) => ({ ...prev, status_checkin: value }))}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Chọn" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {checkinStatusOptions.map((option) => (
-                          <SelectItem key={option} value={option}>
-                            {option}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  <div className="grid gap-1.5">
-                    <Label>Nghề nghiệp</Label>
-                    <Input
-                      list="career-quick-options"
-                      value={form.career}
-                      onChange={(event) => setForm((prev) => ({ ...prev, career: event.target.value }))}
-                    />
-                    <datalist id="career-quick-options">
-                      {careerQuickOptions.map((option) => (
-                        <option key={option} value={option} />
-                      ))}
-                    </datalist>
-                  </div>
-                </div>
-              </Block>
+              <OrderQuickEditSection
+                form={form}
+                setForm={setForm}
+                ticketClassOptions={ticketClassOptions}
+                paymentStatusOptions={paymentStatusOptions}
+                careerQuickOptions={careerQuickOptions}
+              />
             ) : null}
 
-            <Block title="Khách hàng">
-              <Row icon={<User2 className="h-4 w-4" />} label="Họ tên" value={displayedItem.name} />
-              <Row icon={<Phone className="h-4 w-4" />} label="Số điện thoại" value={displayedItem.phone || "—"} />
-              <Row icon={<Mail className="h-4 w-4" />} label="Email" value={displayedItem.email || "—"} />
-            </Block>
+            <OrderCustomerInfoSection
+              name={displayedItem.name}
+              phone={displayedItem.phone}
+              email={displayedItem.email}
+            />
 
-            <div className="mt-2 flex flex-wrap gap-2">
-              <Badge variant="outline" className="rounded-full">
-                <Calendar className="mr-1 h-3.5 w-3.5" />
-                {createdAt || "—"}
-              </Badge>
-              <Badge variant="outline" className="rounded-full">
-                <Calendar className="mr-1 h-3.5 w-3.5" />
-                {updatedAt || "—"}
-              </Badge>
-              {displayedItem.gender ? (
-                <Badge variant="outline" className="rounded-full">
-                  {formatGender(displayedItem.gender)}
-                </Badge>
-              ) : null}
-            </div>
+            <OrderMetaBadges createdAt={createdAt} updatedAt={updatedAt} gender={displayGender} />
 
-            <Block title="Thanh toán">
-              <Row icon={<Wallet className="h-4 w-4" />} label="Trạng thái" value={displayedItem.status || "—"} />
-              <Separator />
-              <div className="grid grid-cols-1 gap-2">
-                <StatPill label="Tiền" value={formatMoney(displayedItem.money || 0)} />
-                <StatPill label="Tiền (VAT)" value={formatMoney(displayedItem.money_VAT || 0)} />
-              </div>
-            </Block>
-
-            <Block title="Check-in">
-              <Row
-                icon={<CheckCircle2 className="h-4 w-4" />}
-                label="Trạng thái"
-                value={displayedItem.status_checkin || "—"}
+            {!isEditing ? (
+              <OrderExtraInfoSection
+                career={displayedItem.career}
+                status={displayedItem.status}
+                isCheckin={displayedItem.is_checkin}
               />
-              <Row icon={<Calendar className="h-4 w-4" />} label="Ngày check-in" value={checkinAt || "—"} />
-              <Row icon={<Briefcase className="h-4 w-4" />} label="Nghề nghiệp" value={displayedItem.career || "—"} />
-            </Block>
+            ) : null}
           </div>
         </div>
 
@@ -410,21 +208,21 @@ export function TableCellViewer({ item, stats, onRowUpdated, triggerElement }: V
                 }}
                 disabled={isSaving}
               >
-                Hủy
+                Huy
               </Button>
-              <Button className="w-full rounded-xl" onClick={handleSave} disabled={isSaving}>
-                {isSaving ? "Đang lưu..." : "Lưu"}
+              <Button className="w-full rounded-xl" onClick={() => void handleSave()} disabled={isSaving}>
+                {isSaving ? "Dang luu..." : "Luu"}
               </Button>
             </div>
           ) : (
             <Button variant="default" className="w-full rounded-xl" onClick={() => setIsEditing(true)}>
-              Sửa bản ghi
+              Sua ban ghi
             </Button>
           )}
 
           <DrawerClose asChild>
             <Button variant="outline" className="w-full rounded-xl">
-              Đóng
+              Dong
             </Button>
           </DrawerClose>
         </DrawerFooter>

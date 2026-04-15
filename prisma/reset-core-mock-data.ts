@@ -1,12 +1,11 @@
-/* eslint-disable max-lines */
 import { PrismaClient } from "@prisma/client";
 
 const prisma = new PrismaClient();
 
 const DEFAULT_COUNT = 1000;
 const DEFAULT_BATCH_SIZE = 200;
-const MOCK_CREATED_BY = "mock-seed";
-const MOCK_UPDATED_BY = "mock-seed";
+const MOCK_CREATED_BY = "mock-reset-seed";
+const MOCK_UPDATED_BY = "mock-reset-seed";
 const MOCK_USER_PREFIX = "mock_user_";
 const MOCK_EMAIL_DOMAIN = "mock.beautysummit.local";
 const MOCK_ZID_PREFIX = "mock-zalo-";
@@ -15,12 +14,8 @@ const MOCK_ORDER_PREFIX = "MOCKBS26-";
 const FIXED_TEST_ZID = "3368637342326461234";
 const FIXED_TEST_PHONE = "84123456789";
 const FIXED_TEST_NAME = "Test Mini App User";
-const TICKET_CHANNEL = "beauty_summit_ticket";
-const TICKET_BRAND = "Beauty Summit 2026";
-const TICKET_PRODUCT_ID = "beauty_summit_ticket";
-const TICKET_PRODUCT_NAME = "Beauty Summit Ticket";
 
-type TicketTier = "STANDARD" | "PREMIUM" | "VIP";
+type TicketTier = "RUBY" | "GOLD" | "VIP";
 
 type SeedConfig = {
   count: number;
@@ -29,45 +24,39 @@ type SeedConfig = {
 
 const FIRST_NAMES = [
   "An",
-  "Binh",
+  "Bình",
   "Chi",
   "Dung",
   "Giang",
-  "Ha",
-  "Hieu",
-  "Khanh",
-  "Lam",
+  "Hà",
+  "Hiếu",
+  "Khánh",
+  "Lâm",
   "Linh",
   "Mai",
   "Minh",
   "Nam",
-  "Ngoc",
+  "Ngọc",
   "Nhi",
-  "Phuong",
+  "Phương",
   "Quang",
   "Trang",
-  "Truc",
+  "Trúc",
   "Vy",
 ] as const;
 
-const LAST_NAMES = ["Nguyen", "Tran", "Le", "Pham", "Hoang", "Huynh", "Vo", "Dang", "Bui", "Do"] as const;
-
-const COMPANIES = [
-  "Beauty Summit",
-  "Glow Lab",
-  "Skin House",
-  "Premium Clinic",
-  "Aura Cosmetics",
-  "Shine Spa",
-  "Daily Beauty",
-  "Urban Care",
-  "Derma Studio",
-  "Bloom Retail",
+const LAST_NAMES = ["Nguyễn", "Trần", "Lê", "Phạm", "Hoàng", "Huỳnh", "Võ", "Đặng", "Bùi", "Đỗ"] as const;
+const CAREERS = [
+  "Chủ spa/ TMV/ Phòng khám",
+  "Bác sĩ",
+  "Dược sĩ",
+  "Kỹ thuật viên",
+  "Sale",
+  "KOC/KOL",
+  "Khách mới",
 ] as const;
-
-const BRANCHES = ["HCM", "Ha Noi", "Da Nang", "Can Tho"] as const;
 const GENDERS = ["female", "male"] as const;
-const TIERS: readonly TicketTier[] = ["STANDARD", "PREMIUM", "VIP"] as const;
+const TIERS: readonly TicketTier[] = ["RUBY", "GOLD", "VIP"] as const;
 
 function parsePositiveInt(value: string | undefined, fallback: number): number {
   const parsed = Number(value);
@@ -126,7 +115,7 @@ function buildCustomerId(index: number): string {
   return `${MOCK_CUSTOMER_PREFIX}${padNumber(index + 1)}`;
 }
 
-function buildOrderId(index: number): string {
+function buildOrderCode(index: number): string {
   return `${MOCK_ORDER_PREFIX}${padNumber(index + 1)}`;
 }
 
@@ -143,7 +132,7 @@ function buildAmountByTier(tier: TicketTier): number {
     return 2_990_000;
   }
 
-  if (tier === "PREMIUM") {
+  if (tier === "GOLD") {
     return 1_990_000;
   }
 
@@ -152,37 +141,8 @@ function buildAmountByTier(tier: TicketTier): number {
 
 function buildDate(index: number): Date {
   const base = new Date("2026-06-10T08:00:00.000Z");
-  base.setMinutes(base.getMinutes() + index * 13);
+  base.setMinutes(base.getMinutes() + index * 11);
   return base;
-}
-
-function buildTicketNote(index: number, name: string, phone: string) {
-  const isCheckedIn = index % 17 === 0;
-  const checkinTime = isCheckedIn ? new Date(buildDate(index).getTime() + 86_400_000).toISOString() : null;
-
-  return JSON.stringify({
-    kind: "beauty_summit_ticket",
-    email: buildEmail(index),
-    gender: pickByIndex(GENDERS, index),
-    career: "mock-user",
-    status_checkin: isCheckedIn ? "da checkin" : "chua checkin",
-    checkin_time: checkinTime,
-    is_checkin: isCheckedIn ? 1 : 0,
-    is_gift: 0,
-    hope: null,
-    ref: "mock-seed",
-    source: "mock-seed",
-    send_noti: 0,
-    voucher: null,
-    voucher_status: null,
-    buyer_name: name,
-    buyer_phone: phone,
-    holder_name: name,
-    holder_phone: phone,
-    claimed_from_name: null,
-    claimed_from_phone: null,
-    claimed_at: null,
-  });
 }
 
 function getSeedConfig(): SeedConfig {
@@ -200,32 +160,26 @@ function getSeedConfig(): SeedConfig {
   };
 }
 
-async function clearOldMockData(): Promise<void> {
+async function clearCoreData() {
   await prisma.$transaction([
-    prisma.orders.deleteMany({
-      where: {
-        OR: [{ created_by: MOCK_CREATED_BY }, { order_ID: { startsWith: MOCK_ORDER_PREFIX } }],
-      },
-    }),
-    prisma.customer.deleteMany({
-      where: {
-        OR: [{ created_by: MOCK_CREATED_BY }, { customer_ID: { startsWith: MOCK_CUSTOMER_PREFIX } }],
-      },
-    }),
+    prisma.voted.deleteMany(),
+    prisma.miniapp_user_reward_state.deleteMany(),
+    prisma.user_zaloOA.deleteMany(),
+    prisma.orders.deleteMany(),
+    prisma.customer.deleteMany(),
     prisma.user.deleteMany({
       where: {
-        OR: [
-          { created_by: MOCK_CREATED_BY },
-          { zid: { startsWith: MOCK_ZID_PREFIX } },
-          { user: { startsWith: MOCK_USER_PREFIX } },
-          { email: { endsWith: `@${MOCK_EMAIL_DOMAIN}` } },
-        ],
+        NOT: {
+          role: {
+            in: ["admin", "receptionist"],
+          },
+        },
       },
     }),
   ]);
 }
 
-async function insertUsers(count: number, batchSize: number): Promise<void> {
+async function insertUsers(count: number, batchSize: number) {
   const rows = Array.from({ length: count }, (_, index) => {
     const now = buildDate(index);
     return {
@@ -258,35 +212,26 @@ async function insertUsers(count: number, batchSize: number): Promise<void> {
   }
 }
 
-async function insertCustomers(count: number, batchSize: number): Promise<void> {
+async function insertCustomers(count: number, batchSize: number) {
   const rows = Array.from({ length: count }, (_, index) => {
     const now = buildDate(index);
-    const tier = buildTier(index);
-    const amount = buildAmountByTier(tier);
     return {
       created_at: now,
       updated_at: now,
       created_by: MOCK_CREATED_BY,
       updated_by: MOCK_UPDATED_BY,
       nc_order: index + 1,
-      customer_ID: buildCustomerId(index),
+      customer_id: buildCustomerId(index),
       name: buildName(index),
-      phone: buildPhone(index),
-      class: tier,
       gender: pickByIndex(GENDERS, index),
-      birth: new Date(`199${index % 10}-0${(index % 9) + 1}-15T00:00:00.000Z`),
-      company: pickByIndex(COMPANIES, index),
-      address: `Mock address ${index + 1}, District ${(index % 12) + 1}, Ho Chi Minh City`,
-      create_by: MOCK_CREATED_BY,
-      last_payment: now,
-      note: "Mock customer generated by prisma seed",
-      branch: pickByIndex(BRANCHES, index),
-      no_hien_tai: 0,
-      tong_ban: amount,
-      tong_ban_tru_tra_hang: amount,
+      phone: buildPhone(index),
+      email: buildEmail(index),
+      career: pickByIndex(CAREERS, index),
+      user_ip: `10.10.${index % 255}.${(index * 7) % 255}`,
+      user_agent: "Mock Browser / Beauty Summit Reset Seed",
+      fbp: `fbp.${padNumber(index + 1, 10)}`,
+      fbc: `fbc.${padNumber(index + 1, 10)}`,
       create_time: now,
-      totalPoint: Math.floor(amount / 10_000),
-      rewardPoint: Math.floor(amount / 20_000),
     };
   });
 
@@ -298,13 +243,14 @@ async function insertCustomers(count: number, batchSize: number): Promise<void> 
   }
 }
 
-async function insertOrders(count: number, batchSize: number): Promise<void> {
+async function insertOrders(count: number, batchSize: number) {
   const rows = Array.from({ length: count }, (_, index) => {
     const now = buildDate(index);
     const tier = buildTier(index);
     const amount = buildAmountByTier(tier);
+    const isCheckedIn = index % 17 === 0;
+    const checkinTime = isCheckedIn ? new Date(now.getTime() + 86_400_000) : null;
     const phone = buildPhone(index);
-    const name = buildName(index);
 
     return {
       created_at: now,
@@ -312,25 +258,32 @@ async function insertOrders(count: number, batchSize: number): Promise<void> {
       created_by: MOCK_CREATED_BY,
       updated_by: MOCK_UPDATED_BY,
       nc_order: index + 1,
-      order_ID: buildOrderId(index),
-      brand: TICKET_BRAND,
+      ordercode: buildOrderCode(index),
       create_time: now,
-      name_customer: name,
-      customer_ID: buildCustomerId(index),
+      name: buildName(index),
       phone,
-      buyer_phone: phone,
-      address: `Mock address ${index + 1}, District ${(index % 12) + 1}, Ho Chi Minh City`,
-      seller: "mock-sales",
-      kenh_ban: TICKET_CHANNEL,
-      note: buildTicketNote(index, name, phone),
-      tien_hang: amount,
-      giam_gia: 0,
-      thanh_tien: amount,
-      status: index % 9 === 0 ? "paid" : "new",
-      pro_ID: TICKET_PRODUCT_ID,
-      name_pro: TICKET_PRODUCT_NAME,
-      brand_pro: tier,
-      quantity: 1,
+      email: buildEmail(index),
+      gender: pickByIndex(GENDERS, index),
+      class: tier,
+      money: String(amount),
+      money_VAT: String(amount),
+      status: index % 9 === 0 ? "paydone" : "new",
+      is_gift: 0,
+      update_time: now,
+      is_checkin: isCheckedIn ? 1 : 0,
+      number_checkin: isCheckedIn ? 1 : 0,
+      checkin_time: checkinTime,
+      career: pickByIndex(CAREERS, index),
+      hope: null,
+      ref: "mock-reset-seed",
+      source: "mock-reset-seed",
+      send_noti: 0,
+      customer_id: buildCustomerId(index),
+      voucher: null,
+      voucher_status: null,
+      utm_source: "mock-reset-seed",
+      utm_medium: "seed",
+      utm_campaign: "beauty-summit-2026",
     };
   });
 
@@ -342,32 +295,38 @@ async function insertOrders(count: number, batchSize: number): Promise<void> {
   }
 }
 
-async function main(): Promise<void> {
+async function main() {
   const config = getSeedConfig();
 
-  console.log("[mock-seed] start", config);
-  await clearOldMockData();
-  console.log("[mock-seed] old mock data cleared");
+  console.log("[reset-core-mock] start", config);
+  console.log("[reset-core-mock] deleting old user/customer/order data...");
+  await clearCoreData();
+  console.log("[reset-core-mock] old data cleared");
 
   await insertUsers(config.count, config.batchSize);
-  console.log("[mock-seed] users inserted", { count: config.count });
+  console.log("[reset-core-mock] users inserted", { count: config.count });
 
   await insertCustomers(config.count, config.batchSize);
-  console.log("[mock-seed] customers inserted", { count: config.count });
+  console.log("[reset-core-mock] customers inserted", { count: config.count });
 
   await insertOrders(config.count, config.batchSize);
-  console.log("[mock-seed] orders inserted", { count: config.count });
+  console.log("[reset-core-mock] orders inserted", { count: config.count });
 
-  console.log("[mock-seed] done", {
+  console.log("[reset-core-mock] done", {
     users: config.count,
     customers: config.count,
     orders: config.count,
+    preservedRoles: ["admin", "receptionist"],
+    fixedTestUser: {
+      zid: FIXED_TEST_ZID,
+      phone: FIXED_TEST_PHONE,
+    },
   });
 }
 
 main()
   .catch((error) => {
-    console.error("[mock-seed] failed", error);
+    console.error("[reset-core-mock] failed", error);
     process.exitCode = 1;
   })
   .finally(async () => {

@@ -1,72 +1,16 @@
+export const CHECKIN_DONE_STATUS = "da checkin";
+export const CHECKIN_PENDING_STATUS = "chua checkin";
 export const TICKET_ORDER_CHANNEL = "beauty_summit_ticket";
-export const TICKET_ORDER_BRAND = "Beauty Summit 2026";
-export const TICKET_PRODUCT_ID = "beauty_summit_ticket";
-export const TICKET_PRODUCT_NAME = "Beauty Summit Ticket";
-export const CHECKIN_DONE_STATUS = "\u0111\u00e3 checkin";
-export const CHECKIN_PENDING_STATUS = "ch\u01b0a checkin";
+const CHECKIN_TRUE_VALUES = new Set(["1", "true", "yes", "y", CHECKIN_DONE_STATUS]);
+const CHECKIN_FALSE_VALUES = new Set(["0", "false", "no", "n", CHECKIN_PENDING_STATUS]);
 
-export type TicketOrderMeta = {
-  kind: "beauty_summit_ticket";
-  email: string | null;
-  gender: string | null;
-  career: string | null;
-  status_checkin: string;
-  checkin_time: string | null;
-  is_checkin: number;
-  is_gift: number;
-  hope: string | null;
-  ref: string | null;
-  source: string | null;
-  send_noti: number;
-  voucher: string | null;
-  voucher_status: string | null;
-  buyer_name: string | null;
-  buyer_phone: string | null;
-  holder_name: string | null;
-  holder_phone: string | null;
-  claimed_from_name: string | null;
-  claimed_from_phone: string | null;
-  claimed_at: string | null;
-};
-
-function toNullableString(value: unknown): string | null {
-  const normalized = typeof value === "string" ? value.trim() : value == null ? "" : String(value).trim();
-  return normalized.length ? normalized : null;
-}
-
-function toNullableInteger(value: unknown): number | null {
-  if (value === null || value === undefined || value === "") {
-    return null;
-  }
-
-  const parsed = Number(value);
-  if (!Number.isFinite(parsed)) {
-    return null;
-  }
-
-  return Math.max(0, Math.trunc(parsed));
-}
-
-function toNullableIsoDate(value: unknown): string | null {
-  const normalized = typeof value === "string" ? value.trim() : value == null ? "" : String(value).trim();
-  if (!normalized) {
-    return null;
-  }
-
-  const parsed = new Date(normalized);
-  return Number.isNaN(parsed.getTime()) ? null : parsed.toISOString();
-}
-
-function normalizeText(value: unknown): string {
-  return String(value ?? "")
+export function normalizeCheckinStatus(value: unknown): string {
+  const normalized = String(value ?? "")
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "")
     .trim()
     .toLowerCase();
-}
 
-function normalizeCheckinStatus(value: unknown): string {
-  const normalized = normalizeText(value);
   if (normalized.includes("da") && normalized.includes("checkin")) {
     return CHECKIN_DONE_STATUS;
   }
@@ -74,109 +18,45 @@ function normalizeCheckinStatus(value: unknown): string {
   return CHECKIN_PENDING_STATUS;
 }
 
-export function buildTicketOrderNote(value: Partial<TicketOrderMeta>): string {
-  const note: TicketOrderMeta = {
-    kind: "beauty_summit_ticket",
-    email: toNullableString(value.email),
-    gender: toNullableString(value.gender),
-    career: toNullableString(value.career),
-    status_checkin: normalizeCheckinStatus(value.status_checkin),
-    checkin_time: toNullableIsoDate(value.checkin_time),
-    is_checkin: toNullableInteger(value.is_checkin) ?? 0,
-    is_gift: toNullableInteger(value.is_gift) ?? 0,
-    hope: toNullableString(value.hope),
-    ref: toNullableString(value.ref),
-    source: toNullableString(value.source),
-    send_noti: toNullableInteger(value.send_noti) ?? 0,
-    voucher: toNullableString(value.voucher),
-    voucher_status: toNullableString(value.voucher_status),
-    buyer_name: toNullableString(value.buyer_name),
-    buyer_phone: toNullableString(value.buyer_phone),
-    holder_name: toNullableString(value.holder_name),
-    holder_phone: toNullableString(value.holder_phone),
-    claimed_from_name: toNullableString(value.claimed_from_name),
-    claimed_from_phone: toNullableString(value.claimed_from_phone),
-    claimed_at: toNullableIsoDate(value.claimed_at),
-  };
+export function normalizeCheckinFlag(value: unknown, fallback = 0): number {
+  if (value === null || value === undefined || value === "") {
+    return fallback;
+  }
 
-  return JSON.stringify(note);
+  if (typeof value === "boolean") {
+    return Number(value);
+  }
+
+  const normalized = String(value).trim().toLowerCase();
+  if (CHECKIN_TRUE_VALUES.has(normalized)) {
+    return 1;
+  }
+
+  if (CHECKIN_FALSE_VALUES.has(normalized)) {
+    return 0;
+  }
+
+  const parsed = Number(normalized);
+  return Number.isFinite(parsed) ? Number(parsed > 0) : fallback;
 }
 
-export function parseTicketOrderNote(value: unknown): TicketOrderMeta {
-  if (typeof value !== "string" || !value.trim()) {
-    return {
-      kind: "beauty_summit_ticket",
-      email: null,
-      gender: null,
-      career: null,
-      status_checkin: CHECKIN_PENDING_STATUS,
-      checkin_time: null,
-      is_checkin: 0,
-      is_gift: 0,
-      hope: null,
-      ref: null,
-      source: null,
-      send_noti: 0,
-      voucher: null,
-      voucher_status: null,
-      buyer_name: null,
-      buyer_phone: null,
-      holder_name: null,
-      holder_phone: null,
-      claimed_from_name: null,
-      claimed_from_phone: null,
-      claimed_at: null,
-    };
+export function buildCheckinStatusLabel(isCheckin: unknown): string {
+  return normalizeCheckinFlag(isCheckin) === 1 ? CHECKIN_DONE_STATUS : CHECKIN_PENDING_STATUS;
+}
+
+export function isTicketCheckedIn(value: {
+  is_checkin?: unknown;
+  number_checkin?: unknown;
+  checkin_time?: unknown;
+}): boolean {
+  if (normalizeCheckinFlag(value.is_checkin) === 1) {
+    return true;
   }
 
-  try {
-    const parsed = JSON.parse(value) as Partial<TicketOrderMeta>;
-    return {
-      kind: "beauty_summit_ticket",
-      email: toNullableString(parsed.email),
-      gender: toNullableString(parsed.gender),
-      career: toNullableString(parsed.career),
-      status_checkin: normalizeCheckinStatus(parsed.status_checkin),
-      checkin_time: toNullableIsoDate(parsed.checkin_time),
-      is_checkin: toNullableInteger(parsed.is_checkin) ?? 0,
-      is_gift: toNullableInteger(parsed.is_gift) ?? 0,
-      hope: toNullableString(parsed.hope),
-      ref: toNullableString(parsed.ref),
-      source: toNullableString(parsed.source),
-      send_noti: toNullableInteger(parsed.send_noti) ?? 0,
-      voucher: toNullableString(parsed.voucher),
-      voucher_status: toNullableString(parsed.voucher_status),
-      buyer_name: toNullableString(parsed.buyer_name),
-      buyer_phone: toNullableString(parsed.buyer_phone),
-      holder_name: toNullableString(parsed.holder_name),
-      holder_phone: toNullableString(parsed.holder_phone),
-      claimed_from_name: toNullableString(parsed.claimed_from_name),
-      claimed_from_phone: toNullableString(parsed.claimed_from_phone),
-      claimed_at: toNullableIsoDate(parsed.claimed_at),
-    };
-  } catch {
-    return {
-      kind: "beauty_summit_ticket",
-      email: null,
-      gender: null,
-      career: null,
-      status_checkin: CHECKIN_PENDING_STATUS,
-      checkin_time: null,
-      is_checkin: 0,
-      is_gift: 0,
-      hope: null,
-      ref: null,
-      source: null,
-      send_noti: 0,
-      voucher: null,
-      voucher_status: null,
-      buyer_name: null,
-      buyer_phone: null,
-      holder_name: null,
-      holder_phone: null,
-      claimed_from_name: null,
-      claimed_from_phone: null,
-      claimed_at: null,
-    };
+  const numberCheckin = Number(value.number_checkin ?? 0);
+  if (Number.isFinite(numberCheckin) && numberCheckin > 0) {
+    return true;
   }
+
+  return Boolean(value.checkin_time);
 }

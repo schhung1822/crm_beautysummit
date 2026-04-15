@@ -9,7 +9,7 @@ import {
   getFacetedRowModel,
   getFacetedUniqueValues,
   getFilteredRowModel,
-  // ❌ bỏ getPaginationRowModel
+  getPaginationRowModel,
   getSortedRowModel,
   useReactTable,
 } from "@tanstack/react-table";
@@ -32,13 +32,16 @@ export function useDataTableInstance<TData, TValue>({
   getRowId,
 }: UseDataTableInstanceProps<TData, TValue>) {
   const [rowSelection, setRowSelection] = React.useState({});
-  const [columnVisibility, setColumnVisibility] = React.useState<VisibilityState>({});
+  const [columnVisibility, setColumnVisibility] = React.useState<VisibilityState>(
+    () => (enableRowSelection ? {} : { select: false }) as VisibilityState,
+  );
   const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>([]);
   const [sorting, setSorting] = React.useState<SortingState>([]);
   const [pagination, setPagination] = React.useState({
     pageIndex: defaultPageIndex,
     pageSize: defaultPageSize,
   });
+  const previousDataRef = React.useRef(data);
 
   const table = useReactTable({
     data,
@@ -50,24 +53,62 @@ export function useDataTableInstance<TData, TValue>({
       columnFilters,
       pagination,
     },
-    manualPagination: false,
-    pageCount: Math.ceil(data.length / pagination.pageSize),
-
     enableRowSelection,
-    getRowId: getRowId ?? ((row) => (row as any).id?.toString() ?? ""),
-
+    enableMultiRowSelection: enableRowSelection,
+    autoResetPageIndex: false,
+    autoResetExpanded: false,
+    getRowId: getRowId ?? ((row, index) => (row as { id?: string | number }).id?.toString() ?? String(index)),
     onRowSelectionChange: setRowSelection,
     onSortingChange: setSorting,
     onColumnFiltersChange: setColumnFilters,
     onColumnVisibilityChange: setColumnVisibility,
     onPaginationChange: setPagination,
-
     getCoreRowModel: getCoreRowModel(),
     getFilteredRowModel: getFilteredRowModel(),
+    getPaginationRowModel: getPaginationRowModel(),
     getSortedRowModel: getSortedRowModel(),
     getFacetedRowModel: getFacetedRowModel(),
     getFacetedUniqueValues: getFacetedUniqueValues(),
   });
+
+  React.useEffect(() => {
+    if (previousDataRef.current === data) {
+      return;
+    }
+
+    previousDataRef.current = data;
+
+    setPagination((prev) => (prev.pageIndex === 0 ? prev : { ...prev, pageIndex: 0 }));
+
+    if (!enableRowSelection) {
+      return;
+    }
+
+    const nextRowIds = new Set(
+      data.map((row, index) =>
+        (getRowId ?? ((item, idx) => (item as { id?: string | number }).id?.toString() ?? String(idx)))(row, index),
+      ),
+    );
+
+    setRowSelection((prev) => {
+      const nextEntries = Object.entries(prev).filter(([rowId]) => nextRowIds.has(rowId));
+
+      if (nextEntries.length === Object.keys(prev).length) {
+        return prev;
+      }
+
+      return Object.fromEntries(nextEntries);
+    });
+  }, [data, enableRowSelection, getRowId]);
+
+  React.useEffect(() => {
+    if (enableRowSelection) {
+      return;
+    }
+
+    setColumnVisibility((prev) => (prev.select === false ? prev : { ...prev, select: false }));
+    setRowSelection((prev) => (Object.keys(prev).length === 0 ? prev : {}));
+  }, [enableRowSelection]);
 
   return table;
 }

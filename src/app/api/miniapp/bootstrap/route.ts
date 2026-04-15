@@ -13,7 +13,21 @@ type MiniAppBootstrapPayload = {
   name?: string;
   phone?: string;
   avatar?: string;
+  payload?: string;
 };
+
+function parseBootstrapPayload(body: MiniAppBootstrapPayload): MiniAppBootstrapPayload {
+  const encodedPayload = String(body.payload ?? "").trim();
+
+  if (!encodedPayload) {
+    return body;
+  }
+
+  const decodedText = Buffer.from(encodedPayload, "base64").toString("utf-8");
+  const decodedPayload = JSON.parse(decodedText) as MiniAppBootstrapPayload;
+
+  return decodedPayload;
+}
 
 function jsonWithCors(request: NextRequest, body: unknown, init?: ResponseInit): NextResponse {
   return applyCorsHeaders(request, NextResponse.json(body, init), ["POST", "OPTIONS"]);
@@ -28,7 +42,15 @@ export async function OPTIONS(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    const body = (await request.json()) as MiniAppBootstrapPayload;
+    const rawBody = (await request.json()) as MiniAppBootstrapPayload;
+    let body: MiniAppBootstrapPayload;
+
+    try {
+      body = parseBootstrapPayload(rawBody);
+    } catch {
+      return jsonWithCors(request, { message: "Invalid bootstrap payload" }, { status: 400 });
+    }
+
     const zid = String(body.id ?? "").trim();
     const phone = toDatabasePhone(body.phone) ?? "";
     const avatar = String(body.avatar ?? "").trim();
@@ -67,7 +89,7 @@ export async function POST(request: NextRequest) {
       ]),
     );
 
-    const tickets = ticketRows.map((row) => mapMiniAppTicketRow(row, phone)).filter((ticket) => Boolean(ticket.code));
+    const tickets = ticketRows.map((row) => mapMiniAppTicketRow(row)).filter((ticket) => Boolean(ticket.code));
 
     trace.done({
       ticketCount: tickets.length,

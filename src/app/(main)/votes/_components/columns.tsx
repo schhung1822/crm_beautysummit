@@ -1,8 +1,11 @@
 import { ColumnDef } from "@tanstack/react-table";
-import { Check, Minus } from "lucide-react";
 
 import { DataTableColumnHeader } from "@/components/data-table/data-table-column-header";
-import { cn } from "@/lib/utils";
+import {
+  SelectionToggle,
+  getFilteredSelectionState,
+  toggleFilteredRows,
+} from "@/components/data-table/selection-toggle";
 
 import { RowActionsCell } from "./row-actions-cell";
 import { Academy } from "./schema";
@@ -11,67 +14,49 @@ import { TableCellViewer } from "./table-cell-viewer";
 type OnDeleteRow = (row: Academy) => Promise<void> | void;
 
 function formatGender(value?: string | null) {
-  const v = String(value ?? "")
+  const normalized = String(value ?? "")
     .trim()
     .toLowerCase();
-  if (v === "f" || v === "female" || v === "nữ" || v === "nu") return "Nữ";
-  if (v === "m" || v === "male" || v === "nam") return "Nam";
+
+  if (normalized === "f" || normalized === "female" || normalized === "nu" || normalized === "nữ") {
+    return "Nữ";
+  }
+
+  if (normalized === "m" || normalized === "male" || normalized === "nam") {
+    return "Nam";
+  }
+
   return value ?? "";
 }
 
 export const dashboardColumns = (onDeleteRow?: OnDeleteRow): ColumnDef<Academy>[] => [
-  // Checkbox chọn nhiều dòng
   {
     id: "select",
     header: ({ table }) => {
-      const isAllSelected = table.getIsAllPageRowsSelected();
-      const isSomeSelected = table.getIsSomePageRowsSelected();
-      const isChecked = isAllSelected || isSomeSelected;
+      const selectionState = getFilteredSelectionState(table);
 
       return (
         <div className="flex items-center justify-center">
-          <button
-            type="button"
-            aria-label="Chọn tất cả"
-            aria-pressed={isChecked}
-            className={cn(
-              "border-background flex h-5 w-5 cursor-pointer items-center justify-center rounded-md border transition-colors",
-              isChecked ? "bg-primary text-primary-foreground" : "bg-background text-transparent",
-            )}
-            onMouseDown={(event) => event.stopPropagation()}
-            onClick={() => table.toggleAllPageRowsSelected(!isAllSelected)}
-          >
-            {isAllSelected ? <Check className="size-3" /> : isSomeSelected ? <Minus className="size-3" /> : null}
-          </button>
+          <SelectionToggle
+            checked={selectionState.allSelected}
+            indeterminate={selectionState.someSelected}
+            onToggle={() => toggleFilteredRows(table, !selectionState.allSelected)}
+            ariaLabel="Chọn tất cả"
+          />
         </div>
       );
     },
-    cell: ({ row }) => {
-      const isSelected = row.getIsSelected();
-
-      return (
-        <div className="flex items-center justify-center">
-          <button
-            type="button"
-            aria-label="Chọn dòng"
-            aria-pressed={isSelected}
-            className={cn(
-              "border-background flex h-5 w-5 cursor-pointer items-center justify-center rounded-md border transition-colors",
-              isSelected ? "bg-primary text-primary-foreground" : "bg-background text-transparent",
-            )}
-            onMouseDown={(event) => event.stopPropagation()}
-            onClick={() => row.toggleSelected()}
-          >
-            {isSelected ? <Check className="size-3" /> : null}
-          </button>
-        </div>
-      );
-    },
+    cell: ({ row }) => (
+      <div className="flex items-center justify-center">
+        <SelectionToggle checked={row.getIsSelected()} onToggle={() => row.toggleSelected()} ariaLabel="Chọn dòng" />
+      </div>
+    ),
     enableSorting: false,
     enableHiding: false,
+    size: 44,
+    minSize: 44,
+    maxSize: 44,
   },
-
-  // Tên
   {
     accessorKey: "name",
     header: ({ column }) => <DataTableColumnHeader column={column} title="Tên" />,
@@ -84,8 +69,6 @@ export const dashboardColumns = (onDeleteRow?: OnDeleteRow): ColumnDef<Academy>[
     enableHiding: true,
     meta: { label: "Tên" },
   },
-
-  // Phone
   {
     accessorKey: "phone",
     header: ({ column }) => <DataTableColumnHeader column={column} title="Số điện thoại" />,
@@ -94,8 +77,6 @@ export const dashboardColumns = (onDeleteRow?: OnDeleteRow): ColumnDef<Academy>[
     enableHiding: true,
     meta: { label: "Số điện thoại" },
   },
-
-  // Email
   {
     accessorKey: "email",
     header: ({ column }) => <DataTableColumnHeader column={column} title="Email" />,
@@ -104,8 +85,6 @@ export const dashboardColumns = (onDeleteRow?: OnDeleteRow): ColumnDef<Academy>[
     enableHiding: true,
     meta: { label: "Email" },
   },
-
-  // Mã đơn
   {
     accessorKey: "ordercode",
     header: ({ column }) => <DataTableColumnHeader column={column} title="Mã đơn" />,
@@ -114,8 +93,6 @@ export const dashboardColumns = (onDeleteRow?: OnDeleteRow): ColumnDef<Academy>[
     enableHiding: true,
     meta: { label: "Mã đơn" },
   },
-
-  // Brand
   {
     accessorKey: "brand_name",
     header: ({ column }) => <DataTableColumnHeader column={column} title="Thương hiệu" />,
@@ -128,8 +105,6 @@ export const dashboardColumns = (onDeleteRow?: OnDeleteRow): ColumnDef<Academy>[
     enableHiding: true,
     meta: { label: "Thương hiệu" },
   },
-
-  // Danh mục
   {
     accessorKey: "category",
     header: ({ column }) => <DataTableColumnHeader column={column} title="Danh mục" />,
@@ -138,8 +113,6 @@ export const dashboardColumns = (onDeleteRow?: OnDeleteRow): ColumnDef<Academy>[
     enableHiding: true,
     meta: { label: "Danh mục" },
   },
-
-  // Sản phẩm
   {
     accessorKey: "product",
     header: ({ column }) => <DataTableColumnHeader column={column} title="Sản phẩm" />,
@@ -148,8 +121,6 @@ export const dashboardColumns = (onDeleteRow?: OnDeleteRow): ColumnDef<Academy>[
     enableHiding: true,
     meta: { label: "Sản phẩm" },
   },
-
-  // Giới tính
   {
     accessorKey: "gender",
     header: ({ column }) => <DataTableColumnHeader column={column} title="Giới tính" />,
@@ -158,8 +129,6 @@ export const dashboardColumns = (onDeleteRow?: OnDeleteRow): ColumnDef<Academy>[
     enableHiding: true,
     meta: { label: "Giới tính" },
   },
-
-  // Thời gian vote
   {
     accessorKey: "time_vote",
     header: ({ column }) => <DataTableColumnHeader column={column} title="Thời gian" />,
@@ -176,11 +145,12 @@ export const dashboardColumns = (onDeleteRow?: OnDeleteRow): ColumnDef<Academy>[
     enableHiding: true,
     meta: { label: "Thời gian" },
   },
-
-  // Actions
   {
     id: "actions",
     cell: ({ row }) => <RowActionsCell row={row.original} onDeleteRow={onDeleteRow} />,
     enableSorting: false,
+    size: 64,
+    minSize: 64,
+    maxSize: 64,
   },
 ];

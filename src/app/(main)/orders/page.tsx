@@ -3,7 +3,7 @@ export const runtime = "nodejs";
 
 import { getChannels } from "@/lib/orders";
 
-import { DataTable } from "./_components/data-table";
+import OrdersDataTable from "./_components/data-table";
 import type { Channel } from "./_components/schema";
 
 export default async function Page() {
@@ -16,5 +16,5 @@ export default async function Page() {
     channels = [];
   }
 
-  return <DataTable data={channels} />;
+  return <OrdersDataTable data={channels} />;
 }

@@ -16,6 +16,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import type { MiniAppVoucherKind, MiniAppVoucherRecord } from "@/lib/miniapp-rewards";
+import { matchesSearchTerm, normalizeSearchText } from "@/lib/search-utils";
 
 type VoucherManagerProps = {
   initialData: MiniAppVoucherRecord[];
@@ -111,7 +112,7 @@ function formatDateLabel(value?: string | null): string {
 }
 
 function normalizeSearchValue(value: string): string {
-  return value.trim().toLowerCase();
+  return normalizeSearchText(value);
 }
 
 function buildOptionId(value: string): string {
@@ -257,6 +258,7 @@ export default function VoucherManager({ initialData }: VoucherManagerProps) {
   const [kindFilter, setKindFilter] = React.useState<"all" | MiniAppVoucherKind>("all");
   const [pageSize, setPageSize] = React.useState<number>(10);
   const [pageIndex, setPageIndex] = React.useState(0);
+  const [pageInput, setPageInput] = React.useState("1");
   const [dialogOpen, setDialogOpen] = React.useState(false);
   const [form, setForm] = React.useState<VoucherFormState>(DEFAULT_FORM);
   const [isSaving, setIsSaving] = React.useState(false);
@@ -282,11 +284,7 @@ export default function VoucherManager({ initialData }: VoucherManagerProps) {
         return true;
       }
 
-      const haystack = [voucher.brand, voucher.discount, voucher.code, voucher.desc]
-        .map((value) => normalizeSearchValue(String(value ?? "")))
-        .join(" ");
-
-      return haystack.includes(keyword);
+      return matchesSearchTerm(keyword, [voucher.brand, voucher.discount, voucher.code, voucher.desc]);
     });
   }, [data, kindFilter, search]);
 
@@ -317,6 +315,27 @@ export default function VoucherManager({ initialData }: VoucherManagerProps) {
       setPageIndex(Math.max(pageCount - 1, 0));
     }
   }, [pageCount, pageIndex]);
+
+  React.useEffect(() => {
+    setPageInput(filteredData.length === 0 ? "0" : String(safePageIndex + 1));
+  }, [filteredData.length, safePageIndex]);
+
+  const commitPageInput = React.useCallback(() => {
+    if (filteredData.length === 0) {
+      setPageInput("0");
+      return;
+    }
+
+    const parsed = Number(pageInput);
+    if (!Number.isFinite(parsed)) {
+      setPageInput(String(safePageIndex + 1));
+      return;
+    }
+
+    const nextPageNumber = Math.min(Math.max(Math.trunc(parsed), 1), pageCount);
+    setPageIndex(nextPageNumber - 1);
+    setPageInput(String(nextPageNumber));
+  }, [filteredData.length, pageCount, pageInput, safePageIndex]);
 
   const loadCatalogOptions = React.useCallback(async () => {
     try {
@@ -690,8 +709,26 @@ export default function VoucherManager({ initialData }: VoucherManagerProps) {
             </Select>
           </div>
 
-          <div className="flex w-fit items-center justify-center text-sm font-medium">
-            Trang {filteredData.length === 0 ? 0 : safePageIndex + 1} của {pageCount}
+          <div className="flex w-fit items-center justify-center gap-2 text-sm font-medium">
+            <span>Trang</span>
+            <Input
+              value={pageInput}
+              inputMode="numeric"
+              pattern="[0-9]*"
+              className="h-8 w-16 text-center"
+              onChange={(event) => {
+                const nextValue = event.target.value.replace(/[^\d]/g, "");
+                setPageInput(nextValue);
+              }}
+              onBlur={commitPageInput}
+              onKeyDown={(event) => {
+                if (event.key === "Enter") {
+                  event.preventDefault();
+                  commitPageInput();
+                }
+              }}
+            />
+            <span>/ {pageCount}</span>
           </div>
 
           <div className="ml-auto flex items-center gap-2 lg:ml-0">
@@ -771,6 +808,7 @@ export default function VoucherManager({ initialData }: VoucherManagerProps) {
                   options={brandOptions}
                   placeholder="Chon hoac them brand"
                   searchPlaceholder="Tim brand..."
+                  triggerClassName="h-9 rounded-md border-input px-3 shadow-xs"
                   onValueChange={(value) => setForm((current) => ({ ...current, brand: value }))}
                   onCreate={handleCreateBrand}
                   onDelete={handleDeleteBrand}
@@ -942,6 +980,7 @@ export default function VoucherManager({ initialData }: VoucherManagerProps) {
                   options={productOptions}
                   placeholder="Chon hoac them san pham"
                   searchPlaceholder="Tim san pham..."
+                  triggerClassName="h-10 rounded-md border-input px-3 shadow-xs"
                   onValueChange={(value) => setForm((current) => ({ ...current, discount: value }))}
                   onCreate={handleCreateProduct}
                   onDelete={handleDeleteProduct}

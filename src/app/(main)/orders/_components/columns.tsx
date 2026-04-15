@@ -1,20 +1,16 @@
 import { ColumnDef } from "@tanstack/react-table";
-import { Check, Minus } from "lucide-react";
 
 import { DataTableColumnHeader } from "@/components/data-table/data-table-column-header";
+import {
+  SelectionToggle,
+  getFilteredSelectionState,
+  toggleFilteredRows,
+} from "@/components/data-table/selection-toggle";
 import { Badge } from "@/components/ui/badge";
-import { cn } from "@/lib/utils";
 
 import { RowActionsCell } from "./row-actions-cell";
 import { Channel } from "./schema";
 import { TableCellViewer } from "./table-cell-viewer";
-
-// ---- Stats type ----
-export type Stats = {
-  totalOrders: number;
-  totalMoney: number;
-  totalMoneyVAT: number;
-};
 
 type OnRowUpdated = (updated: Channel, originalOrderCode: string) => void;
 type OnDeleteRow = (row: Channel) => Promise<void> | void;
@@ -83,65 +79,41 @@ function getPaymentStatusBadgeClass(status: string) {
   return matched?.className ?? "bg-muted/20 text-muted-foreground";
 }
 
-// ---- Columns factory (nhận stats) ----
-export const dashboardColumns = (
-  stats: Stats,
-  onRowUpdated?: OnRowUpdated,
-  onDeleteRow?: OnDeleteRow,
-): ColumnDef<Channel>[] => [
+// ---- Columns factory ----
+export const dashboardColumns = (onRowUpdated?: OnRowUpdated, onDeleteRow?: OnDeleteRow): ColumnDef<Channel>[] => [
   {
     id: "select",
     header: ({ table }) => {
-      const isAllSelected = table.getIsAllPageRowsSelected();
-      const isSomeSelected = table.getIsSomePageRowsSelected();
-      const isChecked = isAllSelected || isSomeSelected;
+      const selectionState = getFilteredSelectionState(table);
 
       return (
         <div className="flex items-center justify-center border-b-zinc-400">
-          <button
-            type="button"
-            aria-label="Chọn tất cả"
-            aria-pressed={isChecked}
-            className={cn(
-              "border-background flex h-5 w-5 cursor-pointer items-center justify-center rounded-md border transition-colors",
-              isChecked ? "bg-primary text-primary-foreground" : "bg-background text-transparent",
-            )}
-            onMouseDown={(event) => event.stopPropagation()}
-            onClick={() => table.toggleAllPageRowsSelected(!isAllSelected)}
-          >
-            {isAllSelected ? <Check className="size-3" /> : isSomeSelected ? <Minus className="size-3" /> : null}
-          </button>
+          <SelectionToggle
+            checked={selectionState.allSelected}
+            indeterminate={selectionState.someSelected}
+            onToggle={() => toggleFilteredRows(table, !selectionState.allSelected)}
+            ariaLabel="Chon tat ca"
+          />
         </div>
       );
     },
-    cell: ({ row }) => {
-      const isSelected = row.getIsSelected();
-
-      return (
-        <div className="flex items-center justify-center">
-          <button
-            type="button"
-            aria-pressed={isSelected}
-            className={cn(
-              "flex h-5 w-5 items-center justify-center rounded-md border transition-colors",
-              isSelected ? "bg-blue-600 text-white" : "border-gray-300 bg-white",
-            )}
-            onClick={row.getToggleSelectedHandler()}
-          >
-            {isSelected && <Check className="size-3" />}
-          </button>
-        </div>
-      );
-    },
+    cell: ({ row }) => (
+      <div className="flex items-center justify-center">
+        <SelectionToggle checked={row.getIsSelected()} onToggle={() => row.toggleSelected()} ariaLabel="Chon dong" />
+      </div>
+    ),
     enableSorting: false,
     enableHiding: false,
+    size: 44,
+    minSize: 44,
+    maxSize: 44,
   },
 
   // Mã đơn (đặt lên cột đầu)
   {
     accessorKey: "ordercode",
     header: ({ column }) => <DataTableColumnHeader column={column} title="Mã đơn" />,
-    cell: ({ row }) => <TableCellViewer item={row.original} stats={stats} onRowUpdated={onRowUpdated} />,
+    cell: ({ row }) => <TableCellViewer item={row.original} onRowUpdated={onRowUpdated} />,
     enableSorting: false,
     size: 120,
   },
@@ -291,9 +263,7 @@ export const dashboardColumns = (
   // Actions
   {
     id: "actions",
-    cell: ({ row }) => (
-      <RowActionsCell row={row.original} stats={stats} onRowUpdated={onRowUpdated} onDeleteRow={onDeleteRow} />
-    ),
+    cell: ({ row }) => <RowActionsCell row={row.original} onRowUpdated={onRowUpdated} onDeleteRow={onDeleteRow} />,
     enableSorting: false,
     size: 60,
   },

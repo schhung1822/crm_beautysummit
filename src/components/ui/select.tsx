@@ -6,6 +6,23 @@ import { CheckIcon, ChevronDownIcon, ChevronUpIcon } from "lucide-react"
 
 import { cn } from "@/lib/utils"
 
+function useDialogPortalContainer() {
+  const [container, setContainer] = React.useState<HTMLElement | null>(null)
+
+  React.useEffect(() => {
+    if (typeof document === "undefined") {
+      return
+    }
+
+    const openDialogContents = Array.from(
+      document.querySelectorAll<HTMLElement>("[data-slot='dialog-content']")
+    )
+    setContainer(openDialogContents.at(-1) ?? null)
+  }, [])
+
+  return container
+}
+
 function Select({
   ...props
 }: React.ComponentProps<typeof SelectPrimitive.Root>) {
@@ -57,8 +74,10 @@ function SelectContent({
   align = "center",
   ...props
 }: React.ComponentProps<typeof SelectPrimitive.Content>) {
+  const container = useDialogPortalContainer()
+
   return (
-    <SelectPrimitive.Portal>
+    <SelectPrimitive.Portal container={container ?? undefined}>
       <SelectPrimitive.Content
         data-slot="select-content"
         className={cn(
@@ -67,6 +86,7 @@ function SelectContent({
             "data-[side=bottom]:translate-y-1 data-[side=left]:-translate-x-1 data-[side=right]:translate-x-1 data-[side=top]:-translate-y-1",
           className
         )}
+        onWheelCapture={(event) => event.stopPropagation()}
         position={position}
         align={align}
         {...props}

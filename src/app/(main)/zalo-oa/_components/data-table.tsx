@@ -7,12 +7,13 @@ import { toast } from "sonner";
 
 import { DataTable as DataTableNew } from "@/components/data-table/data-table";
 import { DataTableViewOptions } from "@/components/data-table/data-table-view-options";
-import { withDndColumn } from "@/components/data-table/table-utils";
+import { toggleFilteredRows } from "@/components/data-table/selection-toggle";
 import { Button } from "@/components/ui/button";
 import { ExportDialog, type ExportFormat, type DateRange } from "@/components/ui/export-dialog";
 import { Input } from "@/components/ui/input";
 import { useDataTableInstance } from "@/hooks/use-data-table-instance";
 import { exportData } from "@/lib/export-utils";
+import { matchesSearchTerm } from "@/lib/search-utils";
 
 import { dashboardColumns } from "./columns";
 import { UsersOA } from "./schema";
@@ -22,27 +23,55 @@ export function DataTable({ data: initialData }: { data: UsersOA[] }) {
   const [searchTerm, setSearchTerm] = React.useState("");
   const [exportDialogOpen, setExportDialogOpen] = React.useState(false);
   const [isExporting, setIsExporting] = React.useState(false);
+  const [isDeleting, setIsDeleting] = React.useState(false);
 
   const filteredData = React.useMemo(() => {
-    if (!searchTerm.trim()) return data;
-
-    const term = searchTerm.toLowerCase();
-    return data.filter(
-      (item) =>
-        item.alias.toLowerCase().includes(term) ||
-        item.user_id.toLowerCase().includes(term) ||
-        item.phone.toLowerCase().includes(term) ||
-        item.city.toLowerCase().includes(term) ||
-        item.district.toLowerCase().includes(term),
+    return data.filter((item) =>
+      matchesSearchTerm(searchTerm, [item.alias, item.user_id, item.phone, item.city, item.district]),
     );
   }, [data, searchTerm]);
 
-  const columns = withDndColumn(dashboardColumns);
+  const columns = dashboardColumns;
   const table = useDataTableInstance({
     data: filteredData,
     columns,
-    getRowId: (row) => row.user_id,
+    getRowId: (row, index) => row.user_id || row.phone || row.alias || `oa-${index}`,
   });
+  const selectedItems = table.getSelectedRowModel().rows.map((row) => row.original);
+
+  const handleDeleteSelected = React.useCallback(async () => {
+    if (!selectedItems.length) {
+      toast.warning("Vui long chon tai khoan OA can xoa");
+      return;
+    }
+
+    if (!window.confirm(`Xoa ${selectedItems.length} tai khoan OA da chon?`)) {
+      return;
+    }
+
+    setIsDeleting(true);
+    try {
+      const response = await fetch("/api/zalo-oa", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userIds: selectedItems.map((item) => item.user_id) }),
+      });
+
+      const result = (await response.json().catch(() => ({}))) as { message?: string };
+      if (!response.ok) {
+        throw new Error(result.message ?? "Khong the xoa tai khoan OA");
+      }
+
+      const deletedIds = new Set(selectedItems.map((item) => item.user_id));
+      setData((previous) => previous.filter((item) => !deletedIds.has(item.user_id)));
+      table.resetRowSelection();
+      toast.success(`Da xoa ${selectedItems.length} tai khoan OA`);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Khong the xoa tai khoan OA");
+    } finally {
+      setIsDeleting(false);
+    }
+  }, [selectedItems, table]);
 
   const handleExport = React.useCallback(
     (format: ExportFormat, _dateRange: DateRange) => {
@@ -99,6 +128,17 @@ export function DataTable({ data: initialData }: { data: UsersOA[] }) {
           />
         </div>
         <div className="flex items-center gap-2">
+          <Button size="sm" variant="outline" onClick={() => toggleFilteredRows(table, true)}>
+            Chon tat ca
+          </Button>
+          <Button size="sm" variant="outline" onClick={() => toggleFilteredRows(table, false)}>
+            Bo chon tat ca
+          </Button>
+          {selectedItems.length > 0 ? (
+            <Button size="sm" variant="destructive" onClick={handleDeleteSelected} disabled={isDeleting}>
+              {isDeleting ? "Dang xoa..." : `Xoa (${selectedItems.length})`}
+            </Button>
+          ) : null}
           <DataTableViewOptions table={table} />
           <Button
             variant="outline"
@@ -112,7 +152,7 @@ export function DataTable({ data: initialData }: { data: UsersOA[] }) {
         </div>
       </div>
       <div className="nice-scroll overflow-hidden rounded-lg">
-        <DataTableNew dndEnabled table={table} columns={columns} onReorder={setData} />
+        <DataTableNew table={table} columns={columns} />
       </div>
 
       <ExportDialog

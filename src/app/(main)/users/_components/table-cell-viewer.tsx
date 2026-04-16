@@ -92,14 +92,14 @@ export function TableCellViewer({
 
       const result = (await response.json().catch(() => ({}))) as { data?: AccountUser; message?: string };
       if (!response.ok || !result.data) {
-        throw new Error(result.message ?? "Khong the cap nhat tai khoan");
+        throw new Error(result.message ?? "Không thể cập nhật tài khoản");
       }
 
       onUpdated?.(result.data);
       setIsEditing(false);
       setForm(createEditForm(result.data));
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Khong the cap nhat tai khoan");
+      toast.error(error instanceof Error ? error.message : "Không thể cập nhật tài khoản");
     } finally {
       setSaving(false);
     }
@@ -192,7 +192,7 @@ export function TableCellViewer({
                 onClick={() => void handleSave()}
                 disabled={saving}
               >
-                {saving ? "Dang luu..." : "Luu thay doi"}
+                {saving ? "Đang lưu..." : "Lưu thay đổi"}
               </Button>
             </div>
           ) : (

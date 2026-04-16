@@ -82,15 +82,15 @@ export function TableCellViewer({
 
       const result = (await response.json().catch(() => ({}))) as { data?: Users; message?: string };
       if (!response.ok || !result.data) {
-        throw new Error(result.message ?? "Khong the cap nhat khach hang");
+        throw new Error(result.message ?? "Không thể cập nhật khách hàng");
       }
 
       onUpdated?.(result.data);
       setIsEditing(false);
       setForm(createEditForm(result.data));
-      toast.success("Da cap nhat thong tin khach hang");
+      toast.success("Đã cập nhật thông tin khách hàng");
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Khong the cap nhat khach hang");
+      toast.error(error instanceof Error ? error.message : "Không thể cập nhật khách hàng");
     } finally {
       setSaving(false);
     }
@@ -133,7 +133,7 @@ export function TableCellViewer({
                   variant="outline"
                   className="rounded-full border-sky-200 bg-sky-50 px-2.5 py-1 text-[11px] font-semibold text-sky-700"
                 >
-                  Ho so khach hang
+                  Hồ sơ khách hàng
                 </Badge>
               </div>
 
@@ -160,12 +160,12 @@ export function TableCellViewer({
         <div className="nice-scroll flex max-h-[80vh] flex-col gap-4 overflow-y-auto bg-slate-50/60 px-4 py-4 text-sm sm:max-h-[82vh]">
           {isEditing ? (
             <SectionCard
-              title="Chinh sua nhanh"
-              description="Cap nhat customer va dong bo lai thong tin lien he chinh sang orders cung customer_id."
+              title="Chỉnh sửa nhanh"
+              description="Cập nhật customer và đồng bộ lại thông tin liên hệ chính sang orders cùng customer_id."
             >
               <div className="grid gap-4 md:grid-cols-2">
                 <div className="grid gap-2">
-                  <Label htmlFor="customer-name">Ho ten</Label>
+                  <Label htmlFor="customer-name">Họ tên</Label>
                   <Input
                     id="customer-name"
                     value={form.name}
@@ -174,7 +174,7 @@ export function TableCellViewer({
                   />
                 </div>
                 <div className="grid gap-2">
-                  <Label htmlFor="customer-phone">Dien thoai</Label>
+                  <Label htmlFor="customer-phone">Số điện thoại</Label>
                   <Input
                     id="customer-phone"
                     value={form.phone}
@@ -192,21 +192,21 @@ export function TableCellViewer({
                   />
                 </div>
                 <div className="grid gap-2">
-                  <Label htmlFor="customer-gender">Gioi tinh</Label>
+                  <Label htmlFor="customer-gender">Giới tính</Label>
                   <select
                     id="customer-gender"
                     value={form.gender}
                     onChange={handleChange("gender")}
                     className="border-input bg-background ring-offset-background focus-visible:ring-ring h-10 rounded-lg border px-3 text-sm outline-none focus-visible:ring-2 focus-visible:ring-offset-2"
                   >
-                    <option value="">Chua chon</option>
+                    <option value="">Chưa chọn</option>
                     <option value="Nam">Nam</option>
-                    <option value="Nu">Nu</option>
-                    <option value="Khac">Khac</option>
+                    <option value="Nữ">Nữ</option>
+                    <option value="Khác">Khác</option>
                   </select>
                 </div>
                 <div className="grid gap-2 md:col-span-2">
-                  <Label htmlFor="customer-career">Nghe nghiep</Label>
+                  <Label htmlFor="customer-career">Ngành nghề</Label>
                   <Input
                     id="customer-career"
                     value={form.career}
@@ -218,10 +218,10 @@ export function TableCellViewer({
             </SectionCard>
           ) : null}
 
-          <SectionCard title="Thong tin co ban" description="Thong tin lien he va nhan dien chinh cua bang customer.">
+          <SectionCard title="Thông tin cơ bản" description="Thông tin liên hệ và nhận diện chính của bảng customer.">
             <div className="grid gap-3 md:grid-cols-2">
               <StatCard
-                label="Dien thoai"
+                label="Số điện thoại"
                 value={getDisplayValue(previewItem.phone)}
                 icon={<Smartphone className="size-3.5" />}
               />
@@ -232,12 +232,12 @@ export function TableCellViewer({
                 valueClassName="truncate whitespace-nowrap overflow-hidden"
               />
               <StatCard
-                label="Gioi tinh"
+                label="Giới tính"
                 value={getDisplayValue(previewItem.gender)}
                 icon={<User2 className="size-3.5" />}
               />
               <StatCard
-                label="Nghe nghiep"
+                label="Ngành nghề"
                 value={getDisplayValue(previewItem.career)}
                 icon={<UserPlus className="size-3.5" />}
               />
@@ -245,8 +245,8 @@ export function TableCellViewer({
           </SectionCard>
 
           <SectionCard
-            title="Du lieu theo doi"
-            description="Thong tin tracking phuc vu attribution, cham soc khach hang va phan tich hanh vi."
+            title="Dữ liệu theo dõi"
+            description="Thông tin tracking phục vụ attribution, chăm sóc khách hàng và phân tích hành vi."
           >
             <div className="grid gap-3">
               <StatCard
@@ -275,30 +275,30 @@ export function TableCellViewer({
                 }}
                 disabled={saving}
               >
-                Huy
+                Hủy
               </Button>
               <Button
                 className="w-full bg-slate-900 text-white hover:bg-slate-800"
                 onClick={() => void handleSave()}
                 disabled={saving}
               >
-                {saving ? "Dang luu..." : "Luu thay doi"}
+                {saving ? "Đang lưu..." : "Lưu thay đổi"}
               </Button>
             </div>
           ) : (
             <div className="grid w-full grid-cols-2 gap-2">
               <Button variant="outline" className="w-full" onClick={() => setIsEditing(true)}>
                 <Pencil className="mr-2 size-4" />
-                Chinh sua
+                Chỉnh sửa
               </Button>
               <Link href={`/orders/${item.customer_ID}`} className="w-full">
-                <Button className="w-full bg-slate-900 text-white hover:bg-slate-800">Xem don hang</Button>
+                <Button className="w-full bg-slate-900 text-white hover:bg-slate-800">Xem đơn hàng</Button>
               </Link>
             </div>
           )}
 
           <DrawerClose asChild>
-            <Button variant="outline">Dong</Button>
+            <Button variant="outline">Đóng</Button>
           </DrawerClose>
         </DrawerFooter>
       </DrawerContent>

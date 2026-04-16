@@ -1,6 +1,8 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { NextRequest, NextResponse } from "next/server";
 
 import { getCurrentUser } from "@/lib/auth";
+import { hashPassword } from "@/lib/password";
 import { toDatabasePhone, toDisplayPhone } from "@/lib/phone";
 import { prisma } from "@/lib/prisma";
 
@@ -14,15 +16,16 @@ type AdminUserPayload = {
   avatar?: string;
   role?: string;
   status?: string;
+  password?: string;
 };
 
 function ensureAdminPermission(currentUser: Awaited<ReturnType<typeof getCurrentUser>>) {
   if (!currentUser) {
-    return NextResponse.json({ message: "Chua dang nhap" }, { status: 401 });
+    return NextResponse.json({ message: "Chưa đăng nhập" }, { status: 401 });
   }
 
   if (currentUser.role !== "admin") {
-    return NextResponse.json({ message: "Ban khong co quyen thao tac tai khoan" }, { status: 403 });
+    return NextResponse.json({ message: "Bạn không có quyền thao tác tài khoản" }, { status: 403 });
   }
 
   return null;
@@ -46,6 +49,7 @@ function parsePayload(body: AdminUserPayload) {
     avatar: toNullableString(body.avatar),
     role: toNullableString(body.role) ?? "user",
     status: toNullableString(body.status) ?? "active",
+    password: toNullableString(body.password),
   };
 }
 
@@ -105,11 +109,11 @@ async function updateAdminUser(actorName: string, body: AdminUserPayload) {
   const payload = parsePayload(body);
 
   if (!Number.isInteger(payload.id) || payload.id <= 0) {
-    return NextResponse.json({ message: "ID tai khoan khong hop le" }, { status: 400 });
+    return NextResponse.json({ message: "ID tài khoản không hợp lệ" }, { status: 400 });
   }
 
   if (!payload.username) {
-    return NextResponse.json({ message: "Username khong duoc de trong" }, { status: 400 });
+    return NextResponse.json({ message: "Username không được để trống" }, { status: 400 });
   }
 
   const existing = await prisma.user.findUnique({
@@ -117,7 +121,7 @@ async function updateAdminUser(actorName: string, body: AdminUserPayload) {
   });
 
   if (!existing) {
-    return NextResponse.json({ message: "Khong tim thay tai khoan" }, { status: 404 });
+    return NextResponse.json({ message: "Không tìm thấy tài khoản" }, { status: 404 });
   }
 
   const duplicate = await findDuplicateUser({
@@ -128,22 +132,28 @@ async function updateAdminUser(actorName: string, body: AdminUserPayload) {
   });
 
   if (duplicate) {
-    return NextResponse.json({ message: "Username, email hoac Zalo ID da ton tai" }, { status: 400 });
+    return NextResponse.json({ message: "Username, email hoặc Zalo ID đã tồn tại" }, { status: 400 });
+  }
+
+  const dataToUpdate: any = {
+    user: payload.username,
+    email: payload.email,
+    zid: payload.zid,
+    phone: payload.phone,
+    name: payload.name,
+    avatar: payload.avatar,
+    role: payload.role,
+    status: payload.status,
+    updated_by: actorName,
+  };
+
+  if (payload.password) {
+    dataToUpdate.password = await hashPassword(payload.password);
   }
 
   const updated = await prisma.user.update({
     where: { id: payload.id },
-    data: {
-      user: payload.username,
-      email: payload.email,
-      zid: payload.zid,
-      phone: payload.phone,
-      name: payload.name,
-      avatar: payload.avatar,
-      role: payload.role,
-      status: payload.status,
-      updated_by: actorName,
-    },
+    data: dataToUpdate,
     select: {
       id: true,
       user_id: true,
@@ -168,17 +178,17 @@ async function deleteAdminUsers(currentUserId: number | null, ids: number[]) {
   const normalizedIds = [...new Set(ids.filter((id) => Number.isInteger(id) && id > 0))];
 
   if (!normalizedIds.length) {
-    return NextResponse.json({ message: "ID tai khoan khong hop le" }, { status: 400 });
+    return NextResponse.json({ message: "ID tài khoản không hợp lệ" }, { status: 400 });
   }
 
   if (currentUserId && normalizedIds.includes(currentUserId)) {
-    return NextResponse.json({ message: "Khong the xoa tai khoan dang dang nhap" }, { status: 400 });
+    return NextResponse.json({ message: "Không thể xóa tài khoản đang đăng nhập" }, { status: 400 });
   }
 
   const result = await prisma.user.deleteMany({
     where: {
       id: { in: normalizedIds },
-      role: { notIn: ["admin", "receptionist"] },
+      role: { notIn: ["admin", "staff"] },
     },
   });
 
@@ -199,7 +209,7 @@ export async function PUT(request: NextRequest) {
     return updateAdminUser(actorName, body);
   } catch (error) {
     return NextResponse.json(
-      { message: error instanceof Error ? error.message : "Khong the cap nhat tai khoan" },
+      { message: error instanceof Error ? error.message : "Không thể cập nhật tài khoản" },
       { status: 400 },
     );
   }
@@ -221,7 +231,7 @@ export async function DELETE(request: NextRequest) {
     return deleteAdminUsers(currentUser?.userId ?? null, ids);
   } catch (error) {
     return NextResponse.json(
-      { message: error instanceof Error ? error.message : "Khong the xoa tai khoan" },
+      { message: error instanceof Error ? error.message : "Không thể xóa tài khoản" },
       { status: 400 },
     );
   }

@@ -20,6 +20,7 @@ export type AccountEditForm = {
   avatar: string;
   role: string;
   status: string;
+  password?: string;
 };
 
 export function createEditForm(item: AccountUser): AccountEditForm {
@@ -30,8 +31,9 @@ export function createEditForm(item: AccountUser): AccountEditForm {
     phone: item.phone,
     name: item.name,
     avatar: item.avatar,
-    role: item.role || "user",
+    role: item.role || "staff",
     status: item.status || "active",
+    password: "",
   };
 }
 

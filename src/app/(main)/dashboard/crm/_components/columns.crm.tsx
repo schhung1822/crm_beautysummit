@@ -14,11 +14,7 @@ export const channelColumns: ColumnDef<z.infer<typeof ChannelSummarySchema>>[] =
     id: "drag",
     header: () => <div className="w-7" />,
     cell: () => (
-      <Button
-        variant="ghost"
-        size="icon"
-        className="text-muted-foreground size-7 hover:bg-transparent cursor-grab"
-      >
+      <Button variant="ghost" size="icon" className="text-muted-foreground size-7 cursor-grab hover:bg-transparent">
         <GripVertical className="text-muted-foreground size-4" />
       </Button>
     ),

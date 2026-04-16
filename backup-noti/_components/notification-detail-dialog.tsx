@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import {
   Dialog,
@@ -143,3 +143,4 @@ export function NotificationDetailDialog({
     </Dialog>
   );
 }
+

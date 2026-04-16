@@ -92,7 +92,7 @@ export const dashboardColumns = (onRowUpdated?: OnRowUpdated, onDeleteRow?: OnDe
             checked={selectionState.allSelected}
             indeterminate={selectionState.someSelected}
             onToggle={() => toggleFilteredRows(table, !selectionState.allSelected)}
-            ariaLabel="Chon tat ca"
+            ariaLabel="Chọn tất cả"
           />
         </div>
       );

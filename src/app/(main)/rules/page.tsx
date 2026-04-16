@@ -94,8 +94,8 @@ export default function Page() {
         <main className="flex-1 space-y-28">
           <Section id="overview" title="1. Tổng quan hệ thống">
             <p>
-              CRM Beauty Summit được xây dựng nhằm tạo ra một hệ thống dữ liệu trung tâm (Single Source of Truth), giúp ban lãnh
-              đạo và các bộ phận liên quan theo dõi toàn bộ hoạt động kinh doanh trên một nền tảng duy nhất.
+              CRM Beauty Summit được xây dựng nhằm tạo ra một hệ thống dữ liệu trung tâm (Single Source of Truth), giúp
+              ban lãnh đạo và các bộ phận liên quan theo dõi toàn bộ hoạt động kinh doanh trên một nền tảng duy nhất.
             </p>
 
             <p>

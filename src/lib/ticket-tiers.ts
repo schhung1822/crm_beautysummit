@@ -209,7 +209,7 @@ export async function createTicketTier(input: TicketTierInput) {
   );
 
   if (existingRows[0]) {
-    throw new Error("Hang ve nay da ton tai");
+    throw new Error("Hạng vé nay da ton tai");
   }
 
   const [orderRows] = await db.query<RowDataPacket[]>(

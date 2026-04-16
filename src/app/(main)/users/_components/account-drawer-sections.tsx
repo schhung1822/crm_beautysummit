@@ -26,12 +26,12 @@ export function AccountEditSection({
 
   return (
     <SectionCard
-      title="Chinh sua tai khoan"
-      description="Cap nhat truc tiep bang user. Cac truong role va status duoc sua ngay trong panel nay."
+      title="Chỉnh sửa tài khoản"
+      description="Cập nhật trực tiếp bảng user. Các trường role và status được sửa ngay trong panel này."
     >
       <div className="grid gap-4 md:grid-cols-2">
         <div className="grid gap-2">
-          <Label htmlFor="account-name">Ho ten</Label>
+          <Label htmlFor="account-name">Họ tên</Label>
           <Input
             id="account-name"
             value={form.name}
@@ -45,6 +45,18 @@ export function AccountEditSection({
             id="account-username"
             value={form.username}
             onChange={onInputChange("username")}
+            autoComplete="new-username"
+            className="h-10 rounded-lg bg-white"
+          />
+        </div>
+        <div className="grid gap-2">
+          <Label htmlFor="account-password">Mật khẩu mới (để trống nếu không đổi)</Label>
+          <Input
+            id="account-password"
+            value={form.password || ""}
+            onChange={onInputChange("password")}
+            type="password"
+            autoComplete="new-password"
             className="h-10 rounded-lg bg-white"
           />
         </div>
@@ -58,7 +70,7 @@ export function AccountEditSection({
           />
         </div>
         <div className="grid gap-2">
-          <Label htmlFor="account-phone">Dien thoai</Label>
+          <Label htmlFor="account-phone">Điện thoại</Label>
           <Input
             id="account-phone"
             value={form.phone}
@@ -85,23 +97,23 @@ export function AccountEditSection({
           />
         </div>
         <div className="grid gap-2">
-          <Label>Vai tro</Label>
+          <Label>Vai trò</Label>
           <Select value={form.role} onValueChange={(value) => onSelectChange("role", value)}>
             <SelectTrigger className="h-10 rounded-lg bg-white">
-              <SelectValue placeholder="Chon vai tro" />
+              <SelectValue placeholder="Chọn vai trò" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="user">user</SelectItem>
+              <SelectItem value="staff">user</SelectItem>
               <SelectItem value="admin">admin</SelectItem>
-              <SelectItem value="receptionist">receptionist</SelectItem>
+              <SelectItem value="staff">staff</SelectItem>
             </SelectContent>
           </Select>
         </div>
         <div className="grid gap-2">
-          <Label>Trang thai</Label>
+          <Label>Trạng thái</Label>
           <Select value={form.status} onValueChange={(value) => onSelectChange("status", value)}>
             <SelectTrigger className="h-10 rounded-lg bg-white">
-              <SelectValue placeholder="Chon trang thai" />
+              <SelectValue placeholder="Chọn trạng thái" />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="active">active</SelectItem>
@@ -118,17 +130,17 @@ export function AccountEditSection({
 export function AccountInfoSection({ item }: { item: AccountUser }) {
   return (
     <SectionCard
-      title="Thong tin tai khoan"
-      description="Du lieu chinh cua bang user, phuc vu dang nhap, phan quyen va dong bo mini app."
+      title="Thông tin tài khoản"
+      description="Dữ liệu chính của bảng user, phục vụ đăng nhập, phân quyền và đồng bộ mini app."
     >
       <div className="grid gap-3 md:grid-cols-2">
         <StatCard label="Username" value={getDisplayValue(item.username)} icon={<User2 className="size-3.5" />} />
         <StatCard label="Email" value={getDisplayValue(item.email)} icon={<Mail className="size-3.5" />} />
-        <StatCard label="Dien thoai" value={getDisplayValue(item.phone)} icon={<Smartphone className="size-3.5" />} />
+        <StatCard label="Điện thoại" value={getDisplayValue(item.phone)} icon={<Smartphone className="size-3.5" />} />
         <StatCard label="Zalo ID" value={getDisplayValue(item.zid)} icon={<Globe className="size-3.5" />} />
-        <StatCard label="Ngay tao" value={formatDate(item.create_time)} icon={<ShieldCheck className="size-3.5" />} />
+        <StatCard label="Ngày tạo" value={formatDate(item.create_time)} icon={<ShieldCheck className="size-3.5" />} />
         <StatCard
-          label="Cap nhat cuoi"
+          label="Cập nhật cuối"
           value={formatDate(item.update_time)}
           icon={<ShieldCheck className="size-3.5" />}
         />

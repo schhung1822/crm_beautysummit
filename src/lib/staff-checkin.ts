@@ -1,6 +1,6 @@
 import { toDatabasePhone } from "@/lib/phone";
 
-export type StaffCheckinTier = "STANDARD" | "PREMIUM" | "VIP";
+export type StaffCheckinTier = "GOLD" | "RUBY" | "VIP";
 
 export type StaffCheckinZone = {
   id: "gate" | "coach" | "seminar";
@@ -18,9 +18,9 @@ export type ParsedStaffQrPayload = {
 export const STAFF_CHECKIN_EVENT_PREFIX = "Beauty Summit 2026";
 
 export const STAFF_CHECKIN_ZONES: readonly StaffCheckinZone[] = [
-  { id: "gate", name: "Cong vao", color: "#C41E7F", tiers: ["STANDARD", "PREMIUM", "VIP"] },
-  { id: "coach", name: "Phong Coach 1:1", color: "#8B5CF6", tiers: ["PREMIUM", "VIP"] },
-  { id: "seminar", name: "Phong hoi thao", color: "#0EA5E9", tiers: ["VIP"] },
+  { id: "gate", name: "Cổng vào", color: "#C41E7F", tiers: ["GOLD", "RUBY", "VIP"] },
+  { id: "coach", name: "Phòng Coach 1:1", color: "#8B5CF6", tiers: ["RUBY", "VIP"] },
+  { id: "seminar", name: "Phòng hội thảo", color: "#0EA5E9", tiers: ["VIP"] },
 ] as const;
 
 export function normalizeTicketCode(value: unknown): string {
@@ -36,16 +36,11 @@ export function normalizeStaffTicketTier(value: unknown): StaffCheckinTier {
     return "VIP";
   }
 
-  if (
-    normalized.includes("PREMIUM") ||
-    normalized.includes("PRE") ||
-    normalized.includes("GOLD") ||
-    normalized.includes("RUBY")
-  ) {
-    return "PREMIUM";
+  if (normalized.includes("RUBY") || normalized.includes("PREMIUM") || normalized.includes("PRE")) {
+    return "RUBY";
   }
 
-  return "STANDARD";
+  return "GOLD";
 }
 
 export function getStaffCheckinZone(zoneId: unknown): StaffCheckinZone {

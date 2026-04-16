@@ -21,10 +21,10 @@ const QrScanner = dynamic(async () => (await import("@yudiel/react-qr-scanner"))
 type StaffCheckinSnapshot = {
   history: StaffHistoryItem[];
   stats: {
-    total: number;
-    standard: number;
-    premium: number;
-    vip: number;
+    total: { current: number; max: number };
+    gold: { current: number; max: number };
+    ruby: { current: number; max: number };
+    vip: { current: number; max: number };
   };
 };
 
@@ -69,13 +69,13 @@ type BarcodeDetectorCtor = new (options?: { formats?: string[] }) => {
 };
 
 const tierTheme: Record<StaffCheckinTier, { label: string; color: string; badgeClass: string }> = {
-  STANDARD: {
-    label: "Standard",
+  GOLD: {
+    label: "Gold",
     color: "#8B7355",
     badgeClass: "border-[#8B735540] bg-[#8B735518] text-[#d5b48c]",
   },
-  PREMIUM: {
-    label: "Premium",
+  RUBY: {
+    label: "Ruby",
     color: "#d8ab2b",
     badgeClass: "border-[#d8ab2b40] bg-[#d8ab2b18] text-[#ffd978]",
   },
@@ -213,10 +213,10 @@ export default function StaffCheckinClient() {
   const [loadingSnapshot, setLoadingSnapshot] = React.useState<boolean>(true);
   const [history, setHistory] = React.useState<StaffHistoryItem[]>([]);
   const [stats, setStats] = React.useState<StaffCheckinSnapshot["stats"]>({
-    total: 0,
-    standard: 0,
-    premium: 0,
-    vip: 0,
+    total: { current: 0, max: 0 },
+    gold: { current: 0, max: 0 },
+    ruby: { current: 0, max: 0 },
+    vip: { current: 0, max: 0 },
   });
   const [imageScanning, setImageScanning] = React.useState<boolean>(false);
   const [selectedImageName, setSelectedImageName] = React.useState<string>("");
@@ -247,7 +247,14 @@ export default function StaffCheckinClient() {
       }
 
       setHistory(payload.data.history ?? []);
-      setStats(payload.data.stats ?? { total: 0, standard: 0, premium: 0, vip: 0 });
+      setStats(
+        payload.data.stats ?? {
+          total: { current: 0, max: 0 },
+          gold: { current: 0, max: 0 },
+          ruby: { current: 0, max: 0 },
+          vip: { current: 0, max: 0 },
+        },
+      );
     } catch (error) {
       console.error("Staff check-in snapshot error:", error);
       toast.error(error instanceof Error ? error.message : "Khong the tai du lieu check-in");
@@ -385,13 +392,13 @@ export default function StaffCheckinClient() {
     try {
       const payload = await extractQrValueFromFile(file);
       if (!payload) {
-        throw new Error("Khong tim thay ma QR trong anh");
+        throw new Error("Không tìm thấy mã QR trong ảnh");
       }
 
       await submitCheckin({ payload });
     } catch (error) {
       console.error("Staff image scan error:", error);
-      const message = error instanceof Error ? error.message : "Khong the doc ma QR tu anh";
+      const message = error instanceof Error ? error.message : "Không thể đọc mã QR từ ảnh";
       setResult({ status: "error", message });
       toast.error(message);
     } finally {
@@ -426,7 +433,7 @@ export default function StaffCheckinClient() {
         </div>
 
         <div className="mb-3 text-sm font-medium text-[#b3b0ba]">Khu vuc dang check-in</div>
-        <div className="mb-5 grid gap-3 md:grid-cols-3">
+        <div className="mb-5 grid grid-cols-3 gap-2 sm:gap-3">
           {STAFF_CHECKIN_ZONES.map((item) => {
             const active = item.id === activeZone;
 
@@ -439,7 +446,7 @@ export default function StaffCheckinClient() {
                   setResult(null);
                 }}
                 className={cn(
-                  "rounded-[24px] border bg-[#15151f] px-4 py-5 text-left transition-all",
+                  "rounded-[24px] border bg-[#15151f] px-1 py-3 text-left transition-all sm:px-4 sm:py-5",
                   active ? "border-[#ff3caf] shadow-[0_0_0_1px_rgba(255,60,175,0.18)_inset]" : "border-white/8",
                 )}
               >
@@ -455,7 +462,12 @@ export default function StaffCheckinClient() {
                     <ZoneGlyph zoneId={item.id} active={active} />
                   </div>
                 </div>
-                <div className={cn("text-center text-[15px] font-bold", active ? "text-white" : "text-white/70")}>
+                <div
+                  className={cn(
+                    "text-center text-[12px] font-bold sm:text-[15px]",
+                    active ? "text-white" : "text-white/70",
+                  )}
+                >
                   {item.name}
                 </div>
                 <div className="mt-2 flex items-center justify-center gap-1.5">
@@ -463,7 +475,7 @@ export default function StaffCheckinClient() {
                     <span
                       key={tier}
                       className="inline-flex h-2.5 w-2.5 rounded-full"
-                      style={{ background: tierTheme[tier].color }}
+                      style={{ background: tierTheme[tier]?.color || "#ccc" }}
                     />
                   ))}
                 </div>
@@ -474,14 +486,40 @@ export default function StaffCheckinClient() {
 
         <div className="mb-5 grid grid-cols-4 overflow-hidden rounded-[22px] border border-white/8 bg-white/[0.03]">
           {[
-            { label: "Tong", value: stats.total, color: "text-white" },
-            { label: "Std", value: stats.standard, color: "text-[#d5b48c]" },
-            { label: "Pre", value: stats.premium, color: "text-[#ffd978]" },
-            { label: "VIP", value: stats.vip, color: "text-[#ff4ab6]" },
+            { label: "Tổng", count: `${stats.total.current}/${stats.total.max}`, percent: "", color: "text-white" },
+            {
+              label: "Gold",
+              count: `${stats.gold.current}/${stats.gold.max}`,
+              percent: `${Math.round((stats.gold.current / (stats.gold.max || 1)) * 100)}%`,
+              color: "text-[#d5b48c]",
+            },
+            {
+              label: "Ruby",
+              count: `${stats.ruby.current}/${stats.ruby.max}`,
+              percent: `${Math.round((stats.ruby.current / (stats.ruby.max || 1)) * 100)}%`,
+              color: "text-[#ffd978]",
+            },
+            {
+              label: "VIP",
+              count: `${stats.vip.current}/${stats.vip.max}`,
+              percent: `${Math.round((stats.vip.current / (stats.vip.max || 1)) * 100)}%`,
+              color: "text-[#ff4ab6]",
+            },
           ].map((item, index) => (
-            <div key={item.label} className={cn("px-4 py-4 text-center", index < 3 ? "border-r border-white/8" : "")}>
-              <div className={cn("text-[18px] font-black", item.color)}>{item.value}</div>
-              <div className="mt-1 text-[11px] text-white/45">{item.label}</div>
+            <div
+              key={item.label}
+              className={cn(
+                "flex flex-col justify-center px-1 py-3 text-center sm:px-4 sm:py-4",
+                index < 3 ? "border-r border-white/8" : "",
+              )}
+            >
+              <div className={cn("text-[13px] font-black sm:text-[18px]", item.color)}>{item.count}</div>
+              {item.percent ? (
+                <div className={cn("mt-0.5 text-[10px] font-bold opacity-80 sm:text-[12px]", item.color)}>
+                  {item.percent}
+                </div>
+              ) : null}
+              <div className="mt-1 text-[10px] text-white/45 sm:text-[11px]">{item.label}</div>
             </div>
           ))}
         </div>
@@ -499,7 +537,7 @@ export default function StaffCheckinClient() {
             )}
           >
             <ScanLine className="h-5 w-5" />
-            Quet QR
+            Quét QR
           </button>
           <button
             type="button"
@@ -514,13 +552,13 @@ export default function StaffCheckinClient() {
             )}
           >
             <Keyboard className="h-5 w-5" />
-            Nhap ma
+            Nhập mã vé
           </button>
         </div>
 
         {mode === "scan" ? (
-          <div className="mb-4">
-            <div className="relative overflow-hidden rounded-[32px] border border-white/10 bg-[radial-gradient(circle_at_center,rgba(255,255,255,0.04)_0%,rgba(9,9,15,0.92)_65%)] p-4">
+          <div className="mb-4 flex flex-col items-center">
+            <div className="relative w-full max-w-[280px] overflow-hidden rounded-[32px] border border-white/10 bg-[radial-gradient(circle_at_center,rgba(255,255,255,0.04)_0%,rgba(9,9,15,0.92)_65%)] p-4">
               <div className="relative aspect-square rounded-[26px] border border-white/8 bg-[#101018]">
                 {scannerEnabled ? (
                   <QrScanner
@@ -551,10 +589,10 @@ export default function StaffCheckinClient() {
                     <div className="flex h-16 w-16 items-center justify-center rounded-[18px] border border-white/8 bg-white/[0.03]">
                       <QrCode className="h-8 w-8 text-white/25" />
                     </div>
-                    <div className="text-[13px] text-white/32">Huong camera vao ma QR</div>
+                    <div className="text-[13px] text-white/32">Hướng camera vào mã QR</div>
                     {selectedImageName ? (
                       <div className="max-w-[80%] truncate text-[11px] text-white/48">
-                        Anh vua chon: {selectedImageName}
+                        Ảnh vừa chọn: {selectedImageName}
                       </div>
                     ) : null}
                   </div>
@@ -585,7 +623,7 @@ export default function StaffCheckinClient() {
                   : "bg-[linear-gradient(135deg,#c41e7f,#e23ca2)] text-white hover:opacity-95",
               )}
             >
-              {busy ? "Dang xu ly..." : scannerEnabled ? "Dung quet QR" : "Bat dau quet QR"}
+              {busy ? "Đang xử lý..." : scannerEnabled ? "Dừng quét QR" : "Bắt đầu quét QR"}
             </Button>
 
             <button
@@ -595,12 +633,12 @@ export default function StaffCheckinClient() {
               className="mt-3 flex h-12 w-full items-center justify-center gap-2 rounded-[18px] border border-white/10 bg-white/[0.03] text-sm font-semibold text-white/75 transition hover:bg-white/[0.05] disabled:cursor-not-allowed disabled:opacity-60"
             >
               <Upload className="h-4 w-4" />
-              {imageScanning ? "Dang doc anh..." : "Chon anh tu may de quet"}
+              {imageScanning ? "Đang đọc ảnh..." : "Chọn ảnh từ máy để quét"}
             </button>
           </div>
         ) : (
           <div className="mb-4 rounded-[24px] border border-white/10 bg-white/[0.03] p-4">
-            <div className="mb-3 text-sm font-semibold text-white">Nhap ma ve khach hang</div>
+            <div className="mb-3 text-sm font-semibold text-white">Nhập mã vé ve khach hang</div>
             <Input
               value={manualCode}
               onChange={(event) => setManualCode(event.target.value.toUpperCase())}
@@ -614,7 +652,7 @@ export default function StaffCheckinClient() {
               className="h-14 rounded-[18px] border-white/10 bg-black/20 text-center text-lg font-semibold tracking-[0.18em] text-white placeholder:text-white/25"
             />
             <div className="mt-2 text-center text-xs text-white/40">
-              Ho tro nhap ma ve hoac payload QR neu can doi chieu.
+              Hỗ trợ nhập mã vé hoặc payload QR nếu cần đối chiếu.
             </div>
             <Button
               type="button"
@@ -624,7 +662,7 @@ export default function StaffCheckinClient() {
               }}
               className="mt-4 h-14 w-full rounded-[20px] bg-[linear-gradient(135deg,#c41e7f,#e23ca2)] text-[17px] font-bold text-white hover:opacity-95 disabled:bg-white/8 disabled:text-white/35"
             >
-              {busy ? "Dang xu ly..." : "Xac nhan check-in"}
+              {busy ? "Đang xử lý..." : "Xác nhận check-in"}
             </Button>
           </div>
         )}
@@ -658,10 +696,10 @@ export default function StaffCheckinClient() {
                 <div
                   className={cn(
                     "rounded-full border px-3 py-1 text-sm font-bold",
-                    tierTheme[result.guest.tier].badgeClass,
+                    tierTheme[result.guest.tier]?.badgeClass,
                   )}
                 >
-                  {tierTheme[result.guest.tier].label}
+                  {tierTheme[result.guest.tier]?.label}
                 </div>
               </div>
             ) : null}
@@ -670,8 +708,8 @@ export default function StaffCheckinClient() {
 
         <div className="rounded-[22px] border border-white/8 bg-white/[0.03]">
           <div className="flex items-center justify-between border-b border-white/8 px-5 py-4">
-            <div className="text-[15px] font-bold text-white">Lich su check-in</div>
-            <div className="text-sm text-white/45">{loadingSnapshot ? "Dang tai..." : `${history.length} luot`}</div>
+            <div className="text-[12px] font-bold text-white sm:text-[15px]">Lịch sử check-in</div>
+            <div className="text-sm text-white/45">{loadingSnapshot ? "Đang tải..." : `${history.length} luot`}</div>
           </div>
 
           <div className="px-4 py-4">
@@ -685,42 +723,54 @@ export default function StaffCheckinClient() {
                 {history.map((item) => (
                   <div
                     key={item.id}
-                    className="flex items-center gap-3 rounded-[18px] border border-white/8 bg-white/[0.03] px-4 py-4"
+                    className="flex items-start justify-between gap-3 rounded-[18px] border border-white/8 bg-white/[0.03] px-4 py-4"
                   >
-                    <div
-                      className={cn(
-                        "h-3 w-3 shrink-0 rounded-full",
-                        item.status === "repeat"
-                          ? "bg-amber-400"
-                          : item.status === "denied" || item.status === "error"
-                            ? "bg-rose-400"
-                            : "bg-emerald-400",
-                      )}
-                    />
-                    <div className="min-w-0 flex-1">
-                      <div className="truncate text-base font-bold text-white">{item.name}</div>
-                      <div className="mt-1 text-sm text-white/58">{item.zoneName || zone.name}</div>
+                    <div className="flex min-w-0 flex-1 items-start gap-3 pr-2">
+                      <div
+                        className={cn(
+                          "mt-1.5 h-3 w-3 shrink-0 rounded-full",
+                          item.status === "repeat"
+                            ? "bg-amber-400"
+                            : item.status === "denied" || item.status === "error"
+                              ? "bg-rose-400"
+                              : "bg-emerald-400",
+                        )}
+                      />
+                      <div className="min-w-0 flex-1">
+                        <div className="text-[15px] font-bold break-words text-white">{item.name}</div>
+                        <div className="mt-1.5 flex flex-wrap items-center gap-2">
+                          <div
+                            className={cn(
+                              "rounded-full border px-2 py-[1px] text-[11px] font-bold",
+                              tierTheme[item.tier]?.badgeClass,
+                            )}
+                          >
+                            {tierTheme[item.tier]?.label}
+                          </div>
+                          <div className="text-[13px] break-words text-white/58">{item.zoneName || zone.name}</div>
+                        </div>
+                      </div>
                     </div>
-                    <div
-                      className={cn("rounded-full border px-3 py-1 text-sm font-bold", tierTheme[item.tier].badgeClass)}
-                    >
-                      {tierTheme[item.tier].label}
+
+                    <div className="flex shrink-0 flex-col items-end gap-2">
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          try {
+                            await navigator.clipboard.writeText(item.code);
+                            toast.success("Đã copy mã vé");
+                          } catch {
+                            toast.error("Không thể copy mã vé");
+                          }
+                        }}
+                        className="rounded-lg border border-white/8 p-1.5 text-white/55 transition hover:bg-white/[0.05] hover:text-white"
+                      >
+                        <Copy className="h-3.5 w-3.5" />
+                      </button>
+                      <div className="mt-1 mr-1 text-[12px] font-medium text-white/50">
+                        {formatTimeLabel(item.time)}
+                      </div>
                     </div>
-                    <div className="shrink-0 text-sm text-white/48">{formatTimeLabel(item.time)}</div>
-                    <button
-                      type="button"
-                      onClick={async () => {
-                        try {
-                          await navigator.clipboard.writeText(item.code);
-                          toast.success("Da copy ma ve");
-                        } catch {
-                          toast.error("Khong the copy ma ve");
-                        }
-                      }}
-                      className="rounded-xl border border-white/8 p-2 text-white/55 transition hover:bg-white/[0.05] hover:text-white"
-                    >
-                      <Copy className="h-4 w-4" />
-                    </button>
                   </div>
                 ))}
               </div>

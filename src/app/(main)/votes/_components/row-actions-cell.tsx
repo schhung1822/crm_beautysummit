@@ -55,7 +55,9 @@ export function RowActionsCell({ row, onDeleteRow }: { row: Academy; onDeleteRow
         <DropdownMenuContent align="end" className="w-32">
           <TableCellViewer
             item={row}
-            triggerElement={<DropdownMenuItem onSelect={(event) => event.preventDefault()}>Xem chi tiết</DropdownMenuItem>}
+            triggerElement={
+              <DropdownMenuItem onSelect={(event) => event.preventDefault()}>Xem chi tiết</DropdownMenuItem>
+            }
           />
           <DropdownMenuSeparator />
           <DropdownMenuItem

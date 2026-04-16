@@ -1,4 +1,4 @@
-/* eslint-disable max-lines, complexity */
+/* eslint-disable max-lines, complexity, @typescript-eslint/no-unnecessary-condition, @next/next/no-img-element */
 "use client";
 
 import * as React from "react";
@@ -580,9 +580,9 @@ export function VoteOptionManager({ initialData }: VoteOptionManagerProps) {
         </div>
       ) : null}
 
-      <div className="overflow-hidden rounded-lg border">
-        <table className="w-full text-sm">
-          <thead className="bg-muted/40">
+      <div className="nice-scroll max-h-[520px] overflow-y-auto rounded-lg border">
+        <table className="relative w-full text-sm">
+          <thead className="bg-muted/40 sticky top-0 z-10 shadow-sm">
             <tr className="text-left">
               <th className="px-4 py-3 font-medium">Logo</th>
               <th className="px-4 py-3 font-medium">Thể loại</th>

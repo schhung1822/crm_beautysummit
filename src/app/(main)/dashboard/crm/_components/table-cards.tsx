@@ -1,7 +1,6 @@
 "use client";
 
 import { DataTable } from "@/components/data-table/data-table";
-import { DataTableViewOptions } from "@/components/data-table/data-table-view-options";
 import { Card, CardHeader, CardTitle, CardContent, CardAction } from "@/components/ui/card";
 import { useDataTableInstance } from "@/hooks/use-data-table-instance";
 
@@ -36,9 +35,7 @@ export function TableCards({ channels }: Props) {
       <CardHeader className="bg-muted/30 border-b">
         <CardTitle className="text-lg">Thống kê doanh thu theo hạng vé</CardTitle>
         <CardAction>
-          <div className="flex items-center gap-2">
-            <DataTableViewOptions table={table} />
-          </div>
+          <div className="flex items-center gap-2"></div>
         </CardAction>
       </CardHeader>
       <CardContent className="">
@@ -60,7 +57,7 @@ export function TableCards({ channels }: Props) {
             <div className="text-2xl font-bold tabular-nums">{formatVND(total.paydone_money_vat)}</div>
           </div>
         </div>
-        <div className="overflow-hidden rounded-lg ">
+        <div className="overflow-hidden rounded-lg">
           <DataTable table={table} columns={channelColumns} />
         </div>
       </CardContent>

@@ -17,11 +17,14 @@ interface DataTablePaginationProps<TData> {
 export function DataTablePagination<TData>({ table }: DataTablePaginationProps<TData>) {
   const { pageIndex, pageSize } = table.getState().pagination;
   const pageCount = table.getPageCount();
-  const [pageInput, setPageInput] = React.useState(String(pageCount > 0 ? pageIndex + 1 : 0));
+  const [pageInput, setPageInput] = React.useState(() => String(pageCount === 0 ? 0 : pageIndex + 1));
+  const [isFocused, setIsFocused] = React.useState(false);
 
   React.useEffect(() => {
-    setPageInput(String(pageCount > 0 ? pageIndex + 1 : 0));
-  }, [pageCount, pageIndex]);
+    if (!isFocused) {
+      setPageInput(String(pageCount === 0 ? 0 : pageIndex + 1));
+    }
+  }, [pageCount, pageIndex, isFocused]);
 
   const commitPageInput = React.useCallback(() => {
     if (pageCount === 0) {
@@ -30,14 +33,15 @@ export function DataTablePagination<TData>({ table }: DataTablePaginationProps<T
     }
 
     const parsed = Number(pageInput);
-    if (!Number.isFinite(parsed)) {
-      setPageInput(String(pageIndex + 1));
+    if (!Number.isFinite(parsed) || parsed < 1 || parsed > pageCount) {
+      const nextPageNumber = Math.min(Math.max(Math.trunc(parsed), 1), pageCount);
+      table.setPageIndex(Number.isFinite(parsed) ? nextPageNumber - 1 : pageIndex);
+      setPageInput(String(Number.isFinite(parsed) ? nextPageNumber : pageIndex + 1));
       return;
     }
 
-    const nextPageNumber = Math.min(Math.max(Math.trunc(parsed), 1), pageCount);
-    table.setPageIndex(nextPageNumber - 1);
-    setPageInput(String(nextPageNumber));
+    table.setPageIndex(parsed - 1);
+    setPageInput(String(parsed));
   }, [pageCount, pageIndex, pageInput, table]);
 
   return (
@@ -48,7 +52,7 @@ export function DataTablePagination<TData>({ table }: DataTablePaginationProps<T
       <div className="flex w-full items-center gap-8 lg:w-fit">
         <div className="hidden items-center gap-2 lg:flex">
           <Label htmlFor="rows-per-page" className="text-sm font-medium">
-            So hang moi trang
+            Số hàng mỗi trang
           </Label>
           <Select
             value={String(pageSize)}
@@ -76,10 +80,14 @@ export function DataTablePagination<TData>({ table }: DataTablePaginationProps<T
             inputMode="numeric"
             pattern="[0-9]*"
             className="h-8 w-16 text-center"
+            onFocus={() => setIsFocused(true)}
             onChange={(event) => {
               setPageInput(event.target.value.replace(/[^\d]/g, ""));
             }}
-            onBlur={commitPageInput}
+            onBlur={() => {
+              setIsFocused(false);
+              commitPageInput();
+            }}
             onKeyDown={(event) => {
               if (event.key === "Enter") {
                 event.preventDefault();

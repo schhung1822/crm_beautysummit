@@ -39,7 +39,7 @@ async function updateTicketTierRequest(form: TicketTierForm) {
   });
   const result = (await response.json().catch(() => ({}))) as { data?: TicketTierRecord; message?: string };
   if (!response.ok || !result.data) {
-    throw new Error(result.message ?? "Khong the luu hang ve");
+    throw new Error(result.message ?? "Khong the luu hạng vé");
   }
 
   return result.data;
@@ -89,9 +89,9 @@ export default function TicketTierManager({ initialData }: TicketTierManagerProp
       setData((prev) => prev.map((item) => (item.id === saved.id ? saved : item)));
       setOpen(false);
       resetEditor();
-      toast.success("Da cap nhat hang ve");
+      toast.success("Da cap nhat hạng vé");
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Khong the luu hang ve");
+      toast.error(error instanceof Error ? error.message : "Khong the luu hạng vé");
     } finally {
       setSaving(false);
     }
@@ -104,11 +104,11 @@ export default function TicketTierManager({ initialData }: TicketTierManagerProp
           <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
             <div className="max-w-2xl">
               <div className="text-muted-foreground text-[11px] font-semibold tracking-[0.2em] uppercase">
-                Quan ly hang ve
+                Quản lý hạng vé
               </div>
               <h2 className="mt-1 text-2xl font-semibold text-slate-950">Bang gia ve va lich khuyen mai</h2>
               <p className="mt-2 max-w-xl text-sm leading-6 text-slate-600">
-                Quan ly 3 hang ve co dinh GOLD, VIP, RUBY. Admin chi sua gia thuong, gia khuyen mai va khoang thoi gian
+                Quản lý 3 hạng vé co dinh GOLD, VIP, RUBY. Admin chi sua gia thuong, gia khuyen mai va khoang thoi gian
                 ap dung.
               </p>
             </div>
@@ -118,7 +118,7 @@ export default function TicketTierManager({ initialData }: TicketTierManagerProp
               <Input
                 value={search}
                 onChange={(event) => setSearch(event.target.value)}
-                placeholder="Tim theo ma hoac ten hang ve..."
+                placeholder="Tim theo ma hoac ten hạng vé..."
                 className="h-10 rounded-xl border-slate-200 bg-white pl-10 shadow-sm"
               />
             </div>
@@ -127,7 +127,7 @@ export default function TicketTierManager({ initialData }: TicketTierManagerProp
           <div className="mt-5 grid gap-3 md:grid-cols-3">
             <TicketTierSummaryCard
               icon={<Ticket className="size-4" />}
-              label="Tong hang ve"
+              label="Tong hạng vé"
               value={String(data.length)}
             />
             <TicketTierSummaryCard
@@ -145,7 +145,7 @@ export default function TicketTierManager({ initialData }: TicketTierManagerProp
 
         {filteredData.length === 0 ? (
           <div className="rounded-2xl border border-dashed border-slate-300 bg-white px-6 py-12 text-center text-sm text-slate-500">
-            Khong tim thay hang ve phu hop.
+            Khong tim thay hạng vé phu hop.
           </div>
         ) : (
           <div className="grid gap-4 xl:grid-cols-3">

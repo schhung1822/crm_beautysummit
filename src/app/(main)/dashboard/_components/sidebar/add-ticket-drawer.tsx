@@ -84,7 +84,7 @@ export function AddTicketDrawer() {
         const response = await fetch("/api/ticket-tiers");
         const result = (await response.json().catch(() => ({}))) as { data?: TicketTierOption[]; message?: string };
         if (!response.ok) {
-          throw new Error(result.message ?? "Khong the tai hang ve");
+          throw new Error(result.message ?? "Khong the tai hạng vé");
         }
 
         if (cancelled) {
@@ -105,7 +105,7 @@ export function AddTicketDrawer() {
         }
       } catch (error) {
         if (!cancelled) {
-          toast.error(error instanceof Error ? error.message : "Khong the tai hang ve");
+          toast.error(error instanceof Error ? error.message : "Khong the tai hạng vé");
         }
       }
     }
@@ -195,12 +195,12 @@ export function AddTicketDrawer() {
           }
         }
 
-        toast.success("Them ve thanh cong");
+        toast.success("Thêm vé thành công");
         setOpen(false);
         resetDrawer();
         router.refresh();
       } catch (error) {
-        toast.error(error instanceof Error ? error.message : "Co loi xay ra");
+        toast.error(error instanceof Error ? error.message : "Có lỗi xảy ra");
       } finally {
         setSubmitting(false);
       }
@@ -221,23 +221,23 @@ export function AddTicketDrawer() {
     >
       <DrawerTrigger asChild>
         <SidebarMenuButton
-          tooltip="Them ve"
+          tooltip="Thêm vé"
           className="bg-primary text-primary-foreground hover:bg-primary/90 hover:text-primary-foreground active:bg-primary/90 active:text-primary-foreground min-w-8 duration-200 ease-linear"
         >
           <PlusCircleIcon />
-          <span>Them ve</span>
+          <span>Thêm vé</span>
         </SidebarMenuButton>
       </DrawerTrigger>
 
       <DrawerContent className="h-screen sm:ml-auto sm:max-w-[420px]">
         <DrawerHeader className="bg-background/95 sticky top-0 z-10 border-b backdrop-blur">
-          <DrawerTitle>Them ve</DrawerTitle>
+          <DrawerTitle>Thêm vé</DrawerTitle>
         </DrawerHeader>
 
         <form onSubmit={handleSubmit} className="nice-scroll flex-1 overflow-y-auto px-4 pb-4">
           <div className="grid gap-4 py-1">
             <section className="bg-card/60 space-y-3 rounded-xl border p-3">
-              <h4 className="text-sm font-semibold">Thong tin khach hang</h4>
+              <h4 className="text-sm font-semibold">Thông tin khách hàng</h4>
 
               <div className="grid gap-2">
                 <Label htmlFor="name">Ho ten</Label>
@@ -267,14 +267,14 @@ export function AddTicketDrawer() {
             </section>
 
             <section className="bg-card/60 space-y-3 rounded-xl border p-3">
-              <h4 className="text-sm font-semibold">Thong tin ve</h4>
+              <h4 className="text-sm font-semibold">Thông tin vé</h4>
 
               <div className="grid grid-cols-2 gap-3">
                 <div className="grid gap-2">
-                  <Label htmlFor="class">Hang ve</Label>
+                  <Label htmlFor="class">Hạng vé</Label>
                   <Select value={form.class} onValueChange={handleTicketClassChange}>
                     <SelectTrigger id="class">
-                      <SelectValue placeholder="Chon hang ve" />
+                      <SelectValue placeholder="Chon hạng vé" />
                     </SelectTrigger>
                     <SelectContent>
                       {ticketTiers.length > 0 ? (
@@ -291,7 +291,7 @@ export function AddTicketDrawer() {
                 </div>
 
                 <div className="grid gap-2">
-                  <Label htmlFor="quantity">So luong ve</Label>
+                  <Label htmlFor="quantity">Số lượng vé</Label>
                   <Input
                     id="quantity"
                     inputMode="numeric"
@@ -302,10 +302,10 @@ export function AddTicketDrawer() {
               </div>
 
               <div className="grid gap-2">
-                <Label htmlFor="ticketType">Loai ve</Label>
+                <Label htmlFor="ticketType">Loại vé</Label>
                 <Select value={form.ticketType} onValueChange={handleTicketTypeChange}>
                   <SelectTrigger id="ticketType">
-                    <SelectValue placeholder="Chon loai ve" />
+                    <SelectValue placeholder="Chọn loại vé" />
                   </SelectTrigger>
                   <SelectContent>
                     {ticketTypeOptions.map((option) => (
@@ -319,7 +319,7 @@ export function AddTicketDrawer() {
 
               <div className="grid grid-cols-2 gap-3">
                 <div className="grid gap-2">
-                  <Label htmlFor="money">Gia tien</Label>
+                  <Label htmlFor="money">Giá tiền</Label>
                   <Input
                     id="money"
                     inputMode="numeric"
@@ -331,25 +331,25 @@ export function AddTicketDrawer() {
                 </div>
 
                 <div className="grid gap-2">
-                  <Label htmlFor="money_total">Thanh tien</Label>
+                  <Label htmlFor="money_total">Thành tiền</Label>
                   <Input id="money_total" value={totalAmountValue.toLocaleString("vi-VN")} readOnly />
                 </div>
               </div>
             </section>
 
             <section className="bg-card/60 space-y-3 rounded-xl border p-3">
-              <h4 className="text-sm font-semibold">Tuy chon</h4>
+              <h4 className="text-sm font-semibold">Tùy chọn</h4>
 
               <div className="flex items-center gap-2">
                 <Checkbox id="exportVatInvoice" checked={form.exportVatInvoice} onCheckedChange={handleInvoiceChange} />
-                <Label htmlFor="exportVatInvoice">Xuat hoa don PDF</Label>
+                <Label htmlFor="exportVatInvoice">Xuất hóa đơn PDF</Label>
               </div>
 
               <div className="grid gap-2">
-                <Label htmlFor="gender">Gioi tinh</Label>
+                <Label htmlFor="gender">Giới tính</Label>
                 <Select value={form.gender} onValueChange={handleGenderChange}>
                   <SelectTrigger id="gender">
-                    <SelectValue placeholder="Chon gioi tinh" />
+                    <SelectValue placeholder="Chọn giới tính" />
                   </SelectTrigger>
                   <SelectContent>
                     {genderOptions.map((option) => (
@@ -365,11 +365,11 @@ export function AddTicketDrawer() {
 
           <DrawerFooter className="bg-background/95 sticky bottom-0 z-10 mt-4 border-t px-0 pt-4 backdrop-blur">
             <Button type="submit" disabled={submitting}>
-              {submitting ? "Dang luu..." : "Luu ve"}
+              {submitting ? "Đang lưu..." : "Lưu vé"}
             </Button>
             <DrawerClose asChild>
               <Button variant="outline" type="button">
-                Dong
+                Đóng
               </Button>
             </DrawerClose>
           </DrawerFooter>

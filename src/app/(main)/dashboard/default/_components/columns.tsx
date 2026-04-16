@@ -49,7 +49,7 @@ export const dashboardColumns = (stats: Stats): ColumnDef<Channel>[] => [
             checked={selectionState.allSelected}
             indeterminate={selectionState.someSelected}
             onToggle={() => toggleFilteredRows(table, !selectionState.allSelected)}
-            ariaLabel="Chon tat ca"
+            ariaLabel="Chọn tất cả"
           />
         </div>
       );

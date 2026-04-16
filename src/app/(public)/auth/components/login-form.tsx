@@ -1,3 +1,4 @@
+/* eslint-disable complexity, @typescript-eslint/prefer-nullish-coalescing */
 "use client";
 
 import { useState } from "react";
@@ -61,11 +62,20 @@ export function LoginForm() {
         // Refresh user data in AuthProvider
         await refreshUser();
 
+        let targetDashboard = "/dashboard/default";
+        if (result.user?.role === "staff") {
+          targetDashboard = "/staff-checkin";
+        }
+
         const redirectParam = searchParams.get("redirect");
+        // If user is staff, always force them to staff-checkin to prevent admin dashboard leaks
+        // Otherwise use redirect param if available
         const redirectTo =
-          redirectParam && redirectParam.startsWith("/") && !redirectParam.startsWith("//")
-            ? redirectParam
-            : "/dashboard/default";
+          result.user?.role === "staff"
+            ? targetDashboard
+            : redirectParam && redirectParam.startsWith("/") && !redirectParam.startsWith("//")
+              ? redirectParam
+              : targetDashboard;
 
         router.push(redirectTo);
         router.refresh();

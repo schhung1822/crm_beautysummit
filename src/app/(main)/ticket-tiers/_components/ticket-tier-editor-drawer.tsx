@@ -104,7 +104,7 @@ export function TicketTierEditorDrawer({
       <DrawerContent className="h-screen sm:ml-auto sm:h-screen sm:max-w-[460px]">
         <DrawerHeader className="border-b border-slate-200 bg-gradient-to-br from-white via-slate-50 to-sky-50/50">
           <div className="text-muted-foreground text-[11px] font-semibold tracking-[0.18em] uppercase">
-            Cap nhat hang ve
+            Cap nhat hạng vé
           </div>
           <DrawerTitle className="mt-1 text-2xl">{selectedTier?.code ?? form.code}</DrawerTitle>
           <DrawerDescription>{selectedTier?.name ?? form.name}</DrawerDescription>
@@ -114,7 +114,7 @@ export function TicketTierEditorDrawer({
           <div className="grid gap-4">
             <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
               <div className="grid gap-4">
-                <TicketTierReadonlyField id="ticket-code" label="Ma hang ve" value={form.code} />
+                <TicketTierReadonlyField id="ticket-code" label="Ma hạng vé" value={form.code} />
                 <TicketTierReadonlyField id="ticket-name" label="Ten hien thi" value={form.name} />
 
                 <div className="grid gap-4 md:grid-cols-2">

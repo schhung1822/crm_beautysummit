@@ -65,7 +65,7 @@ export function LayoutControls(props: LayoutControlsProps) {
           </div>
           <div className="space-y-3">
             <div className="space-y-1">
-              <Label className="text-xs font-medium !text-dark dark:!text-white">Cài đặt màu</Label>
+              <Label className="!text-dark text-xs font-medium dark:!text-white">Cài đặt màu</Label>
               <Select value={themePreset} onValueChange={(value) => handleValueChange("theme_preset", value)}>
                 <SelectTrigger size="sm" className="w-full text-xs">
                   <SelectValue placeholder="Preset" />
@@ -87,7 +87,7 @@ export function LayoutControls(props: LayoutControlsProps) {
             </div>
 
             <div className="space-y-1">
-              <Label className="text-xs font-medium !text-dark dark:!text-white">Chế độ</Label>
+              <Label className="!text-dark text-xs font-medium dark:!text-white">Chế độ</Label>
               <ToggleGroup
                 className="w-full **:data-[slot=toggle-group-item]:flex-1 **:data-[slot=toggle-group-item]:text-xs"
                 size="sm"
@@ -106,7 +106,7 @@ export function LayoutControls(props: LayoutControlsProps) {
             </div>
 
             <div className="space-y-1">
-              <Label className="text-xs font-medium !text-dark dark:!text-white">Biến thể Sidebar</Label>
+              <Label className="!text-dark text-xs font-medium dark:!text-white">Biến thể Sidebar</Label>
               <ToggleGroup
                 className="w-full **:data-[slot=toggle-group-item]:flex-1 **:data-[slot=toggle-group-item]:text-xs"
                 size="sm"
@@ -128,7 +128,7 @@ export function LayoutControls(props: LayoutControlsProps) {
             </div>
 
             <div className="space-y-1">
-              <Label className="text-xs font-medium !text-dark dark:!text-white">Kiểu Navbar</Label>
+              <Label className="!text-dark text-xs font-medium dark:!text-white">Kiểu Navbar</Label>
               <ToggleGroup
                 className="w-full **:data-[slot=toggle-group-item]:flex-1 **:data-[slot=toggle-group-item]:text-xs"
                 size="sm"
@@ -147,7 +147,7 @@ export function LayoutControls(props: LayoutControlsProps) {
             </div>
 
             <div className="space-y-1">
-              <Label className="text-xs font-medium !text-dark dark:!text-white">Thu gọn Sidebar</Label>
+              <Label className="!text-dark text-xs font-medium dark:!text-white">Thu gọn Sidebar</Label>
               <ToggleGroup
                 className="w-full **:data-[slot=toggle-group-item]:flex-1 **:data-[slot=toggle-group-item]:text-xs"
                 size="sm"
@@ -166,7 +166,7 @@ export function LayoutControls(props: LayoutControlsProps) {
             </div>
 
             <div className="space-y-1">
-              <Label className="text-xs font-medium !text-dark dark:!text-white">Bố cục nội dung</Label>
+              <Label className="!text-dark text-xs font-medium dark:!text-white">Bố cục nội dung</Label>
               <ToggleGroup
                 className="w-full **:data-[slot=toggle-group-item]:flex-1 **:data-[slot=toggle-group-item]:text-xs"
                 size="sm"

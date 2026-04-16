@@ -67,15 +67,15 @@ export function OrderQuickEditSection({
   careerQuickOptions: string[];
 }) {
   return (
-    <OrderDrawerBlock title="Chinh sua nhanh">
+    <OrderDrawerBlock title="Chỉnh sửa nhanh">
       <div className="grid gap-3">
         <div className="grid gap-1.5">
-          <Label>Ho ten</Label>
+          <Label>Họ tên</Label>
           <Input value={form.name} onChange={(event) => setForm((prev) => ({ ...prev, name: event.target.value }))} />
         </div>
 
         <div className="grid gap-1.5">
-          <Label>So dien thoai</Label>
+          <Label>Số điện thoại</Label>
           <Input value={form.phone} onChange={(event) => setForm((prev) => ({ ...prev, phone: event.target.value }))} />
         </div>
 
@@ -90,26 +90,26 @@ export function OrderQuickEditSection({
 
         <div className="grid grid-cols-2 gap-3">
           <div className="grid gap-1.5">
-            <Label>Gioi tinh</Label>
+            <Label>Giới tính</Label>
             <Select
               value={form.gender || ""}
               onValueChange={(value) => setForm((prev) => ({ ...prev, gender: value }))}
             >
               <SelectTrigger>
-                <SelectValue placeholder="Chon" />
+                <SelectValue placeholder="Chọn" />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="m">Nam</SelectItem>
-                <SelectItem value="f">Nu</SelectItem>
+                <SelectItem value="f">Nữ</SelectItem>
               </SelectContent>
             </Select>
           </div>
 
           <div className="grid gap-1.5">
-            <Label>Hang ve</Label>
+            <Label>Hạng vé</Label>
             <Select value={form.class || ""} onValueChange={(value) => setForm((prev) => ({ ...prev, class: value }))}>
               <SelectTrigger>
-                <SelectValue placeholder="Chon" />
+                <SelectValue placeholder="Chọn" />
               </SelectTrigger>
               <SelectContent>
                 {ticketClassOptions.map((option) => (
@@ -124,25 +124,33 @@ export function OrderQuickEditSection({
 
         <div className="grid grid-cols-2 gap-3">
           <div className="grid gap-1.5">
-            <Label>Tien</Label>
+            <Label>Tiền</Label>
             <Input
-              type="number"
-              value={Number.isFinite(Number(form.money)) ? Number(form.money) : 0}
-              onChange={(event) => setForm((prev) => ({ ...prev, money: Number(event.target.value) || 0 }))}
+              type="text"
+              inputMode="numeric"
+              value={Number.isFinite(Number(form.money)) ? Number(form.money).toLocaleString("vi-VN") : "0"}
+              onChange={(event) => {
+                const numericValue = event.target.value.replace(/\D/g, "");
+                setForm((prev) => ({ ...prev, money: Number(numericValue) || 0 }));
+              }}
             />
           </div>
           <div className="grid gap-1.5">
-            <Label>Thanh tien</Label>
+            <Label>Thành tiền</Label>
             <Input
-              type="number"
-              value={Number.isFinite(Number(form.money_VAT)) ? Number(form.money_VAT) : 0}
-              onChange={(event) => setForm((prev) => ({ ...prev, money_VAT: Number(event.target.value) || 0 }))}
+              type="text"
+              inputMode="numeric"
+              value={Number.isFinite(Number(form.money_VAT)) ? Number(form.money_VAT).toLocaleString("vi-VN") : "0"}
+              onChange={(event) => {
+                const numericValue = event.target.value.replace(/\D/g, "");
+                setForm((prev) => ({ ...prev, money_VAT: Number(numericValue) || 0 }));
+              }}
             />
           </div>
         </div>
 
         <div className="grid gap-1.5">
-          <Label>Nghe nghiep</Label>
+          <Label>Nghề nghiệp</Label>
           <Input
             list="career-quick-options"
             value={form.career}
@@ -157,13 +165,13 @@ export function OrderQuickEditSection({
 
         <div className="grid grid-cols-2 gap-3">
           <div className="grid gap-1.5">
-            <Label>Trang thai</Label>
+            <Label>Trạng thái</Label>
             <Select
               value={form.status || "new"}
               onValueChange={(value) => setForm((prev) => ({ ...prev, status: value }))}
             >
               <SelectTrigger>
-                <SelectValue placeholder="Chon" />
+                <SelectValue placeholder="Chọn" />
               </SelectTrigger>
               <SelectContent>
                 {paymentStatusOptions.map((option) => (
@@ -190,11 +198,11 @@ export function OrderQuickEditSection({
               }
             >
               <SelectTrigger>
-                <SelectValue placeholder="Chon" />
+                <SelectValue placeholder="Chọn" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="0">Chua check-in</SelectItem>
-                <SelectItem value="1">Da check-in</SelectItem>
+                <SelectItem value="1">Đã check-in</SelectItem>
+                <SelectItem value="0">Chưa check-in</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -214,9 +222,9 @@ export function OrderCustomerInfoSection({
   email?: string | null;
 }) {
   return (
-    <OrderDrawerBlock title="Khach hang">
-      <OrderDrawerRow icon={<User2 className="h-4 w-4" />} label="Ho ten" value={name} />
-      <OrderDrawerRow icon={<Phone className="h-4 w-4" />} label="So dien thoai" value={phone ?? "—"} />
+    <OrderDrawerBlock title="Khách hàng">
+      <OrderDrawerRow icon={<User2 className="h-4 w-4" />} label="Họ tên" value={name} />
+      <OrderDrawerRow icon={<Phone className="h-4 w-4" />} label="Số điện thoại" value={phone ?? "—"} />
       <OrderDrawerRow icon={<Mail className="h-4 w-4" />} label="Email" value={email ?? "—"} />
     </OrderDrawerBlock>
   );
@@ -232,12 +240,12 @@ export function OrderExtraInfoSection({
   isCheckin?: string | number | null;
 }) {
   return (
-    <OrderDrawerBlock title="Thong tin them">
-      <OrderDrawerRow icon={<Briefcase className="h-4 w-4" />} label="Nghe nghiep" value={career ?? "—"} />
-      <OrderDrawerRow icon={<Calendar className="h-4 w-4" />} label="Trang thai thanh toan" value={status ?? "—"} />
+    <OrderDrawerBlock title="Thông tin thêm">
+      <OrderDrawerRow icon={<Briefcase className="h-4 w-4" />} label="Ngành nghề" value={career ?? "—"} />
+      <OrderDrawerRow icon={<Calendar className="h-4 w-4" />} label="Trạng thái thanh toán" value={status ?? "—"} />
       <OrderDrawerRow
         icon={<Calendar className="h-4 w-4" />}
-        label="Trang thai check-in"
+        label="Trạng thái check-in"
         value={ticketOrders.buildCheckinStatusLabel(isCheckin)}
       />
     </OrderDrawerBlock>

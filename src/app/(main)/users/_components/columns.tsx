@@ -11,7 +11,7 @@ function getRoleBadgeClass(role: string) {
   const normalized = role.trim().toLowerCase();
 
   if (normalized === "admin") return "border-rose-200 bg-rose-50 text-rose-700";
-  if (normalized === "receptionist") return "border-sky-200 bg-sky-50 text-sky-700";
+  if (normalized === "staff") return "border-sky-200 bg-sky-50 text-sky-700";
   return "border-slate-200 bg-slate-50 text-slate-700";
 }
 

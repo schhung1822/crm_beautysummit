@@ -6,7 +6,6 @@ import { Search } from "lucide-react";
 import { toast } from "sonner";
 
 import { DataTable as DataTableBase } from "@/components/data-table/data-table";
-import { DataTableViewOptions } from "@/components/data-table/data-table-view-options";
 import { toggleFilteredRows, withSelectionColumn } from "@/components/data-table/selection-toggle";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -37,7 +36,7 @@ export function DataTable({ data: initialData }: { data: AccountUser[] }) {
 
   const handleRowUpdated = React.useCallback((updated: AccountUser) => {
     setData((prev) => prev.map((item) => (item.id === updated.id ? updated : item)));
-    toast.success("Da cap nhat tai khoan");
+    toast.success("Đã cập nhật tài khoản");
   }, []);
 
   const handleDeleteRow = React.useCallback(async (row: AccountUser) => {
@@ -49,11 +48,11 @@ export function DataTable({ data: initialData }: { data: AccountUser[] }) {
 
     const result = (await response.json().catch(() => ({}))) as { message?: string };
     if (!response.ok) {
-      throw new Error(result.message ?? "Khong the xoa tai khoan");
+      throw new Error(result.message ?? "Không thể xóa tài khoản");
     }
 
     setData((prev) => prev.filter((item) => item.id !== row.id));
-    toast.success("Da xoa tai khoan");
+    toast.success("Đã xóa tài khoản");
   }, []);
 
   const columns = React.useMemo(
@@ -70,11 +69,11 @@ export function DataTable({ data: initialData }: { data: AccountUser[] }) {
 
   const handleDeleteSelected = React.useCallback(async () => {
     if (!selectedItems.length) {
-      toast.warning("Vui long chon tai khoan can xoa");
+      toast.warning("Vui lòng chọn tài khoản cần xóa");
       return;
     }
 
-    if (!window.confirm(`Xoa ${selectedItems.length} tai khoan da chon?`)) {
+    if (!window.confirm(`Xóa ${selectedItems.length} tài khoản đã chọn?`)) {
       return;
     }
 
@@ -88,15 +87,15 @@ export function DataTable({ data: initialData }: { data: AccountUser[] }) {
 
       const result = (await response.json().catch(() => ({}))) as { message?: string };
       if (!response.ok) {
-        throw new Error(result.message ?? "Khong the xoa tai khoan");
+        throw new Error(result.message ?? "Không thể xóa tài khoản");
       }
 
       const deletedIds = new Set(selectedItems.map((item) => item.id));
       setData((prev) => prev.filter((item) => !deletedIds.has(item.id)));
       table.resetRowSelection();
-      toast.success(`Da xoa ${selectedItems.length} tai khoan`);
+      toast.success(`Đã xóa ${selectedItems.length} tài khoản`);
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Khong the xoa tai khoan");
+      toast.error(error instanceof Error ? error.message : "Không thể xóa tài khoản");
     } finally {
       setIsDeleting(false);
     }
@@ -108,7 +107,9 @@ export function DataTable({ data: initialData }: { data: AccountUser[] }) {
         <div className="relative max-w-sm flex-1">
           <Search className="text-muted-foreground absolute top-1/2 left-3 size-4 -translate-y-1/2" />
           <Input
-            placeholder="Tim theo ten, username, email, SDT, vai tro..."
+            autoComplete="off"
+            name="user-search"
+            placeholder="Tìm theo tên, username, email, SDT, vai trò..."
             className="pl-10"
             value={searchTerm}
             onChange={(event) => setSearchTerm(event.target.value)}
@@ -116,17 +117,16 @@ export function DataTable({ data: initialData }: { data: AccountUser[] }) {
         </div>
         <div className="flex items-center gap-2">
           <Button size="sm" variant="outline" onClick={() => toggleFilteredRows(table, true)}>
-            Chon tat ca
+            Chọn tất cả
           </Button>
           <Button size="sm" variant="outline" onClick={() => toggleFilteredRows(table, false)}>
-            Bo chon tat ca
+            Bỏ chọn tất cả
           </Button>
           {selectedItems.length > 0 ? (
             <Button size="sm" variant="destructive" onClick={handleDeleteSelected} disabled={isDeleting}>
-              {isDeleting ? "Dang xoa..." : `Xoa (${selectedItems.length})`}
+              {isDeleting ? "Đang xóa..." : `Xóa (${selectedItems.length})`}
             </Button>
           ) : null}
-          <DataTableViewOptions table={table} />
         </div>
       </div>
 

@@ -43,14 +43,16 @@ function Block({ title, children }: { title: string; children: React.ReactNode }
 }
 
 function formatGender(value?: string | null) {
-  const v = String(value ?? "").trim().toLowerCase();
+  const v = String(value ?? "")
+    .trim()
+    .toLowerCase();
   if (v === "f" || v === "female" || v === "nữ" || v === "nu") return "Nữ";
   if (v === "m" || v === "male" || v === "nam") return "Nam";
   return value ?? "";
 }
 
 /* ---------- Component ---------- */
-// eslint-disable-next-line complexity
+
 export function TableCellViewer({
   item,
   triggerElement,

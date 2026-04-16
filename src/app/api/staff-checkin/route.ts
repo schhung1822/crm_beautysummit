@@ -51,7 +51,8 @@ type HistoryRow = RowDataPacket & {
 
 type StatsRow = RowDataPacket & {
   ticketClass: string | null;
-  total: number | string | null;
+  checkedInCount: number | string | null;
+  totalCount: number | string | null;
 };
 
 type StaffCheckinGuest = {
@@ -113,7 +114,7 @@ async function ensureStaffAccess(): Promise<{ user?: JWTPayload; response?: Next
     return { response: json({ message: "Chua dang nhap" }, { status: 401 }) };
   }
 
-  if (!["admin", "receptionist"].includes(currentUser.role)) {
+  if (!["admin", "staff"].includes(currentUser.role)) {
     return { response: json({ message: "Ban khong co quyen su dung staff check-in" }, { status: 403 }) };
   }
 
@@ -214,39 +215,43 @@ async function loadSnapshot() {
     `
     SELECT
       COALESCE(class, '') AS ticketClass,
-      COUNT(*) AS total
+      SUM(CASE WHEN COALESCE(is_checkin, 0) = 1 AND checkin_time >= ? AND checkin_time < ? THEN 1 ELSE 0 END) AS checkedInCount,
+      COUNT(*) AS totalCount
     FROM orders
-    WHERE COALESCE(is_checkin, 0) = 1
-      AND checkin_time >= ?
-      AND checkin_time < ?
     GROUP BY COALESCE(class, '')
     `,
     [startOfToday, startOfTomorrow],
   );
 
   const stats = {
-    total: 0,
-    standard: 0,
-    premium: 0,
-    vip: 0,
+    total: { current: 0, max: 0 },
+    gold: { current: 0, max: 0 },
+    ruby: { current: 0, max: 0 },
+    vip: { current: 0, max: 0 },
   };
 
   for (const row of statsRows) {
-    const total = Number(row.total ?? 0);
+    const checked = Number(row.checkedInCount ?? 0);
+    const max = Number(row.totalCount ?? 0);
     const tier = normalizeStaffTicketTier(row.ticketClass);
-    stats.total += total;
+
+    stats.total.current += checked;
+    stats.total.max += max;
 
     if (tier === "VIP") {
-      stats.vip += total;
+      stats.vip.current += checked;
+      stats.vip.max += max;
       continue;
     }
 
-    if (tier === "PREMIUM") {
-      stats.premium += total;
+    if (tier === "RUBY") {
+      stats.ruby.current += checked;
+      stats.ruby.max += max;
       continue;
     }
 
-    stats.standard += total;
+    stats.gold.current += checked;
+    stats.gold.max += max;
   }
 
   const history = historyRows.map((row) => {
@@ -332,7 +337,7 @@ export async function POST(request: NextRequest) {
         {
           data: {
             status: "repeat",
-            message: "Khach da check-in truoc do",
+            message: "Khách da check-in truoc do",
             guest,
             ...snapshot,
           },

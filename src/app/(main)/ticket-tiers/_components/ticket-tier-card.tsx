@@ -15,7 +15,7 @@ export function TicketTierCard({ item, onEdit }: { item: TicketTierRecord; onEdi
         <div>
           <div className="text-muted-foreground flex items-center gap-2 text-[11px] font-semibold tracking-[0.2em] uppercase">
             <Ticket className="size-4" />
-            Hang ve
+            Hạng vé
           </div>
           <div className="mt-2 text-2xl font-semibold text-slate-950">{item.code}</div>
           <div className="mt-1 text-sm text-slate-500">{item.name}</div>
@@ -61,7 +61,7 @@ export function TicketTierCard({ item, onEdit }: { item: TicketTierRecord; onEdi
       <div className="mt-5">
         <Button className="w-full rounded-xl" variant="outline" onClick={() => onEdit(item)}>
           <Pencil className="mr-2 size-4" />
-          Cap nhat hang ve
+          Cap nhat hạng vé
         </Button>
       </div>
     </div>

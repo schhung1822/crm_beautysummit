@@ -1,5 +1,4 @@
-/* eslint-disable max-lines */
-"use client";
+﻿"use client";
 
 import * as React from "react";
 
@@ -144,7 +143,6 @@ export function DataTable<TData, TValue>({
   onReorder,
 }: DataTableProps<TData, TValue>) {
   const { pageIndex, pageSize } = table.getState().pagination;
-  const [pageInput, setPageInput] = React.useState("1");
 
   const pageRows = table.getRowModel().rows;
   const pageCount = table.getPageCount();
@@ -157,17 +155,17 @@ export function DataTable<TData, TValue>({
 
   const selectedCount = table.getFilteredSelectedRowModel().rows.length;
   const totalFiltered = table.getFilteredRowModel().rows.length;
-  const canPrev = safePageIndex > 0;
-  const canNext = pageCount > 0 && safePageIndex < pageCount - 1;
+  const canPrev = table.getCanPreviousPage();
+  const canNext = table.getCanNextPage();
+
+  const [pageInput, setPageInput] = React.useState(() => String(pageCount === 0 ? 0 : pageIndex + 1));
+  const [isFocused, setIsFocused] = React.useState(false);
 
   React.useEffect(() => {
-    if (pageCount === 0) {
-      setPageInput("0");
-      return;
+    if (!isFocused) {
+      setPageInput(String(pageCount === 0 ? 0 : pageIndex + 1));
     }
-
-    setPageInput(String(safePageIndex + 1));
-  }, [pageCount, safePageIndex]);
+  }, [pageCount, pageIndex, isFocused]);
 
   const commitPageInput = React.useCallback(() => {
     if (pageCount === 0) {
@@ -176,15 +174,16 @@ export function DataTable<TData, TValue>({
     }
 
     const parsed = Number(pageInput);
-    if (!Number.isFinite(parsed)) {
-      setPageInput(String(safePageIndex + 1));
+    if (!Number.isFinite(parsed) || parsed < 1 || parsed > pageCount) {
+      const nextPageNumber = Math.min(Math.max(Math.trunc(parsed), 1), pageCount);
+      table.setPageIndex(Number.isFinite(parsed) ? nextPageNumber - 1 : pageIndex);
+      setPageInput(String(Number.isFinite(parsed) ? nextPageNumber : pageIndex + 1));
       return;
     }
 
-    const nextPageNumber = Math.min(Math.max(Math.trunc(parsed), 1), pageCount);
-    table.setPageIndex(nextPageNumber - 1);
-    setPageInput(String(nextPageNumber));
-  }, [pageCount, pageInput, safePageIndex, table]);
+    table.setPageIndex(parsed - 1);
+    setPageInput(String(parsed));
+  }, [pageCount, pageInput, pageIndex, table]);
 
   function handleDragEnd(event: DragEndEvent) {
     const { active, over } = event;
@@ -282,7 +281,7 @@ export function DataTable<TData, TValue>({
         <div className="flex w-full items-center gap-8 lg:w-fit">
           <div className="hidden items-center gap-2 lg:flex">
             <Label htmlFor="rows-per-page" className="text-sm font-medium">
-              So hang moi trang
+              Số hàng mỗi trang
             </Label>
             <Select
               value={String(pageSize)}
@@ -311,10 +310,14 @@ export function DataTable<TData, TValue>({
               inputMode="numeric"
               pattern="[0-9]*"
               className="h-8 w-16 text-center"
+              onFocus={() => setIsFocused(true)}
               onChange={(event) => {
                 setPageInput(event.target.value.replace(/[^\d]/g, ""));
               }}
-              onBlur={commitPageInput}
+              onBlur={() => {
+                setIsFocused(false);
+                commitPageInput();
+              }}
               onKeyDown={(event) => {
                 if (event.key === "Enter") {
                   event.preventDefault();
@@ -379,3 +382,4 @@ export function DataTable<TData, TValue>({
     </div>
   );
 }
+

@@ -1,4 +1,4 @@
-/* eslint-disable max-lines, complexity */
+/* eslint-disable max-lines, complexity, @typescript-eslint/no-unnecessary-condition, @next/next/no-img-element */
 "use client";
 
 import * as React from "react";
@@ -259,6 +259,7 @@ export default function VoucherManager({ initialData }: VoucherManagerProps) {
   const [pageSize, setPageSize] = React.useState<number>(10);
   const [pageIndex, setPageIndex] = React.useState(0);
   const [pageInput, setPageInput] = React.useState("1");
+  const [isPageFocused, setIsPageFocused] = React.useState(false);
   const [dialogOpen, setDialogOpen] = React.useState(false);
   const [form, setForm] = React.useState<VoucherFormState>(DEFAULT_FORM);
   const [isSaving, setIsSaving] = React.useState(false);
@@ -317,8 +318,10 @@ export default function VoucherManager({ initialData }: VoucherManagerProps) {
   }, [pageCount, pageIndex]);
 
   React.useEffect(() => {
-    setPageInput(filteredData.length === 0 ? "0" : String(safePageIndex + 1));
-  }, [filteredData.length, safePageIndex]);
+    if (!isPageFocused) {
+      setPageInput(filteredData.length === 0 ? "0" : String(safePageIndex + 1));
+    }
+  }, [filteredData.length, safePageIndex, isPageFocused]);
 
   const commitPageInput = React.useCallback(() => {
     if (filteredData.length === 0) {
@@ -327,14 +330,15 @@ export default function VoucherManager({ initialData }: VoucherManagerProps) {
     }
 
     const parsed = Number(pageInput);
-    if (!Number.isFinite(parsed)) {
-      setPageInput(String(safePageIndex + 1));
+    if (!Number.isFinite(parsed) || parsed < 1 || parsed > pageCount) {
+      const nextPageNumber = Math.min(Math.max(Math.trunc(parsed), 1), pageCount);
+      setPageIndex(Number.isFinite(parsed) ? nextPageNumber - 1 : safePageIndex);
+      setPageInput(String(Number.isFinite(parsed) ? nextPageNumber : safePageIndex + 1));
       return;
     }
 
-    const nextPageNumber = Math.min(Math.max(Math.trunc(parsed), 1), pageCount);
-    setPageIndex(nextPageNumber - 1);
-    setPageInput(String(nextPageNumber));
+    setPageIndex(parsed - 1);
+    setPageInput(String(parsed));
   }, [filteredData.length, pageCount, pageInput, safePageIndex]);
 
   const loadCatalogOptions = React.useCallback(async () => {
@@ -720,7 +724,11 @@ export default function VoucherManager({ initialData }: VoucherManagerProps) {
                 const nextValue = event.target.value.replace(/[^\d]/g, "");
                 setPageInput(nextValue);
               }}
-              onBlur={commitPageInput}
+              onFocus={() => setIsPageFocused(true)}
+              onBlur={() => {
+                setIsPageFocused(false);
+                commitPageInput();
+              }}
               onKeyDown={(event) => {
                 if (event.key === "Enter") {
                   event.preventDefault();

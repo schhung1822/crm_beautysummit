@@ -8,7 +8,6 @@ import { Search } from "lucide-react";
 import { toast } from "sonner";
 
 import { DataTable as DataTableNew } from "@/components/data-table/data-table";
-import { DataTableViewOptions } from "@/components/data-table/data-table-view-options";
 import { toggleFilteredRows } from "@/components/data-table/selection-toggle";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -112,17 +111,16 @@ export function DataTable({ data: initialData = [], stats }: { data?: Channel[];
         </div>
         <div className="flex items-center gap-2">
           <Button size="sm" variant="outline" onClick={() => toggleFilteredRows(table, true)}>
-            Chon tat ca
+            Chọn tất cả
           </Button>
           <Button size="sm" variant="outline" onClick={() => toggleFilteredRows(table, false)}>
-            Bo chon tat ca
+            Bỏ chọn tất cả
           </Button>
           {selectedItems.length > 0 ? (
             <Button size="sm" variant="destructive" onClick={handleDeleteSelected} disabled={isDeleting}>
               {isDeleting ? "Dang xoa..." : `Xoa (${selectedItems.length})`}
             </Button>
           ) : null}
-          <DataTableViewOptions table={table} />
         </div>
       </div>
       <div className="nice-scroll overflow-hidden rounded-lg">

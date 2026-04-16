@@ -191,7 +191,7 @@ export async function listVoteCategories(): Promise<VoteCategoryRecord[]> {
   const grouped = new Map<string, VoteOptionRecord[]>();
 
   options.forEach((option) => {
-    const key = option.category || "Khac";
+    const key = option.category || "Khác";
     const current = grouped.get(key) ?? [];
     current.push(option);
     grouped.set(key, current);
@@ -223,7 +223,7 @@ export async function listVoteCategories(): Promise<VoteCategoryRecord[]> {
     return {
       id: buildCategoryId(title) || `category-${index + 1}`,
       title,
-      desc: `Binh chon san pham trong the loai ${title}.`,
+      desc: `Bình chọn san pham trong the loai ${title}.`,
       color: CATEGORY_COLORS[index % CATEGORY_COLORS.length],
       totalVotes,
       brands: rankedBrands,

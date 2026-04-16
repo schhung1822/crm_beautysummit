@@ -64,7 +64,7 @@ export function TableCellViewer({ item, onRowUpdated, triggerElement }: ViewerPr
 
   const ticketClassOptions = ["GOLD", "RUBY", "VIP"];
   const paymentStatusOptions = ["new", "paydone", "present", "cancelled"];
-  const careerQuickOptions = ["Khac", "Chu spa/ TMV/ Phong kham", "Bac si", "Duoc si", "Ky thuat vien", "Sale"];
+  const careerQuickOptions = ["Khác", "Chu spa/ TMV/ Phong kham", "Bac si", "Duoc si", "Ky thuat vien", "Sale"];
 
   React.useEffect(() => {
     setForm(item);
@@ -149,8 +149,8 @@ export function TableCellViewer({ item, onRowUpdated, triggerElement }: ViewerPr
           <div className="min-w-0">
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0">
-                <DrawerTitle className="truncate" title={`Ma don: ${displayedItem.ordercode}`}>
-                  Ma don: {displayedItem.ordercode}
+                <DrawerTitle className="truncate" title={`Mã đơn: ${displayedItem.ordercode}`}>
+                  Mã đơn: {displayedItem.ordercode}
                 </DrawerTitle>
                 <DrawerDescription className="truncate" title={displayedItem.class || undefined}>
                   {displayedItem.class ? <>• {displayedItem.class}</> : null}
@@ -208,21 +208,21 @@ export function TableCellViewer({ item, onRowUpdated, triggerElement }: ViewerPr
                 }}
                 disabled={isSaving}
               >
-                Huy
+                Hủy
               </Button>
               <Button className="w-full rounded-xl" onClick={() => void handleSave()} disabled={isSaving}>
-                {isSaving ? "Dang luu..." : "Luu"}
+                {isSaving ? "Đang lưu..." : "Lưu"}
               </Button>
             </div>
           ) : (
             <Button variant="default" className="w-full rounded-xl" onClick={() => setIsEditing(true)}>
-              Sua ban ghi
+              Sửa bản ghi
             </Button>
           )}
 
           <DrawerClose asChild>
             <Button variant="outline" className="w-full rounded-xl">
-              Dong
+              Đóng
             </Button>
           </DrawerClose>
         </DrawerFooter>

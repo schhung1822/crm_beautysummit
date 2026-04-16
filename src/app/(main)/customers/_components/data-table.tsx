@@ -6,7 +6,6 @@ import { Download, Search } from "lucide-react";
 import { toast } from "sonner";
 
 import { DataTable as DataTableNew } from "@/components/data-table/data-table";
-import { DataTableViewOptions } from "@/components/data-table/data-table-view-options";
 import { toggleFilteredRows, withSelectionColumn } from "@/components/data-table/selection-toggle";
 import { Button } from "@/components/ui/button";
 import { ExportDialog, type DateRange, type ExportFormat } from "@/components/ui/export-dialog";
@@ -174,7 +173,7 @@ export function DataTable({ data: initialData }: { data: Users[] }) {
         <div className="relative max-w-sm flex-1">
           <Search className="text-muted-foreground absolute top-1/2 left-3 size-4 -translate-y-1/2" />
           <Input
-            placeholder="Tim theo ten, ma, SDT, email, gioi tinh, nghe nghiep..."
+            placeholder="Tìm theo tên, mã, SĐT, email, giới tính, nghề nghiệp..."
             className="pl-10"
             value={searchTerm}
             onChange={(event) => setSearchTerm(event.target.value)}
@@ -182,17 +181,17 @@ export function DataTable({ data: initialData }: { data: Users[] }) {
         </div>
         <div className="flex items-center gap-2">
           <Button size="sm" variant="outline" onClick={() => toggleFilteredRows(table, true)}>
-            Chon tat ca
+            Chọn tất cả
           </Button>
           <Button size="sm" variant="outline" onClick={() => toggleFilteredRows(table, false)}>
-            Bo chon tat ca
+            Bỏ chọn tất cả
           </Button>
           {selectedItems.length > 0 ? (
             <Button size="sm" variant="destructive" onClick={handleDeleteSelected} disabled={isDeleting}>
               {isDeleting ? "Dang xoa..." : `Xoa (${selectedItems.length})`}
             </Button>
           ) : null}
-          <DataTableViewOptions table={table} />
+
           <Button
             variant="outline"
             size="sm"

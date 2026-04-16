@@ -42,22 +42,20 @@ export function EditAccountDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="overflow-hidden p-0 sm:max-w-[760px]">
         <DialogHeader className="border-b border-slate-200 bg-gradient-to-r from-white to-slate-50 px-6 py-5">
-          <DialogTitle>Cap nhat tai khoan</DialogTitle>
-          <DialogDescription>
-            Chinh sua truc tiep du lieu bang user. Phan mat khau van duoc xu ly o trang ho so.
-          </DialogDescription>
+          <DialogTitle>Cập nhật tài khoản</DialogTitle>
+          <DialogDescription>Chỉnh sửa trực tiếp dữ liệu bảng user.</DialogDescription>
         </DialogHeader>
 
         <div className="max-h-[75vh] overflow-y-auto px-6 py-5">
           <div className="mb-5 grid gap-3 md:grid-cols-3">
             <StatCard label="ID" value={String(item.id)} />
             <StatCard label="User ID" value={item.user_id || "--"} />
-            <StatCard label="Dang nhap cuoi" value={formatDate(item.last_login)} />
+            <StatCard label="Đăng nhập cuối" value={formatDate(item.last_login)} />
           </div>
 
           <div className="grid gap-4 md:grid-cols-2">
             <div className="grid gap-2">
-              <Label htmlFor="account-name">Ho ten</Label>
+              <Label htmlFor="account-name">Họ tên</Label>
               <Input
                 id="account-name"
                 value={form.name}
@@ -71,6 +69,7 @@ export function EditAccountDialog({
                 id="account-username"
                 value={form.username}
                 onChange={onInputChange("username")}
+                autoComplete="new-username"
                 className="h-10 rounded-lg bg-white"
               />
             </div>
@@ -84,7 +83,7 @@ export function EditAccountDialog({
               />
             </div>
             <div className="grid gap-2">
-              <Label htmlFor="account-phone">Dien thoai</Label>
+              <Label htmlFor="account-phone">Điện thoại</Label>
               <Input
                 id="account-phone"
                 value={form.phone}
@@ -111,23 +110,23 @@ export function EditAccountDialog({
               />
             </div>
             <div className="grid gap-2">
-              <Label>Vai tro</Label>
+              <Label>Vai trò</Label>
               <Select value={form.role} onValueChange={(value) => onSelectChange("role", value)}>
                 <SelectTrigger className="h-10 rounded-lg bg-white">
-                  <SelectValue placeholder="Chon vai tro" />
+                  <SelectValue placeholder="Chọn vai trò" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="user">user</SelectItem>
+                  <SelectItem value="staff">user</SelectItem>
                   <SelectItem value="admin">admin</SelectItem>
-                  <SelectItem value="receptionist">receptionist</SelectItem>
+                  <SelectItem value="staff">staff</SelectItem>
                 </SelectContent>
               </Select>
             </div>
             <div className="grid gap-2">
-              <Label>Trang thai</Label>
+              <Label>Trạng thái</Label>
               <Select value={form.status} onValueChange={(value) => onSelectChange("status", value)}>
                 <SelectTrigger className="h-10 rounded-lg bg-white">
-                  <SelectValue placeholder="Chon trang thai" />
+                  <SelectValue placeholder="Chọn trạng thái" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="active">active</SelectItem>
@@ -143,10 +142,10 @@ export function EditAccountDialog({
 
         <DialogFooter className="px-6 py-4">
           <Button variant="outline" onClick={() => onOpenChange(false)}>
-            Huy
+            Hủy
           </Button>
           <Button onClick={onSave} disabled={saving} className="bg-slate-900 text-white hover:bg-slate-800">
-            {saving ? "Dang luu..." : "Luu thay doi"}
+            {saving ? "Đang lưu..." : "Lưu thay đổi"}
           </Button>
         </DialogFooter>
       </DialogContent>

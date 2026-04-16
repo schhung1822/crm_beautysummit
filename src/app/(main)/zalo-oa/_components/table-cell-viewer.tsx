@@ -5,7 +5,16 @@ import { BadgeCheck, MapPin, Phone, User2 } from "lucide-react";
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
-import { Drawer, DrawerClose, DrawerContent, DrawerDescription, DrawerFooter, DrawerHeader, DrawerTitle, DrawerTrigger } from "@/components/ui/drawer";
+import {
+  Drawer,
+  DrawerClose,
+  DrawerContent,
+  DrawerDescription,
+  DrawerFooter,
+  DrawerHeader,
+  DrawerTitle,
+  DrawerTrigger,
+} from "@/components/ui/drawer";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { getInitials } from "@/lib/utils";
 
@@ -43,7 +52,11 @@ export function TableCellViewer({ item }: { item: UsersOA }) {
           <div className="flex items-center gap-3">
             <div className="relative">
               <Avatar className="h-12 w-12 shrink-0 rounded-full shadow-[0_0_12px_rgba(56,189,248,0.65)] ring-2 ring-white/50">
-                <AvatarImage src={item.avatar || "/avatars/nghecontent.jpg"} alt={item.alias} className="rounded-full object-cover" />
+                <AvatarImage
+                  src={item.avatar || "/avatars/nghecontent.jpg"}
+                  alt={item.alias}
+                  className="rounded-full object-cover"
+                />
                 <AvatarFallback className="rounded-full bg-gray-300">{getInitials(item.alias)}</AvatarFallback>
               </Avatar>
             </div>

@@ -86,6 +86,26 @@ export async function proxy(request: NextRequest) {
     return response;
   }
 
+  // Token is valid, check role
+  const role = payload.role as string | undefined;
+
+  if (role === "staff") {
+    const allowedPaths = ["/staff-checkin"];
+    const allowedApiPaths = ["/api/staff", "/api/auth"];
+
+    const isAllowedPage = allowedPaths.some((p) => pathname.startsWith(p));
+    const isAllowedApi = allowedApiPaths.some((p) => pathname.startsWith(p));
+
+    if (!isAllowedPage && !pathname.startsWith("/api/")) {
+      return NextResponse.redirect(new URL("/staff-checkin", request.url));
+    }
+
+    if (pathname.startsWith("/api/") && !isAllowedApi) {
+      const response = NextResponse.json({ error: "Chỉ dành cho quản trị viên" }, { status: 403 });
+      return applyCorsHeaders(request, response);
+    }
+  }
+
   // Token is valid, allow access
   const response = NextResponse.next();
   return isApiRoute ? applyCorsHeaders(request, response) : response;

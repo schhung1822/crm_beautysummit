@@ -14,7 +14,7 @@ type SectionCardsProps = {
 };
 
 export const SectionCards = memo(function SectionCards({ stats }: SectionCardsProps) {
-  const formatNumber = (n: number) => n.toLocaleString("vi-VN");
+  const formatNumber = (n: number) => n.toLocaleString("en-GB");
 
   return (
     <div className="grid grid-cols-1 gap-4 md:grid-cols-3">

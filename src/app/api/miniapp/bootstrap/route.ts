@@ -7,6 +7,22 @@ import { mapMiniAppTicketRow, queryMiniAppTicketRowsByPhone } from "@/lib/miniap
 import { normalizeMiniAppName, upsertMiniAppUser } from "@/lib/miniapp-users";
 import { toDatabasePhone } from "@/lib/phone";
 import { listVoteCategories } from "@/lib/vote-options";
+import { getDB } from "@/lib/db";
+
+async function getActiveCheckinLocations() {
+  const db = getDB();
+  const [rows] = await db.query(
+    "SELECT id, name, allowed_tiers AS allowedTiers, image_url AS imageUrl, is_active AS isActive, event_date AS eventDate FROM checkin_locations WHERE is_active = 1 ORDER BY nc_order ASC, id ASC"
+  );
+  return (rows as any[]).map((r) => ({
+    id: String(r.id),
+    name: r.name,
+    allowedTiers: String(r.allowedTiers || "").split(",").map((s: string) => s.trim().toLowerCase()).filter(Boolean),
+    imageUrl: r.imageUrl || null,
+    isActive: r.isActive === 1,
+    eventDate: r.eventDate ? r.eventDate.toISOString() : null,
+  }));
+}
 
 type MiniAppBootstrapPayload = {
   id?: string;
@@ -76,7 +92,7 @@ export async function POST(request: NextRequest) {
       }),
     );
 
-    const [ticketRows, rewards, voteCategories] = await trace.step("load_bundle", () =>
+    const [ticketRows, rewards, voteCategories, checkinZones] = await trace.step("load_bundle", () =>
       Promise.all([
         queryMiniAppTicketRowsByPhone(phone),
         loadMiniAppRewards({
@@ -86,6 +102,7 @@ export async function POST(request: NextRequest) {
           avatar,
         }),
         listVoteCategories(),
+        getActiveCheckinLocations(),
       ]),
     );
 
@@ -104,6 +121,7 @@ export async function POST(request: NextRequest) {
         data: {
           user,
           tickets,
+          checkinZones,
           rewards: {
             ...rewards,
             voteCategories,

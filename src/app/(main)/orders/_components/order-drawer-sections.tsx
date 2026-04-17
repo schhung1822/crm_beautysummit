@@ -128,7 +128,7 @@ export function OrderQuickEditSection({
             <Input
               type="text"
               inputMode="numeric"
-              value={Number.isFinite(Number(form.money)) ? Number(form.money).toLocaleString("vi-VN") : "0"}
+              value={Number.isFinite(Number(form.money)) ? Number(form.money).toLocaleString("en-GB") : "0"}
               onChange={(event) => {
                 const numericValue = event.target.value.replace(/\D/g, "");
                 setForm((prev) => ({ ...prev, money: Number(numericValue) || 0 }));
@@ -140,7 +140,7 @@ export function OrderQuickEditSection({
             <Input
               type="text"
               inputMode="numeric"
-              value={Number.isFinite(Number(form.money_VAT)) ? Number(form.money_VAT).toLocaleString("vi-VN") : "0"}
+              value={Number.isFinite(Number(form.money_VAT)) ? Number(form.money_VAT).toLocaleString("en-GB") : "0"}
               onChange={(event) => {
                 const numericValue = event.target.value.replace(/\D/g, "");
                 setForm((prev) => ({ ...prev, money_VAT: Number(numericValue) || 0 }));

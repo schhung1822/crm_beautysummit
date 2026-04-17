@@ -4,7 +4,7 @@ import type { AccountUser } from "./schema";
 
 export const EMPTY_VALUE = "--";
 
-export const formatDate = (value: Date | null) => (value ? value.toLocaleString("vi-VN") : EMPTY_VALUE);
+export const formatDate = (value: Date | null) => (value ? value.toLocaleString("en-GB") : EMPTY_VALUE);
 
 export const getDisplayValue = (value: unknown) => {
   const normalized = String(value ?? "").trim();

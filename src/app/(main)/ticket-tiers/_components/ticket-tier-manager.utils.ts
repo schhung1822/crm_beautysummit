@@ -21,7 +21,7 @@ export const DEFAULT_TICKET_TIER_FORM: TicketTierForm = {
 };
 
 export function formatMoney(value: number) {
-  return `${value.toLocaleString("vi-VN")} đ`;
+  return `${value.toLocaleString("en-GB")} đ`;
 }
 
 export function createTicketTierFormState(value?: TicketTierRecord | null): TicketTierForm {
@@ -51,7 +51,7 @@ export function matchesTicketTierKeyword(item: TicketTierRecord, keyword: string
 
 export function formatTicketTierRange(start: string | null, end: string | null) {
   if (!start && !end) {
-    return "Chua dat lich khuyen mai";
+    return "Chưa cài đặt lịch khuyến mãi";
   }
 
   return `${start?.slice(0, 10) ?? "--"} -> ${end?.slice(0, 10) ?? "--"}`;

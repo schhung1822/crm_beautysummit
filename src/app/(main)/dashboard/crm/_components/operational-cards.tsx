@@ -23,7 +23,7 @@ export function OperationalCards({
   topProducts: ProductRankItem[];
   topSales: SalesRankItem[];
 }) {
-  const formatVND = (n: number) => n.toLocaleString("vi-VN");
+  const formatVND = (n: number) => n.toLocaleString("en-GB");
   const totalProducts = topProducts.reduce((sum, p) => sum + p.quantity, 0);
 
   return (

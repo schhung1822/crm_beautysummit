@@ -35,7 +35,7 @@ export function mapMiniAppTicketRow(row: MiniAppTicketRow) {
     phone: toDisplayPhone(row.phone),
     ticketClass: String(row.ticketClass ?? ""),
     status: checkedIn ? "checked_in" : "pending",
-    statusLabel: checkedIn ? "Da check-in" : "Chua check-in",
+    statusLabel: checkedIn ? "Đã check-in" : "Chưa check-in",
     checkedIn,
     disabled: checkedIn,
     transferLocked: false,

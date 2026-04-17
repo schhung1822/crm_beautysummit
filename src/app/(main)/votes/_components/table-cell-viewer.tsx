@@ -109,7 +109,7 @@ export function TableCellViewer({
                 value={
                   item.time_vote
                     ? item.time_vote instanceof Date
-                      ? item.time_vote.toLocaleString("vi-VN")
+                      ? item.time_vote.toLocaleString("en-GB")
                       : item.time_vote
                     : ""
                 }
@@ -120,8 +120,6 @@ export function TableCellViewer({
               <InfoRow icon={<Tag className="h-4 w-4" />} label="Thương hiệu" value={item.brand_name} />
               <InfoRow icon={<Tag className="h-4 w-4" />} label="Danh mục" value={item.category} />
               <InfoRow icon={<Tag className="h-4 w-4" />} label="Sản phẩm" value={item.product} />
-              <InfoRow icon={<Tag className="h-4 w-4" />} label="Vote" value={item.voted} />
-              <InfoRow icon={<LinkIcon className="h-4 w-4" />} label="Link" value={item.link} />
             </Block>
 
             <Separator />

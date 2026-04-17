@@ -177,7 +177,7 @@ async function loadInvoiceTemplate(): Promise<string> {
 
 export async function exportVatInvoicePdf(payload: VatInvoicePayload): Promise<void> {
   const template = await loadInvoiceTemplate();
-  const formatMoney = (value: number) => value.toLocaleString("vi-VN");
+  const formatMoney = (value: number) => value.toLocaleString("en-GB");
   const day = payload.issuedAt.getDate();
   const month = payload.issuedAt.getMonth() + 1;
   const year = payload.issuedAt.getFullYear();

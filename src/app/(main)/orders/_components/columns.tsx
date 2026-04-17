@@ -174,7 +174,7 @@ export const dashboardColumns = (onRowUpdated?: OnRowUpdated, onDeleteRow?: OnDe
     accessorKey: "money",
     header: ({ column }) => <DataTableColumnHeader className="w-full text-right" column={column} title="Thành tiền" />,
     cell: ({ row }) => (
-      <div className="text-right tabular-nums">{(row.original.money || 0).toLocaleString("vi-VN")}</div>
+      <div className="text-right tabular-nums">{(row.original.money || 0).toLocaleString("en-GB")}</div>
     ),
     enableSorting: false,
     size: 110,
@@ -186,7 +186,7 @@ export const dashboardColumns = (onRowUpdated?: OnRowUpdated, onDeleteRow?: OnDe
       <DataTableColumnHeader className="w-full text-right" column={column} title="Thành tiền (VAT)" />
     ),
     cell: ({ row }) => (
-      <div className="text-right tabular-nums">{(row.original.money_VAT || 0).toLocaleString("vi-VN")}</div>
+      <div className="text-right tabular-nums">{(row.original.money_VAT || 0).toLocaleString("en-GB")}</div>
     ),
     enableSorting: false,
     size: 120,
@@ -211,7 +211,7 @@ export const dashboardColumns = (onRowUpdated?: OnRowUpdated, onDeleteRow?: OnDe
       <span className="text-sm">
         {row.original.update_time
           ? row.original.update_time instanceof Date
-            ? row.original.update_time.toLocaleDateString("vi-VN")
+            ? row.original.update_time.toLocaleDateString("en-GB")
             : row.original.update_time
           : ""}
       </span>
@@ -235,7 +235,7 @@ export const dashboardColumns = (onRowUpdated?: OnRowUpdated, onDeleteRow?: OnDe
       <span className="text-sm">
         {row.original.checkin_time
           ? row.original.checkin_time instanceof Date
-            ? row.original.checkin_time.toLocaleDateString("vi-VN")
+            ? row.original.checkin_time.toLocaleDateString("en-GB")
             : row.original.checkin_time
           : ""}
       </span>
@@ -251,7 +251,7 @@ export const dashboardColumns = (onRowUpdated?: OnRowUpdated, onDeleteRow?: OnDe
       <span className="text-sm">
         {row.original.create_time
           ? row.original.create_time instanceof Date
-            ? row.original.create_time.toLocaleDateString("vi-VN")
+            ? row.original.create_time.toLocaleDateString("en-GB")
             : row.original.create_time
           : ""}
       </span>

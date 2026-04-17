@@ -136,7 +136,7 @@ export const dashboardColumns = (onDeleteRow?: OnDeleteRow): ColumnDef<Academy>[
       <span className="text-sm">
         {row.original.time_vote
           ? row.original.time_vote instanceof Date
-            ? row.original.time_vote.toLocaleDateString("vi-VN")
+            ? row.original.time_vote.toLocaleDateString("en-GB")
             : row.original.time_vote
           : ""}
       </span>

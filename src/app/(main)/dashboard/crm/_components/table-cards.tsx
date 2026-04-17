@@ -12,7 +12,7 @@ type Props = {
 };
 
 export function TableCards({ channels }: Props) {
-  const formatVND = (n: number) => n.toLocaleString("vi-VN");
+  const formatVND = (n: number) => n.toLocaleString("en-GB");
   const total = channels.reduce(
     (acc, cur) => {
       acc.all_count += cur.quantity;

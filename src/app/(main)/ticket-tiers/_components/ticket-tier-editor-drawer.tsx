@@ -104,7 +104,7 @@ export function TicketTierEditorDrawer({
       <DrawerContent className="h-screen sm:ml-auto sm:h-screen sm:max-w-[460px]">
         <DrawerHeader className="border-b border-slate-200 bg-gradient-to-br from-white via-slate-50 to-sky-50/50">
           <div className="text-muted-foreground text-[11px] font-semibold tracking-[0.18em] uppercase">
-            Cap nhat hạng vé
+            Cập nhật hạng vé
           </div>
           <DrawerTitle className="mt-1 text-2xl">{selectedTier?.code ?? form.code}</DrawerTitle>
           <DrawerDescription>{selectedTier?.name ?? form.name}</DrawerDescription>
@@ -114,20 +114,20 @@ export function TicketTierEditorDrawer({
           <div className="grid gap-4">
             <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
               <div className="grid gap-4">
-                <TicketTierReadonlyField id="ticket-code" label="Ma hạng vé" value={form.code} />
-                <TicketTierReadonlyField id="ticket-name" label="Ten hien thi" value={form.name} />
+                <TicketTierReadonlyField id="ticket-code" label="Mã hạng vé" value={form.code} />
+                <TicketTierReadonlyField id="ticket-name" label="Tên hiển thị" value={form.name} />
 
                 <div className="grid gap-4 md:grid-cols-2">
                   <TicketTierEditableField
                     id="ticket-price"
-                    label="Gia ve"
+                    label="Giá vé"
                     type="number"
                     value={form.regularPrice}
                     onChange={onChange("regularPrice")}
                   />
                   <TicketTierEditableField
                     id="ticket-sale-price"
-                    label="Gia khuyen mai"
+                    label="Giá khuyến mãi"
                     type="number"
                     value={form.promoPrice}
                     onChange={onChange("promoPrice")}
@@ -137,14 +137,14 @@ export function TicketTierEditorDrawer({
                 <div className="grid gap-4 md:grid-cols-2">
                   <TicketTierEditableField
                     id="ticket-sale-start"
-                    label="Ngay bat dau KM"
+                    label="Ngày bắt đầu KM"
                     type="date"
                     value={form.promoStart}
                     onChange={onChange("promoStart")}
                   />
                   <TicketTierEditableField
                     id="ticket-sale-end"
-                    label="Ngay ket thuc KM"
+                    label="Ngày kết thúc KM"
                     type="date"
                     value={form.promoEnd}
                     onChange={onChange("promoEnd")}
@@ -161,11 +161,11 @@ export function TicketTierEditorDrawer({
           <div className="grid w-full grid-cols-2 gap-2">
             <DrawerClose asChild>
               <Button variant="outline" className="w-full rounded-xl" disabled={saving}>
-                Huy
+                Hủy
               </Button>
             </DrawerClose>
             <Button className="w-full rounded-xl" onClick={onSave} disabled={saving}>
-              {saving ? "Dang luu..." : "Luu thay doi"}
+              {saving ? "Đang lưu..." : "Lưu thay đổi"}
             </Button>
           </div>
         </DrawerFooter>

@@ -29,18 +29,18 @@ export function TicketTierCard({ item, onEdit }: { item: TicketTierRecord; onEdi
               : "rounded-full border-slate-200 bg-slate-50 text-slate-700"
           }
         >
-          {isPromotionActive ? "Dang ap dung KM" : "Gia thuong"}
+          {isPromotionActive ? "Đang áp dụng KM" : "Giá thường"}
         </Badge>
       </div>
 
       <div className="mt-5 grid gap-3 sm:grid-cols-2">
         <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
-          <div className="text-muted-foreground text-[11px] font-medium tracking-[0.16em] uppercase">Gia thuong</div>
+          <div className="text-muted-foreground text-[11px] font-medium tracking-[0.16em] uppercase">Giá thường</div>
           <div className="mt-2 text-lg font-semibold text-slate-900">{formatMoney(item.regularPrice)}</div>
         </div>
         <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
           <div className="text-muted-foreground text-[11px] font-medium tracking-[0.16em] uppercase">
-            Gia dang ap dung
+            Giá đang áp dụng
           </div>
           <div className="mt-2 text-lg font-semibold text-slate-900">{formatMoney(item.effectivePrice)}</div>
         </div>
@@ -49,7 +49,7 @@ export function TicketTierCard({ item, onEdit }: { item: TicketTierRecord; onEdi
       <div className="mt-4 rounded-2xl border border-amber-100 bg-amber-50/70 px-4 py-3">
         <div className="flex items-center gap-2 text-[11px] font-medium tracking-[0.16em] text-amber-700 uppercase">
           <CalendarClock className="size-4" />
-          Khuyen mai
+          Khuyến mãi
         </div>
         <div className="mt-2 flex items-center gap-2 text-sm font-medium text-slate-900">
           <BadgePercent className="size-4 text-amber-600" />
@@ -61,7 +61,7 @@ export function TicketTierCard({ item, onEdit }: { item: TicketTierRecord; onEdi
       <div className="mt-5">
         <Button className="w-full rounded-xl" variant="outline" onClick={() => onEdit(item)}>
           <Pencil className="mr-2 size-4" />
-          Cap nhat hạng vé
+          Cập nhật hạng vé
         </Button>
       </div>
     </div>

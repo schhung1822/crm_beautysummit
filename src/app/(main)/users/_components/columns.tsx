@@ -24,7 +24,7 @@ function getStatusBadgeClass(status: string) {
   return "border-slate-200 bg-slate-50 text-slate-700";
 }
 
-const formatDate = (value: Date | null) => (value ? value.toLocaleString("vi-VN") : "--");
+const formatDate = (value: Date | null) => (value ? value.toLocaleString("en-GB") : "--");
 
 export const dashboardColumns = (
   onRowUpdated?: (updated: AccountUser) => void,

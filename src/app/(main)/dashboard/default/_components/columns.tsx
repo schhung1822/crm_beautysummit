@@ -120,7 +120,7 @@ export const dashboardColumns = (stats: Stats): ColumnDef<Channel>[] => [
     accessorKey: "money",
     header: ({ column }) => <DataTableColumnHeader className="w-full text-right" column={column} title="Tiền" />,
     cell: ({ row }) => (
-      <div className="text-right tabular-nums">{(row.original.money || 0).toLocaleString("vi-VN")}</div>
+      <div className="text-right tabular-nums">{(row.original.money || 0).toLocaleString("en-GB")}</div>
     ),
     enableSorting: false,
   },
@@ -129,7 +129,7 @@ export const dashboardColumns = (stats: Stats): ColumnDef<Channel>[] => [
     accessorKey: "money_VAT",
     header: ({ column }) => <DataTableColumnHeader className="w-full text-right" column={column} title="Tiền (VAT)" />,
     cell: ({ row }) => (
-      <div className="text-right tabular-nums">{(row.original.money_VAT || 0).toLocaleString("vi-VN")}</div>
+      <div className="text-right tabular-nums">{(row.original.money_VAT || 0).toLocaleString("en-GB")}</div>
     ),
     enableSorting: false,
   },
@@ -166,7 +166,7 @@ export const dashboardColumns = (stats: Stats): ColumnDef<Channel>[] => [
       <span className="text-sm">
         {row.original.create_time
           ? row.original.create_time instanceof Date
-            ? row.original.create_time.toLocaleDateString("vi-VN")
+            ? row.original.create_time.toLocaleDateString("en-GB")
             : row.original.create_time
           : ""}
       </span>

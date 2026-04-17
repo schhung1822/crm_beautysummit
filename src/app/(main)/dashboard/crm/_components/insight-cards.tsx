@@ -17,13 +17,13 @@ const formatVNDCompact = (n: number) => {
 
   if (abs >= 1_000_000_000) {
     const x = v / 1_000_000_000;
-    return `${x.toLocaleString("vi-VN", { maximumFractionDigits: x >= 10 ? 0 : 1 })} tỷ`;
+    return `${x.toLocaleString("en-GB", { maximumFractionDigits: x >= 10 ? 0 : 1 })} tỷ`;
   }
   if (abs >= 1_000_000) {
     const x = v / 1_000_000;
-    return `${x.toLocaleString("vi-VN", { maximumFractionDigits: x >= 10 ? 0 : 1 })} triệu`;
+    return `${x.toLocaleString("en-GB", { maximumFractionDigits: x >= 10 ? 0 : 1 })} triệu`;
   }
-  return v.toLocaleString("vi-VN");
+  return v.toLocaleString("en-GB");
 };
 
 export function InsightCards({

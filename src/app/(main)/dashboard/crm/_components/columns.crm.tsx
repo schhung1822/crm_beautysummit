@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 
 import { ChannelSummarySchema } from "./schema";
 
-const fmtNumber = (n: number) => n.toLocaleString("vi-VN");
+const fmtNumber = (n: number) => n.toLocaleString("en-GB");
 
 export const channelColumns: ColumnDef<z.infer<typeof ChannelSummarySchema>>[] = [
   {

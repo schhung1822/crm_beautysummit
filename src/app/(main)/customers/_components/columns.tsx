@@ -61,7 +61,7 @@ export const dashboardColumns = (
     cell: ({ row }) => (
       <span className="block max-w-[180px] truncate text-sm">
         {row.original.create_time instanceof Date
-          ? row.original.create_time.toLocaleDateString("vi-VN")
+          ? row.original.create_time.toLocaleDateString("en-GB")
           : row.original.create_time}
       </span>
     ),

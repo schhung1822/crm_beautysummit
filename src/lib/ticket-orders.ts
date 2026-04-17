@@ -1,5 +1,5 @@
-export const CHECKIN_DONE_STATUS = "da checkin";
-export const CHECKIN_PENDING_STATUS = "chua checkin";
+export const CHECKIN_DONE_STATUS = "Đã checkin";
+export const CHECKIN_PENDING_STATUS = "Chưa checkin";
 export const TICKET_ORDER_CHANNEL = "beauty_summit_ticket";
 const CHECKIN_TRUE_VALUES = new Set(["1", "true", "yes", "y", CHECKIN_DONE_STATUS]);
 const CHECKIN_FALSE_VALUES = new Set(["0", "false", "no", "n", CHECKIN_PENDING_STATUS]);

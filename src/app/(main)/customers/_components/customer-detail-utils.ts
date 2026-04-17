@@ -8,11 +8,11 @@ export const formatDate = (value: unknown) => {
   }
 
   if (value instanceof Date) {
-    return value.toLocaleString("vi-VN");
+    return value.toLocaleString("en-GB");
   }
 
   const parsed = new Date(String(value));
-  return Number.isNaN(parsed.getTime()) ? String(value) : parsed.toLocaleString("vi-VN");
+  return Number.isNaN(parsed.getTime()) ? String(value) : parsed.toLocaleString("en-GB");
 };
 
 export const getDisplayValue = (value: unknown) => {

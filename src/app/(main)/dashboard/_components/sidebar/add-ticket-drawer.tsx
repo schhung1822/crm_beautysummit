@@ -332,7 +332,7 @@ export function AddTicketDrawer() {
 
                 <div className="grid gap-2">
                   <Label htmlFor="money_total">Thành tiền</Label>
-                  <Input id="money_total" value={totalAmountValue.toLocaleString("vi-VN")} readOnly />
+                  <Input id="money_total" value={totalAmountValue.toLocaleString("en-GB")} readOnly />
                 </div>
               </div>
             </section>

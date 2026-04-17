@@ -103,14 +103,11 @@ export default function TicketTierManager({ initialData }: TicketTierManagerProp
         <div className="rounded-3xl border border-slate-200 bg-gradient-to-br from-white via-slate-50 to-sky-50/60 p-5 shadow-sm">
           <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
             <div className="max-w-2xl">
-              <div className="text-muted-foreground text-[11px] font-semibold tracking-[0.2em] uppercase">
+              <div className="text-muted-foreground text-[20px] font-semibold tracking-[0.2em] uppercase">
                 Quản lý hạng vé
               </div>
-              <h2 className="mt-1 text-2xl font-semibold text-slate-950">Bang gia ve va lich khuyen mai</h2>
-              <p className="mt-2 max-w-xl text-sm leading-6 text-slate-600">
-                Quản lý 3 hạng vé co dinh GOLD, VIP, RUBY. Admin chi sua gia thuong, gia khuyen mai va khoang thoi gian
-                ap dung.
-              </p>
+              <h2 className="mt-1 text-2xl font-semibold text-slate-950">Bảng giá vé và lịch khuyến mãi</h2>
+              
             </div>
 
             <div className="relative w-full max-w-sm">
@@ -127,17 +124,17 @@ export default function TicketTierManager({ initialData }: TicketTierManagerProp
           <div className="mt-5 grid gap-3 md:grid-cols-3">
             <TicketTierSummaryCard
               icon={<Ticket className="size-4" />}
-              label="Tong hạng vé"
+              label="Tổng hạng vé"
               value={String(data.length)}
             />
             <TicketTierSummaryCard
               icon={<BadgePercent className="size-4" />}
-              label="Dang co khuyen mai"
+              label="Đang có khuyến mãi"
               value={String(activePromoCount)}
             />
             <TicketTierSummaryCard
               icon={<Tag className="size-4" />}
-              label="Ket qua tim kiem"
+              label="Kết quả tìm kiếm"
               value={String(filteredData.length)}
             />
           </div>
@@ -145,7 +142,7 @@ export default function TicketTierManager({ initialData }: TicketTierManagerProp
 
         {filteredData.length === 0 ? (
           <div className="rounded-2xl border border-dashed border-slate-300 bg-white px-6 py-12 text-center text-sm text-slate-500">
-            Khong tim thay hạng vé phu hop.
+            Không tìm thấy hạng vé phù hợp.
           </div>
         ) : (
           <div className="grid gap-4 xl:grid-cols-3">

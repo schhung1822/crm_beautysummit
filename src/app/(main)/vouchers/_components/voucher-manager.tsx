@@ -108,7 +108,7 @@ function formatDateLabel(value?: string | null): string {
     return value;
   }
 
-  return parsed.toLocaleString("vi-VN");
+  return parsed.toLocaleString("en-GB");
 }
 
 function normalizeSearchValue(value: string): string {

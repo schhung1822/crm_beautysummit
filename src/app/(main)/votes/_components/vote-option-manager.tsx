@@ -306,7 +306,7 @@ function VotePreviewCard({
 
         <div className="flex w-full items-center justify-center gap-2 rounded-2xl border border-[#eadfd2] bg-white px-4 py-3 text-sm font-bold text-[#5f5662]">
           <ThumbsUp className="size-4" />
-          Bo chon muc nay
+          Bỏ chọn mục này
         </div>
       </div>
     </div>

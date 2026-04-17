@@ -32,7 +32,7 @@ function formatDateVN(v: unknown) {
   if (!v) return "—";
   const d = v instanceof Date ? v : new Date(String(v));
   if (Number.isNaN(d.getTime())) return String(v);
-  return d.toLocaleDateString("vi-VN");
+  return d.toLocaleDateString("en-GB");
 }
 function formatGender(value?: string | null) {
   const v = String(value ?? "")
@@ -45,7 +45,7 @@ function formatGender(value?: string | null) {
 function money(v: unknown) {
   const n = typeof v === "number" ? v : Number(String(v ?? 0).replaceAll(",", ""));
   if (!Number.isFinite(n)) return "0";
-  return n.toLocaleString("vi-VN");
+  return n.toLocaleString("en-GB");
 }
 
 function StatPill({ label, value, sub = "VNĐ" }: { label: string; value: string; sub?: string }) {

@@ -96,7 +96,7 @@ function formatTimeLabel(value: string | null): string {
     return value;
   }
 
-  return parsed.toLocaleTimeString("vi-VN", {
+  return parsed.toLocaleTimeString("en-GB", {
     hour: "2-digit",
     minute: "2-digit",
     second: "2-digit",

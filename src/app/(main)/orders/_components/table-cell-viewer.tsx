@@ -41,7 +41,7 @@ function formatDateVN(value: unknown) {
   const date = value instanceof Date ? value : new Date(String(value));
   if (Number.isNaN(date.getTime())) return String(value);
 
-  return date.toLocaleString("vi-VN");
+  return date.toLocaleString("en-GB");
 }
 
 function formatGender(value?: string | null) {

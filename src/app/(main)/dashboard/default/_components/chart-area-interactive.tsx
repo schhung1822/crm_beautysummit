@@ -99,7 +99,7 @@ export const ChartAreaInteractive = React.memo(function ChartAreaInteractive({
               tickMargin={8}
               minTickGap={32}
               tickFormatter={(value) =>
-                new Date(value).toLocaleDateString("vi-VN", { month: "2-digit", day: "2-digit" })
+                new Date(value).toLocaleDateString("en-GB", { month: "2-digit", day: "2-digit" })
               }
             />
 
@@ -121,7 +121,7 @@ export const ChartAreaInteractive = React.memo(function ChartAreaInteractive({
               content={
                 <ChartTooltipContent
                   labelFormatter={(value) =>
-                    new Date(value).toLocaleDateString("vi-VN", {
+                    new Date(value).toLocaleDateString("en-GB", {
                       weekday: "short",
                       year: "numeric",
                       month: "2-digit",

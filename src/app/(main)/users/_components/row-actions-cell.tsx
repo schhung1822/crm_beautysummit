@@ -58,7 +58,7 @@ export function RowActionsCell({
         <DropdownMenuTrigger asChild>
           <Button variant="ghost" className="data-[state=open]:bg-muted text-muted-foreground flex size-8" size="icon">
             <EllipsisVertical />
-            <span className="sr-only">Mo menu</span>
+            <span className="sr-only">Mở menu</span>
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="w-36">
@@ -66,7 +66,7 @@ export function RowActionsCell({
             item={row}
             onUpdated={onRowUpdated}
             triggerElement={
-              <DropdownMenuItem onSelect={(event) => event.preventDefault()}>Xem chi tiet</DropdownMenuItem>
+              <DropdownMenuItem onSelect={(event) => event.preventDefault()}>Xem chi tiết</DropdownMenuItem>
             }
           />
           <DropdownMenuSeparator />
@@ -82,7 +82,7 @@ export function RowActionsCell({
             }}
             disabled={!onDeleteRow || isDeleting}
           >
-            Xoa
+            Xóa
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
@@ -90,20 +90,20 @@ export function RowActionsCell({
       <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Xoa tai khoan nay?</AlertDialogTitle>
+            <AlertDialogTitle>Xóa tài khoản này?</AlertDialogTitle>
             <AlertDialogDescription>
-              Ban co chac chan muon xoa tai khoan <strong>{row.username || row.name || row.id}</strong>? Hanh dong nay
-              khong the hoan tac.
+              Bạn có chắc chắn muốn xóa tài khoản <strong>{row.username || row.name || row.id}</strong>? Hành động này
+              không thể hoàn tác.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={isDeleting}>Huy</AlertDialogCancel>
+            <AlertDialogCancel disabled={isDeleting}>Hủy</AlertDialogCancel>
             <AlertDialogAction
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
               onClick={handleDelete}
               disabled={isDeleting}
             >
-              {isDeleting ? "Dang xoa..." : "Xoa"}
+              {isDeleting ? "Đang xóa..." : "Xóa"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

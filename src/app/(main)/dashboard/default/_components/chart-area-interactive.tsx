@@ -71,10 +71,10 @@ export const ChartAreaInteractive = React.memo(function ChartAreaInteractive({
   return (
     <Card className="@container/card">
       <CardHeader>
-        <CardTitle>Biểu đồ đơn hàng - doanh thu</CardTitle>
+        <CardTitle className="mt-2">Biểu đồ đơn hàng - doanh thu</CardTitle>
       </CardHeader>
 
-      <CardContent className="px-2 pt-4 sm:px-6 sm:pt-6">
+      <CardContent className=" sm:px-6 sm:pt-6">
         {/* ✅ ChartContainer sẽ set: --color-orders, --color-revenue */}
         <ChartContainer config={chartConfig} className="aspect-auto h-[250px] w-full">
           <AreaChart data={filteredData} margin={{ top: 10, right: 20, left: 0, bottom: 0 }}>

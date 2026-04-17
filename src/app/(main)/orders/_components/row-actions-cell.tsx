@@ -66,7 +66,7 @@ export function RowActionsCell({ row, onRowUpdated, onDeleteRow }: RowActionsCel
             item={row}
             onRowUpdated={onRowUpdated}
             triggerElement={
-              <DropdownMenuItem onSelect={(event) => event.preventDefault()}>Xem chi tiet</DropdownMenuItem>
+              <DropdownMenuItem onSelect={(event) => event.preventDefault()}>Xem chi tiết</DropdownMenuItem>
             }
           />
           <DropdownMenuSeparator />
@@ -82,7 +82,7 @@ export function RowActionsCell({ row, onRowUpdated, onDeleteRow }: RowActionsCel
             }}
             disabled={!onDeleteRow || isDeleting}
           >
-            Xoa
+            Xóa
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
@@ -90,19 +90,19 @@ export function RowActionsCell({ row, onRowUpdated, onDeleteRow }: RowActionsCel
       <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Xoa ban ghi nay?</AlertDialogTitle>
+            <AlertDialogTitle>Xóa bản ghi này?</AlertDialogTitle>
             <AlertDialogDescription>
-              Ban co chac chan muon xoa don <strong>{row.ordercode}</strong>? Hanh dong nay khong the hoan tac.
+              Bạn có chắc chắn muốn xóa đơn <strong>{row.ordercode}</strong>? Hành động này không thể hoàn tác.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={isDeleting}>Huy</AlertDialogCancel>
+            <AlertDialogCancel disabled={isDeleting}>Hủy</AlertDialogCancel>
             <AlertDialogAction
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
               onClick={handleDelete}
               disabled={isDeleting}
             >
-              {isDeleting ? "Dang xoa..." : "Xoa"}
+              {isDeleting ? "Đang xóa..." : "Xóa"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

@@ -12,6 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Switch } from "@/components/ui/switch";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Checkbox } from "@/components/ui/checkbox";
+import { DatePicker } from "@/components/ui/date-picker";
 
 export type CheckinLocation = {
   id: number;
@@ -134,14 +135,14 @@ export function CheckinLocationManager({ initialData }: { initialData: CheckinLo
 
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         {data.map((item) => (
-          <Card key={item.id} className="flex flex-col overflow-hidden">
+          <Card key={item.id} className="flex flex-col overflow-hidden shadow-md transition-shadow group hover:shadow-lg">
             {item.image_url ? (
               <div
-                className="h-24 bg-cover bg-center shrink-0"
-                style={{ backgroundImage: `url(${item.image_url})` }}
+                className="h-40 sm:h-48 w-full bg-cover bg-center shrink-0 border-b border-slate-100 transition-transform duration-300 group-hover:scale-105"
+                style={{ backgroundImage: `url('${item.image_url}')` }}
               />
             ) : (
-              <div className="h-24 bg-slate-100 flex items-center justify-center shrink-0">
+              <div className="h-40 sm:h-48 w-full bg-slate-50 flex items-center justify-center shrink-0 border-b border-slate-100">
                 <span className="text-slate-400 text-sm">Chưa có ảnh</span>
               </div>
             )}
@@ -235,7 +236,7 @@ export function CheckinLocationManager({ initialData }: { initialData: CheckinLo
               />
               {isUploading && <p className="text-xs text-muted-foreground">Đang tải ảnh lên...</p>}
               {form.image_url && (
-                <div className="mt-2 relative w-full h-32 rounded bg-cover bg-center border" style={{ backgroundImage: `url(${form.image_url})` }} />
+                <div className="mt-2 w-full h-40 sm:h-48 rounded-xl bg-cover bg-center border shadow-sm" style={{ backgroundImage: `url('${form.image_url}')` }} />
               )}
             </div>
             <div className="space-y-2">
@@ -261,11 +262,9 @@ export function CheckinLocationManager({ initialData }: { initialData: CheckinLo
             </div>
             <div className="space-y-2">
               <Label>Ngày diễn ra Check-in</Label>
-              <Input
-                type="date"
-                lang="en-GB"
+              <DatePicker
                 value={form.event_date || ""}
-                onChange={(e) => setForm({ ...form, event_date: e.target.value })}
+                onChange={(val) => setForm({ ...form, event_date: val })}
               />
             </div>
           </div>

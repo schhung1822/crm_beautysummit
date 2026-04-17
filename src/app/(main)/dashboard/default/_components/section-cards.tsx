@@ -18,7 +18,7 @@ export const SectionCards = memo(function SectionCards({ stats }: SectionCardsPr
 
   return (
     <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-      <Card className="@container/card">
+      <Card className="@container/card p-1">
         <CardHeader>
           <CardDescription>Vé đăng ký</CardDescription>
           <CardTitle className="text-2xl font-semibold tabular-nums @[250px]/card:text-3xl">
@@ -33,7 +33,7 @@ export const SectionCards = memo(function SectionCards({ stats }: SectionCardsPr
         </CardHeader>
       </Card>
 
-      <Card className="@container/card">
+      <Card className="@container/card p-1">
         <CardHeader>
           <CardDescription>Vé hoàn thành</CardDescription>
           <CardTitle className="text-2xl font-semibold tabular-nums @[250px]/card:text-3xl">
@@ -48,7 +48,7 @@ export const SectionCards = memo(function SectionCards({ stats }: SectionCardsPr
         </CardHeader>
       </Card>
 
-      <Card className="@container/card">
+      <Card className="@container/card p-1">
         <CardHeader>
           <CardDescription>Tổng thành tiền (VAT)</CardDescription>
           <CardTitle className="text-2xl font-semibold tabular-nums @[250px]/card:text-3xl">

@@ -53,6 +53,7 @@ export function formatTicketTierRange(start: string | null, end: string | null) 
   if (!start && !end) {
     return "Chưa cài đặt lịch khuyến mãi";
   }
-
-  return `${start?.slice(0, 10) ?? "--"} -> ${end?.slice(0, 10) ?? "--"}`;
+  let startDay = new Date(start ?? "");
+  let endDay = new Date(end ?? "");
+  return `${startDay.toLocaleDateString()} ➔ ${endDay.toLocaleDateString()}`;
 }

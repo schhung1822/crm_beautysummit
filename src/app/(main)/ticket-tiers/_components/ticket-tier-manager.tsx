@@ -83,6 +83,15 @@ export default function TicketTierManager({ initialData }: TicketTierManagerProp
   );
 
   const handleSave = React.useCallback(async () => {
+    if (form.promoStart && form.promoEnd) {
+      const start = new Date(form.promoStart);
+      const end = new Date(form.promoEnd);
+      if (end < start) {
+        toast.error("Ngày kết thúc KM phải lớn hơn hoặc bằng ngày bắt đầu KM");
+        return;
+      }
+    }
+
     setSaving(true);
     try {
       const saved = await updateTicketTierRequest(form);

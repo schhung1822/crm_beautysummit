@@ -53,7 +53,7 @@ export function TicketTierCard({ item, onEdit }: { item: TicketTierRecord; onEdi
         </div>
         <div className="mt-2 flex items-center gap-2 text-sm font-medium text-slate-900">
           <BadgePercent className="size-4 text-amber-600" />
-          {item.promoPrice == null ? "Chua cai dat gia khuyen mai" : formatMoney(item.promoPrice)}
+          {item.promoPrice == null ? "Chưa cài đặt giá khuyến mãi" : formatMoney(item.promoPrice)}
         </div>
         <div className="mt-1 text-xs text-slate-500">{formatTicketTierRange(item.promoStart, item.promoEnd)}</div>
       </div>

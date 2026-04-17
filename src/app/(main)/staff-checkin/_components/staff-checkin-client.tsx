@@ -638,7 +638,7 @@ export default function StaffCheckinClient() {
           </div>
         ) : (
           <div className="mb-4 rounded-[24px] border border-white/10 bg-white/[0.03] p-4">
-            <div className="mb-3 text-sm font-semibold text-white">Nhập mã vé ve khach hang</div>
+            <div className="mb-3 text-sm font-semibold text-white">Nhập mã vé khách hàng</div>
             <Input
               value={manualCode}
               onChange={(event) => setManualCode(event.target.value.toUpperCase())}
@@ -652,7 +652,7 @@ export default function StaffCheckinClient() {
               className="h-14 rounded-[18px] border-white/10 bg-black/20 text-center text-lg font-semibold tracking-[0.18em] text-white placeholder:text-white/25"
             />
             <div className="mt-2 text-center text-xs text-white/40">
-              Hỗ trợ nhập mã vé hoặc payload QR nếu cần đối chiếu.
+              Nhập mã vé khi mã QR không quét được.
             </div>
             <Button
               type="button"
@@ -709,14 +709,14 @@ export default function StaffCheckinClient() {
         <div className="rounded-[22px] border border-white/8 bg-white/[0.03]">
           <div className="flex items-center justify-between border-b border-white/8 px-5 py-4">
             <div className="text-[12px] font-bold text-white sm:text-[15px]">Lịch sử check-in</div>
-            <div className="text-sm text-white/45">{loadingSnapshot ? "Đang tải..." : `${history.length} luot`}</div>
+            <div className="text-sm text-white/45">{loadingSnapshot ? "Đang tải..." : `${history.length} lượt`}</div>
           </div>
 
           <div className="px-4 py-4">
             {history.length === 0 ? (
               <div className="flex flex-col items-center gap-3 py-10 text-center text-white/38">
                 <QrCode className="h-8 w-8 opacity-35" />
-                <div>Chua co check-in nao</div>
+                <div>Chưa có check-in nào</div>
               </div>
             ) : (
               <div className="flex max-h-[360px] flex-col gap-3 overflow-y-auto pr-1">

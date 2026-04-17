@@ -285,7 +285,7 @@ export async function GET() {
     return json({ data: snapshot }, { status: 200 });
   } catch (error) {
     console.error("Staff check-in snapshot error:", error);
-    return json({ message: "Khong the tai du lieu check-in" }, { status: 500 });
+    return json({ message: "Không thể tải dữ liệu check-in" }, { status: 500 });
   }
 }
 
@@ -295,7 +295,7 @@ export async function POST(request: NextRequest) {
     return access.response;
   }
   if (!access.user) {
-    return json({ message: "Chua dang nhap" }, { status: 401 });
+    return json({ message: "Chưa đăng nhập" }, { status: 401 });
   }
 
   try {
@@ -307,12 +307,12 @@ export async function POST(request: NextRequest) {
     const phone = toDatabasePhone(body.phone) ?? parsedPayload.phone;
 
     if (!ticketCode) {
-      return json({ data: { status: "error", message: "Vui long nhap ma ve hoac quet QR" } }, { status: 200 });
+      return json({ data: { status: "error", message: "Vui lòng nhập mã vé hoặc quét QR" } }, { status: 200 });
     }
 
     const ticket = await findTicketOrder(ticketCode, phone);
     if (!ticket) {
-      return json({ data: { status: "error", message: "Khong tim thay ve hop le trong he thong" } }, { status: 200 });
+      return json({ data: { status: "error", message: "Không tìm thấy vé hợp lệ trong hệ thống" } }, { status: 200 });
     }
 
     const guest = buildGuest(ticket, zone);
@@ -322,7 +322,7 @@ export async function POST(request: NextRequest) {
         {
           data: {
             status: "denied",
-            message: `Hang ${guest.tier} khong co quyen vao ${zone.name}`,
+            message: `Hạng ${guest.tier} không có quyền vào ${zone.name}`,
             guest,
             ...snapshot,
           },
@@ -337,7 +337,7 @@ export async function POST(request: NextRequest) {
         {
           data: {
             status: "repeat",
-            message: "Khách da check-in truoc do",
+            message: "Khách đã check-in trước đó",
             guest,
             ...snapshot,
           },
@@ -353,7 +353,7 @@ export async function POST(request: NextRequest) {
       {
         data: {
           status: "success",
-          message: "Check-in thanh cong",
+          message: "Check-in thành công",
           guest: buildGuest(updatedTicket, zone),
           ...snapshot,
         },
@@ -362,6 +362,6 @@ export async function POST(request: NextRequest) {
     );
   } catch (error) {
     console.error("Staff check-in error:", error);
-    return json({ message: "Khong the xu ly check-in luc nay" }, { status: 500 });
+    return json({ message: "Không thể xử lý check-in lúc này" }, { status: 500 });
   }
 }

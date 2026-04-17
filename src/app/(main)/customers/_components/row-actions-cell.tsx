@@ -75,7 +75,7 @@ export function RowActionsCell({ row, onRowUpdated, onDuplicateRow, onDeleteRow 
         <DropdownMenuTrigger asChild>
           <Button variant="ghost" className="data-[state=open]:bg-muted text-muted-foreground flex size-8" size="icon">
             <EllipsisVertical />
-            <span className="sr-only">Mo menu</span>
+            <span className="sr-only">Mở menu</span>
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="w-36">
@@ -83,7 +83,7 @@ export function RowActionsCell({ row, onRowUpdated, onDuplicateRow, onDeleteRow 
             item={row}
             onUpdated={onRowUpdated}
             triggerElement={
-              <DropdownMenuItem onSelect={(event) => event.preventDefault()}>Xem chi tiet</DropdownMenuItem>
+              <DropdownMenuItem onSelect={(event) => event.preventDefault()}>Xem chi tiết</DropdownMenuItem>
             }
           />
           <DropdownMenuItem
@@ -93,7 +93,7 @@ export function RowActionsCell({ row, onRowUpdated, onDuplicateRow, onDeleteRow 
             }}
             disabled={!onDuplicateRow || isDuplicating}
           >
-            {isDuplicating ? "Dang tao..." : "Tao ban sao"}
+            {isDuplicating ? "Đang tạo..." : "Tạo bản sao"}
           </DropdownMenuItem>
           <DropdownMenuSeparator />
           <DropdownMenuItem
@@ -108,7 +108,7 @@ export function RowActionsCell({ row, onRowUpdated, onDuplicateRow, onDeleteRow 
             }}
             disabled={!onDeleteRow || isDeleting}
           >
-            Xoa
+            Xóa
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
@@ -116,20 +116,20 @@ export function RowActionsCell({ row, onRowUpdated, onDuplicateRow, onDeleteRow 
       <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Xoa khach hang nay?</AlertDialogTitle>
+            <AlertDialogTitle>Xóa khách hàng này?</AlertDialogTitle>
             <AlertDialogDescription>
-              Ban co chac chan muon xoa khach hang <strong>{row.name || row.customer_ID}</strong>? Hanh dong nay khong
-              the hoan tac.
+              Bạn có chắc chắn muốn xóa khách hàng <strong>{row.name || row.customer_ID}</strong>? ành động này không
+              thể hoàn tác.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={isDeleting}>Huy</AlertDialogCancel>
+            <AlertDialogCancel disabled={isDeleting}>Hủy</AlertDialogCancel>
             <AlertDialogAction
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
               onClick={handleDelete}
               disabled={isDeleting}
             >
-              {isDeleting ? "Dang xoa..." : "Xoa"}
+              {isDeleting ? "Đang xóa..." : "Xóa"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

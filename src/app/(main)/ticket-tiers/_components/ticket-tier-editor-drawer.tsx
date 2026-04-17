@@ -12,6 +12,7 @@ import {
 } from "@/components/ui/drawer";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { DatePicker } from "@/components/ui/date-picker";
 import type { TicketTierRecord } from "@/lib/ticket-tiers";
 
 import { formatMoney, formatTicketTierRange, type TicketTierForm } from "./ticket-tier-manager.utils";
@@ -41,14 +42,28 @@ function TicketTierEditableField({
   return (
     <div className="grid gap-2">
       <Label htmlFor={id}>{label}</Label>
-      <Input
-        id={id}
-        type={type}
-        min={type === "number" ? "0" : undefined}
-        value={value}
-        onChange={onChange}
-        className="h-10 rounded-xl bg-white"
-      />
+      {type === "date" ? (
+        <DatePicker
+          id={id}
+          value={value}
+          onChange={(newDateStr) => {
+            const simulatedEvent = {
+              target: { value: newDateStr }
+            } as React.ChangeEvent<HTMLInputElement>;
+            onChange(simulatedEvent);
+          }}
+          className="h-10 rounded-xl bg-white"
+        />
+      ) : (
+        <Input
+          id={id}
+          type={type}
+          min={type === "number" ? "0" : undefined}
+          value={value}
+          onChange={onChange}
+          className="h-10 rounded-xl bg-white"
+        />
+      )}
     </div>
   );
 }
@@ -59,17 +74,17 @@ function TicketTierPreviewPanel({ form }: { form: TicketTierForm }) {
       <div className="text-muted-foreground text-[11px] font-semibold tracking-[0.18em] uppercase">Xem nhanh</div>
       <div className="mt-3 grid gap-3">
         <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
-          <div className="text-muted-foreground text-[11px] font-medium tracking-[0.16em] uppercase">Gia thuong</div>
+          <div className="text-muted-foreground text-[11px] font-medium tracking-[0.16em] uppercase">Giá thường</div>
           <div className="mt-2 text-base font-semibold text-slate-900">
             {formatMoney(Number(form.regularPrice || 0))}
           </div>
         </div>
         <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
           <div className="text-muted-foreground text-[11px] font-medium tracking-[0.16em] uppercase">
-            Gia khuyen mai
+            Giá khuyến mãi
           </div>
           <div className="mt-2 text-base font-semibold text-slate-900">
-            {form.promoPrice === "" ? "Chua cai dat" : formatMoney(Number(form.promoPrice || 0))}
+            {form.promoPrice === "" ? "Chưa cài đặt" : formatMoney(Number(form.promoPrice || 0))}
           </div>
           <div className="mt-1 text-xs text-slate-500">
             {formatTicketTierRange(form.promoStart || null, form.promoEnd || null)}

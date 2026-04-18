@@ -51,12 +51,28 @@ export async function POST(req: NextRequest) {
     const db = getDB();
 
     if (body.id) {
+      const [existing] = await db.query(
+        "SELECT id FROM checkin_locations WHERE name = ? AND id != ?",
+        [body.name, body.id]
+      ) as any[];
+      if (existing.length > 0) {
+        return NextResponse.json({ error: "Tên địa điểm đã tồn tại" }, { status: 400 });
+      }
+
       await db.query(
         "UPDATE checkin_locations SET name = ?, allowed_tiers = ?, image_url = ?, prerequisite = ?, nc_order = ?, is_active = ?, event_date = ? WHERE id = ?",
         [body.name, body.allowed_tiers, body.image_url || null, body.prerequisite || null, body.nc_order || 0, body.is_active, body.event_date || null, body.id]
       );
       return NextResponse.json({ message: "Updated" });
     } else {
+      const [existing] = await db.query(
+        "SELECT id FROM checkin_locations WHERE name = ?",
+        [body.name]
+      ) as any[];
+      if (existing.length > 0) {
+        return NextResponse.json({ error: "Tên địa điểm đã tồn tại" }, { status: 400 });
+      }
+
       const [result] = await db.query(
         "INSERT INTO checkin_locations (name, allowed_tiers, image_url, prerequisite, nc_order, is_active, event_date) VALUES (?, ?, ?, ?, ?, ?, ?)",
         [body.name, body.allowed_tiers, body.image_url || null, body.prerequisite || null, body.nc_order || 0, body.is_active, body.event_date || null]

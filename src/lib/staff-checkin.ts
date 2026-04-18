@@ -3,10 +3,11 @@ import { toDatabasePhone } from "@/lib/phone";
 export type StaffCheckinTier = "GOLD" | "RUBY" | "VIP";
 
 export type StaffCheckinZone = {
-  id: "gate" | "coach" | "seminar";
+  id: string;
   name: string;
   color: string;
   tiers: StaffCheckinTier[];
+  eventDate?: string | null;
 };
 
 export type ParsedStaffQrPayload = {
@@ -18,9 +19,9 @@ export type ParsedStaffQrPayload = {
 export const STAFF_CHECKIN_EVENT_PREFIX = "Beauty Summit 2026";
 
 export const STAFF_CHECKIN_ZONES: readonly StaffCheckinZone[] = [
-  { id: "gate", name: "Cổng vào", color: "#C41E7F", tiers: ["GOLD", "RUBY", "VIP"] },
-  { id: "coach", name: "Phòng Coach 1:1", color: "#8B5CF6", tiers: ["RUBY", "VIP"] },
-  { id: "seminar", name: "Phòng hội thảo", color: "#0EA5E9", tiers: ["VIP"] },
+  { id: "gate", name: "Cổng vào", color: "#C41E7F", tiers: ["GOLD", "RUBY", "VIP"], eventDate: null },
+  { id: "coach", name: "Phòng Coach 1:1", color: "#8B5CF6", tiers: ["RUBY", "VIP"], eventDate: null },
+  { id: "seminar", name: "Phòng hội thảo", color: "#0EA5E9", tiers: ["VIP"], eventDate: null },
 ] as const;
 
 export function normalizeTicketCode(value: unknown): string {

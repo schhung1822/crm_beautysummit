@@ -21,7 +21,7 @@ const lastMonth = format(subMonths(new Date(), 1), "LLLL");
 export function OverviewCards() {
   return (
     <div className="grid grid-cols-1 gap-4 *:data-[slot=card]:shadow-xs sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
-      <Card>
+      <Card className="p-1">
         <CardHeader>
           <CardTitle>Người theo dõi mới</CardTitle>
           <CardDescription>Tháng trước</CardDescription>
@@ -48,7 +48,7 @@ export function OverviewCards() {
         </CardFooter>
       </Card>
 
-      <Card className="overflow-hidden pb-0">
+      <Card className="overflow-hidden pb-0 p-1">
         <CardHeader>
           <CardTitle>Bài viết đã đăng</CardTitle>
           <CardDescription>Tháng trước</CardDescription>
@@ -80,7 +80,7 @@ export function OverviewCards() {
         </CardContent>
       </Card>
 
-      <Card>
+      <Card className="p-1">
         <CardHeader>
           <div className="w-fit rounded-lg bg-blue-500/10 p-2">
             <Globe className="size-5 text-blue-500" />
@@ -96,7 +96,7 @@ export function OverviewCards() {
         </CardContent>
       </Card>
 
-      <Card>
+      <Card className="p-1">
         <CardHeader>
           <div className="bg-destructive/10 w-fit rounded-lg p-2">
             <ThumbsUp className="text-destructive size-5" />
@@ -112,7 +112,7 @@ export function OverviewCards() {
         </CardContent>
       </Card>
 
-      <Card className="col-span-1 xl:col-span-2">
+      <Card className="col-span-1 xl:col-span-2 p-1">
         <CardHeader>
           <CardTitle>Tăng trưởng các trang mạng xã hội</CardTitle>
           <CardDescription>Từ đầu năm</CardDescription>

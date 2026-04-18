@@ -28,7 +28,7 @@ export function OperationalCards({
 
   return (
     <div className="grid grid-cols-1 gap-4 *:data-[slot=card]:shadow-xs sm:grid-cols-2 xl:grid-cols-3">
-      <Card>
+      <Card className="p-1">
         <CardHeader>
           <CardTitle>Phễu chuyển đổi theo thương hiệu</CardTitle>
         </CardHeader>
@@ -45,7 +45,7 @@ export function OperationalCards({
         <CardFooter></CardFooter>
       </Card>
 
-      <Card>
+      <Card className="p-1">
         <CardHeader>
           <CardTitle>Xếp hạng sản phẩm bán chạy</CardTitle>
           <CardDescription className="font-medium tabular-nums">
@@ -79,7 +79,7 @@ export function OperationalCards({
         </CardFooter>
       </Card>
 
-      <Card>
+      <Card className="p-1">
         <CardHeader>
           <CardTitle>Xếp hạng doanh thu Sale</CardTitle>
         </CardHeader>

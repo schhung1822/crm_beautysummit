@@ -38,7 +38,7 @@ export function InsightCards({
   return (
     <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
       {/* Pie: Doanh thu theo kênh */}
-      <Card className="flex flex-col">
+      <Card className="flex flex-col p-1">
         <CardHeader>
           <CardTitle>Doanh thu theo kênh bán</CardTitle>
         </CardHeader>
@@ -106,7 +106,7 @@ export function InsightCards({
       </Card>
 
       {/* Bar ngang: Doanh thu theo chi nhánh */}
-      <Card className="flex flex-col">
+      <Card className="flex flex-col p-1">
         <CardHeader>
           <CardTitle>Doanh thu theo chi nhánh</CardTitle>
         </CardHeader>

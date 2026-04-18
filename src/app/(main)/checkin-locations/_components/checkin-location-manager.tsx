@@ -94,6 +94,7 @@ export function CheckinLocationManager({ initialData }: { initialData: CheckinLo
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(form),
       });
+      const resData = await res.json();
       if (res.ok) {
         toast.success("Lưu thành công");
         setOpen(false);
@@ -102,10 +103,10 @@ export function CheckinLocationManager({ initialData }: { initialData: CheckinLo
         const json = await fetchRes.json();
         setData(json.data);
       } else {
-        toast.error("Lỗi khi lưu");
+        toast.error(resData.error || "Lỗi khi lưu");
       }
-    } catch {
-      toast.error("Lỗi khi lưu");
+    } catch (e: any) {
+      toast.error(e?.message || "Lỗi khi lưu");
     }
   };
 

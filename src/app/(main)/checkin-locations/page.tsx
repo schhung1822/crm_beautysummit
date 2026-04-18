@@ -15,7 +15,7 @@ export default async function CheckinLocationsPage() {
 
   const db = getDB();
   const [rows] = await db.query(
-    "SELECT id, name, allowed_tiers, image_url, prerequisite, nc_order, is_active FROM checkin_locations ORDER BY nc_order ASC, id ASC"
+    "SELECT id, name, allowed_tiers, image_url, prerequisite, nc_order, is_active, DATE_FORMAT(event_date, '%Y-%m-%d') as event_date FROM checkin_locations ORDER BY nc_order ASC, id ASC"
   ) as any[];
 
   // Convert buffer mapping out of mysql

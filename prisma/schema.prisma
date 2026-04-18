@@ -309,3 +309,32 @@ model miniapp_voucher {
   @@index([kind], map: "miniapp_voucher_kind_idx")
   @@index([nc_order], map: "miniapp_voucher_order_idx")
 }
+
+model checkin {
+  id Int @id @default(autoincrement()) @db.UnsignedInt
+  order_id Int? @db.UnsignedInt
+  ordercode String? @db.VarChar(64)
+  zone_id String? @db.VarChar(64)
+  zone_name String? @db.VarChar(255)
+  checkin_time DateTime? @db.DateTime(0)
+  created_by String? @db.VarChar(255)
+
+  @@index([ordercode])
+  @@index([zone_id])
+}
+
+model checkin_log {
+  id           Int       @id @default(autoincrement())
+  order_id     Int       @db.UnsignedInt
+  ordercode    String    @db.VarChar(64)
+  zone_id      String    @db.VarChar(64)
+  zone_name    String?   @db.VarChar(255)
+  source       String?   @db.VarChar(255)
+  checkin_time DateTime? @default(now()) @db.DateTime(0)
+  created_by   String?   @db.VarChar(255)
+
+  @@index([order_id], map: "checkin_log_order_id_idx")
+  @@index([ordercode], map: "checkin_log_ordercode_idx")
+  @@index([zone_id], map: "checkin_log_zone_id_idx")
+}
+

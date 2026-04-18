@@ -6,12 +6,12 @@ import React from "react";
 import dynamic from "next/dynamic";
 
 import type { IDetectedBarcode } from "@yudiel/react-qr-scanner";
-import { AlertCircle, CheckCircle2, CircleAlert, Copy, Keyboard, MapPin, QrCode, ScanLine, Upload } from "lucide-react";
+import { AlertCircle, CheckCircle2, CircleAlert, Copy, Keyboard, MapPin, QrCode, ScanLine, Upload, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { STAFF_CHECKIN_ZONES, type StaffCheckinTier } from "@/lib/staff-checkin";
+import { type StaffCheckinTier, type StaffCheckinZone } from "@/lib/staff-checkin";
 import { cn } from "@/lib/utils";
 
 const QrScanner = dynamic(async () => (await import("@yudiel/react-qr-scanner")).Scanner, {
@@ -19,6 +19,7 @@ const QrScanner = dynamic(async () => (await import("@yudiel/react-qr-scanner"))
 });
 
 type StaffCheckinSnapshot = {
+  zones: StaffCheckinZone[];
   history: StaffHistoryItem[];
   stats: {
     total: { current: number; max: number };
@@ -205,7 +206,8 @@ async function extractQrValueFromFile(file: File) {
 }
 
 export default function StaffCheckinClient() {
-  const [activeZone, setActiveZone] = React.useState<string>("gate");
+  const [zones, setZones] = React.useState<StaffCheckinZone[]>([]);
+  const [activeZone, setActiveZone] = React.useState<string>("");
   const [mode, setMode] = React.useState<"scan" | "manual">("scan");
   const [manualCode, setManualCode] = React.useState<string>("");
   const [scannerEnabled, setScannerEnabled] = React.useState<boolean>(false);
@@ -229,7 +231,7 @@ export default function StaffCheckinClient() {
   const imageInputRef = React.useRef<HTMLInputElement | null>(null);
   const lastScanRef = React.useRef<{ value: string; at: number } | null>(null);
 
-  const zone = STAFF_CHECKIN_ZONES.find((item) => item.id === activeZone) ?? STAFF_CHECKIN_ZONES[0];
+  const zone = zones.find((item) => item.id === activeZone) || zones[0];
   const busy = submitting || imageScanning;
 
   const loadSnapshot = React.useCallback(async () => {
@@ -246,6 +248,13 @@ export default function StaffCheckinClient() {
         throw new Error(payload.message ?? "Khong the tai du lieu check-in");
       }
 
+      const fetchedZones = payload.data.zones || [];
+      setZones(fetchedZones);
+      setActiveZone(prev => {
+        if (!prev && fetchedZones.length > 0) return fetchedZones[0].id;
+        return prev;
+      });
+      
       setHistory(payload.data.history ?? []);
       setStats(
         payload.data.stats ?? {
@@ -406,6 +415,15 @@ export default function StaffCheckinClient() {
     }
   };
 
+  if (!zone) {
+    return (
+      <div className="mx-auto flex w-full max-w-[760px] flex-col items-center justify-center py-20 text-muted-foreground">
+        <Loader2 className="mb-4 h-8 w-8 animate-spin" />
+        <p>Đang tải dữ liệu check-in...</p>
+      </div>
+    );
+  }
+
   return (
     <div className="mx-auto flex w-full max-w-[760px] flex-col gap-6">
       <input
@@ -432,9 +450,9 @@ export default function StaffCheckinClient() {
           </div>
         </div>
 
-        <div className="mb-3 text-sm font-medium text-[#b3b0ba]">Khu vuc dang check-in</div>
-        <div className="mb-5 grid grid-cols-3 gap-2 sm:gap-3">
-          {STAFF_CHECKIN_ZONES.map((item) => {
+        <div className="mb-3 text-sm font-medium text-[#b3b0ba]">Khu vực đang check-in</div>
+        <div className="mb-5 flex flex-row gap-2 sm:gap-3 overflow-x-auto pb-4 custom-scrollbar">
+          {zones.map((item) => {
             const active = item.id === activeZone;
 
             return (
@@ -446,7 +464,7 @@ export default function StaffCheckinClient() {
                   setResult(null);
                 }}
                 className={cn(
-                  "rounded-[24px] border bg-[#15151f] px-1 py-3 text-left transition-all sm:px-4 sm:py-5",
+                  "shrink-0 w-[110px] sm:w-[140px] rounded-[24px] border bg-[#15151f] px-1 py-3 text-left transition-all sm:px-4 sm:py-5",
                   active ? "border-[#ff3caf] shadow-[0_0_0_1px_rgba(255,60,175,0.18)_inset]" : "border-white/8",
                 )}
               >

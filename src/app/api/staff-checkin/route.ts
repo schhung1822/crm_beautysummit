@@ -36,6 +36,7 @@ type TicketOrderRow = RowDataPacket & {
   checkin_time: Date | string | null;
   ref: string | null;
   source: string | null;
+  checked_zones: string | null;
 };
 
 type HistoryRow = RowDataPacket & {
@@ -85,25 +86,56 @@ function buildZoneSource(zone: StaffCheckinZone): string {
 }
 
 function parseZoneSource(value: string | null | undefined): { zoneId: string; zoneName: string } {
-  const source = String(value ?? "");
-  if (!source.startsWith("staff-checkin:")) {
+  const sourceRaw = String(value ?? "");
+  const parts = sourceRaw.split("|");
+  const lastSource = parts[parts.length - 1] || "";
+  
+  if (!lastSource.startsWith("staff-checkin:")) {
     return { zoneId: "", zoneName: "" };
   }
 
-  const [, zoneId = "", zoneName = ""] = source.split(":");
+  const [, zoneId = "", zoneName = ""] = lastSource.split(":");
   return { zoneId, zoneName };
 }
 
+function maskPhoneString(phoneValue: string | null | undefined): string {
+  const display = toDisplayPhone(phoneValue);
+  if (!display) return "";
+  if (display.length >= 7) {
+    return display.slice(0, 3) + "***" + display.slice(-3);
+  }
+  return "***";
+}
+
 function buildGuest(ticket: TicketOrderRow, zone: StaffCheckinZone): StaffCheckinGuest {
+  const sourceRaw = String(ticket.source ?? "");
+  const refRaw = String(ticket.ref ?? "");
+  const checkedZonesRaw = String(ticket.checked_zones ?? "");
+
+  const checkedZoneArray = checkedZonesRaw.split(",").map(v => v.trim()).filter(Boolean);
+  const refZoneArray = refRaw.split(",").map(v => v.trim()).filter(Boolean);
+
+  const isInCheckedZones = checkedZoneArray.includes(String(zone.id));
+  const isInRefZones = refZoneArray.includes(String(zone.id));
+
+  const sourceParts = sourceRaw.split("|");
+  const isInSource = sourceParts.some(part => {
+    if (!part.startsWith("staff-checkin:")) return false;
+    const segments = part.split(":");
+    return segments[1] === String(zone.id);
+  });
+
+  const hasCheckedInCurrentZone = isInCheckedZones || isInRefZones || isInSource;
+
   return {
     code: normalizeTicketCode(ticket.ordercode),
     name: String(ticket.name ?? ""),
-    phone: toDisplayPhone(ticket.phone),
+    phone: maskPhoneString(ticket.phone),
     tier: normalizeStaffTicketTier(ticket.ticketClass),
     ticketClass: String(ticket.ticketClass ?? ""),
     zoneId: zone.id,
     zoneName: zone.name,
-    checkedIn: isTicketCheckedIn(ticket),
+    checkedIn: hasCheckedInCurrentZone,
     checkinTime: toIsoString(ticket.checkin_time),
   };
 }
@@ -141,7 +173,8 @@ async function findTicketOrder(ticketCode: string, phone: string | null): Promis
       COALESCE(number_checkin, 0) AS number_checkin,
       checkin_time,
       COALESCE(ref, '') AS ref,
-      COALESCE(source, '') AS source
+      COALESCE(source, '') AS source,
+      (SELECT GROUP_CONCAT(zone_id) FROM checkin_log WHERE order_id = orders.id) AS checked_zones
     FROM orders
     WHERE ordercode = ?
       ${phoneCondition}
@@ -158,6 +191,18 @@ async function markTicketCheckedIn(ticket: TicketOrderRow, currentUser: JWTPaylo
   const now = new Date();
   const nextNumberCheckin = Math.max(1, Number(ticket.number_checkin ?? 0) + 1);
 
+  const prevSource = String(ticket.source ?? "");
+  const prevRef = String(ticket.ref ?? "");
+
+  const newSource = prevSource ? `${prevSource}|${buildZoneSource(zone)}` : buildZoneSource(zone);
+  const newRef = prevRef ? `${prevRef},${zone.id}` : zone.id;
+
+  await db.query(
+    `INSERT INTO checkin_log (order_id, ordercode, zone_id, zone_name, source, created_by)
+     VALUES (?, ?, ?, ?, ?, ?)`,
+    [ticket.id, ticket.ordercode, zone.id, zone.name, newSource, currentUser.username]
+  );
+
   await db.query(
     `
     UPDATE orders
@@ -172,7 +217,7 @@ async function markTicketCheckedIn(ticket: TicketOrderRow, currentUser: JWTPaylo
     WHERE id = ?
     LIMIT 1
     `,
-    [nextNumberCheckin, now, zone.id, buildZoneSource(zone), currentUser.username, now, ticket.id],
+    [nextNumberCheckin, now, newRef, newSource, currentUser.username, now, ticket.id],
   );
 
   return {
@@ -180,8 +225,8 @@ async function markTicketCheckedIn(ticket: TicketOrderRow, currentUser: JWTPaylo
     is_checkin: 1,
     number_checkin: nextNumberCheckin,
     checkin_time: now,
-    ref: zone.id,
-    source: buildZoneSource(zone),
+    ref: newRef,
+    source: newSource,
   };
 }
 
@@ -195,18 +240,17 @@ async function loadSnapshot() {
   const [historyRows] = await db.query<HistoryRow[]>(
     `
     SELECT
-      id,
-      COALESCE(name, '') AS name,
-      COALESCE(phone, '') AS phone,
-      COALESCE(ordercode, '') AS ordercode,
-      COALESCE(class, '') AS ticketClass,
-      ref,
-      source,
-      checkin_time
-    FROM orders
-    WHERE COALESCE(is_checkin, 0) = 1
-      AND checkin_time IS NOT NULL
-    ORDER BY checkin_time DESC, id DESC
+      l.id,
+      COALESCE(o.name, '') AS name,
+      COALESCE(o.phone, '') AS phone,
+      COALESCE(l.ordercode, o.ordercode, '') AS ordercode,
+      COALESCE(o.class, '') AS ticketClass,
+      l.zone_id AS ref,
+      l.source,
+      l.checkin_time
+    FROM checkin_log l
+    LEFT JOIN orders o ON l.order_id = o.id
+    ORDER BY l.checkin_time DESC, l.id DESC
     LIMIT 20
     `,
   );
@@ -260,7 +304,7 @@ async function loadSnapshot() {
     return {
       id: row.id,
       name: String(row.name ?? ""),
-      phone: toDisplayPhone(row.phone),
+      phone: maskPhoneString(row.phone),
       code: normalizeTicketCode(row.ordercode),
       tier: normalizeStaffTicketTier(row.ticketClass),
       ticketClass: String(row.ticketClass ?? ""),
@@ -271,7 +315,20 @@ async function loadSnapshot() {
     };
   });
 
-  return { history, stats };
+  const [zonesRows] = await db.query(
+    "SELECT id, name, allowed_tiers, event_date FROM checkin_locations WHERE is_active = 1 ORDER BY nc_order ASC, id ASC"
+  ) as any[];
+
+  const colors = ["#C41E7F", "#8B5CF6", "#0EA5E9", "#F59E0B", "#10B981", "#EF4444"];
+  const zones: StaffCheckinZone[] = zonesRows.map((r: any, i: number) => ({
+    id: String(r.id),
+    name: r.name,
+    color: colors[i % colors.length] as string,
+    tiers: String(r.allowed_tiers || "").split(",").map(t => t.trim()) as StaffCheckinTier[],
+    eventDate: r.event_date ? toIsoString(r.event_date) : null,
+  }));
+
+  return { history, stats, zones };
 }
 
 export async function GET() {
@@ -300,7 +357,15 @@ export async function POST(request: NextRequest) {
 
   try {
     const body = (await request.json()) as StaffCheckinPayload;
-    const zone = getStaffCheckinZone(body.zoneId);
+    
+    // fetch snapshot ahead to get zones and also reuse for return
+    let currentSnapshot = await loadSnapshot();
+    const zoneIdStr = String(body.zoneId || "");
+    const zone = currentSnapshot.zones.find(z => z.id === zoneIdStr) ?? currentSnapshot.zones[0];
+    if (!zone) {
+      return json({ data: { status: "error", message: "Không tìm thấy thông tin địa điểm check-in" } }, { status: 200 });
+    }
+
     const parsedPayload = parseStaffQrPayload(body.payload ?? "");
     const manualCode = normalizeTicketCode(body.code);
     const ticketCode = manualCode.length > 0 ? manualCode : (parsedPayload.ticketCode ?? "");
@@ -316,15 +381,43 @@ export async function POST(request: NextRequest) {
     }
 
     const guest = buildGuest(ticket, zone);
+    
+    console.log("=== CHECKIN DEBUG ===", {
+      ticketCode,
+      zoneIdStr,
+      zoneId: zone.id,
+      sourceRaw: ticket.source,
+      checkedZones: ticket.checked_zones,
+      ref: ticket.ref,
+      guestCheckedIn: guest.checkedIn
+    });
+
+    if (zone.eventDate) {
+      const eventTime = new Date(zone.eventDate).getTime();
+      const nowTime = new Date().getTime();
+      if (nowTime < eventTime) {
+        return json(
+          {
+            data: {
+              status: "denied",
+              message: `Chưa đến thời gian check-in của ${zone.name}`,
+              guest,
+              ...currentSnapshot,
+            },
+          },
+          { status: 200 },
+        );
+      }
+    }
+
     if (!zone.tiers.includes(guest.tier)) {
-      const snapshot = await loadSnapshot();
       return json(
         {
           data: {
             status: "denied",
             message: `Hạng ${guest.tier} không có quyền vào ${zone.name}`,
             guest,
-            ...snapshot,
+            ...currentSnapshot,
           },
         },
         { status: 200 },
@@ -332,14 +425,13 @@ export async function POST(request: NextRequest) {
     }
 
     if (guest.checkedIn) {
-      const snapshot = await loadSnapshot();
       return json(
         {
           data: {
             status: "repeat",
             message: "Khách đã check-in trước đó",
             guest,
-            ...snapshot,
+            ...currentSnapshot,
           },
         },
         { status: 200 },
@@ -347,7 +439,7 @@ export async function POST(request: NextRequest) {
     }
 
     const updatedTicket = await markTicketCheckedIn(ticket, access.user, zone);
-    const snapshot = await loadSnapshot();
+    currentSnapshot = await loadSnapshot();
 
     return json(
       {
@@ -355,7 +447,7 @@ export async function POST(request: NextRequest) {
           status: "success",
           message: "Check-in thành công",
           guest: buildGuest(updatedTicket, zone),
-          ...snapshot,
+          ...currentSnapshot,
         },
       },
       { status: 200 },

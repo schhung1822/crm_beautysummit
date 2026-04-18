@@ -31,7 +31,7 @@ export function TableCards({ channels }: Props) {
   });
 
   return (
-    <Card className="shadow-sm">
+    <Card className="shadow-sm p-1">
       <CardHeader className="bg-muted/30 border-b">
         <CardTitle className="text-lg">Thống kê doanh thu theo hạng vé</CardTitle>
         <CardAction>

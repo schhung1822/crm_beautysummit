@@ -590,7 +590,7 @@ export default function VoucherManager({ initialData }: VoucherManagerProps) {
             <Input
               value={search}
               onChange={(event) => setSearch(event.target.value)}
-              placeholder="Tim theo brand, ma voucher..."
+              placeholder="Tìm theo brand, mã voucher..."
               className="pl-10"
             />
           </div>

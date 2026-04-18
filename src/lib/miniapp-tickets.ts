@@ -15,6 +15,8 @@ export type MiniAppTicketRow = RowDataPacket & {
   is_checkin: number | string | null;
   number_checkin: number | string | null;
   checkin_time: Date | string | null;
+  ref: string | null;
+  source: string | null;
 };
 
 function toIsoString(value: Date | string | null): string | null {
@@ -28,6 +30,9 @@ function toIsoString(value: Date | string | null): string | null {
 
 export function mapMiniAppTicketRow(row: MiniAppTicketRow) {
   const checkedIn = isTicketCheckedIn(row);
+  const refStr = String(row.ref ?? "");
+  const zones = refStr ? refStr.split(",") : [];
+  const primaryZoneId = zones.length > 0 ? zones[zones.length - 1] : "";
 
   return {
     code: String(row.ordercode ?? "").trim(),
@@ -46,6 +51,8 @@ export function mapMiniAppTicketRow(row: MiniAppTicketRow) {
     buyerPhone: "",
     holderName: String(row.name ?? ""),
     holderPhone: toDisplayPhone(row.phone),
+    zoneId: primaryZoneId,
+    checkedZones: zones,
   };
 }
 
@@ -65,7 +72,9 @@ export async function queryMiniAppTicketRowsByPhone(phone: string): Promise<Mini
       create_time,
       COALESCE(is_checkin, 0) AS is_checkin,
       COALESCE(number_checkin, 0) AS number_checkin,
-      checkin_time
+      checkin_time,
+      COALESCE(ref, '') AS ref,
+      COALESCE(source, '') AS source
     FROM orders
     WHERE phone IN (${placeholders})
       AND ordercode IS NOT NULL

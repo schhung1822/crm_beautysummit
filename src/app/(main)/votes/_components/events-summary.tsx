@@ -39,7 +39,7 @@ export function EventsSummary({ totalVotes, genderData, brandRatioData }: Events
   return (
     <div className="grid grid-cols-1 gap-4 xl:grid-cols-3">
       <div className="grid gap-4">
-        <Card>
+        <Card className="p-1">
           <CardHeader className="flex flex-row items-center justify-between">
             <CardTitle className="text-sm font-medium">Lượt vote</CardTitle>
             <Users className="text-muted-foreground size-4" />
@@ -51,7 +51,7 @@ export function EventsSummary({ totalVotes, genderData, brandRatioData }: Events
         </Card>
       </div>
 
-      <Card>
+      <Card className="p-1">
         <CardHeader>
           <CardTitle className="text-sm font-medium">Tỷ lệ theo giới tính</CardTitle>
         </CardHeader>
@@ -70,7 +70,7 @@ export function EventsSummary({ totalVotes, genderData, brandRatioData }: Events
         </CardContent>
       </Card>
 
-      <Card>
+      <Card className="p-1">
         <CardHeader>
           <CardTitle className="text-sm font-medium">Tỷ lệ theo thương hiệu</CardTitle>
         </CardHeader>

@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -91,7 +91,7 @@ function TicketTierPreviewPanel({ form }: { form: TicketTierForm }) {
         <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
           <div className="text-muted-foreground text-[11px] font-medium tracking-[0.16em] uppercase">Giá thường</div>
           <div className="mt-2 text-base font-semibold text-slate-900">
-            {formatMoney(Number(form.regularPrice || 0))}
+            {formatMoney(Number(String(form.regularPrice || 0).replace(/,/g, "")))}
           </div>
         </div>
         <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
@@ -99,7 +99,7 @@ function TicketTierPreviewPanel({ form }: { form: TicketTierForm }) {
             Giá khuyến mãi
           </div>
           <div className="mt-2 text-base font-semibold text-slate-900">
-            {form.promoPrice === "" ? "Chưa cài đặt" : formatMoney(Number(form.promoPrice || 0))}
+            {form.promoPrice === "" ? "Chưa cài đặt" : formatMoney(Number(String(form.promoPrice || 0).replace(/,/g, "")))}
           </div>
           <div className="mt-1 text-xs text-slate-500">
             {formatTicketTierRange(form.promoStart || null, form.promoEnd || null)}

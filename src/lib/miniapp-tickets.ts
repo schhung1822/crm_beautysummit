@@ -42,7 +42,7 @@ export function mapMiniAppTicketRow(row: MiniAppTicketRow) {
     status: checkedIn ? "checked_in" : "pending",
     statusLabel: checkedIn ? "Đã check-in" : "Chưa check-in",
     checkedIn,
-    disabled: checkedIn,
+    disabled: false,
     transferLocked: false,
     canOpen: true,
     checkinTime: toIsoString(row.checkin_time),

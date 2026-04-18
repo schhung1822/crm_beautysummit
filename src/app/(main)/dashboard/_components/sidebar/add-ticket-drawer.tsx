@@ -189,9 +189,9 @@ export function AddTicketDrawer() {
               ...preparedSubmission.invoicePayload,
               orderCode: getFirstOrderCode(data),
             });
-            toast.success("Xuat hoa don thanh cong");
+            toast.success("Xuất hóa đơn thành công");
           } catch (exportError) {
-            toast.error(exportError instanceof Error ? exportError.message : "Xuat hoa don that bai");
+            toast.error(exportError instanceof Error ? exportError.message : "Xuất hóa đơn thất bại");
           }
         }
 

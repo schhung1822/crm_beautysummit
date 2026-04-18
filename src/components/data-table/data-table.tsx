@@ -272,7 +272,7 @@ export function DataTable<TData, TValue>({
       <div className="flex items-center justify-between px-4 py-2">
         {selectionEnabled ? (
           <div className="text-muted-foreground hidden flex-1 text-sm lg:flex">
-            {selectedCount} cua {totalFiltered} hang da chon
+            {selectedCount} của {totalFiltered} hàng đã chọn
           </div>
         ) : (
           <div className="hidden flex-1 lg:flex" />

@@ -145,12 +145,12 @@ export function TableCellViewer({
 
           <div className="grid gap-3 sm:grid-cols-2">
             <StatCard
-              label="Dien thoai"
+              label="Điện thoại"
               value={getDisplayValue(previewItem.phone)}
               icon={<Smartphone className="size-3.5" />}
             />
             <StatCard
-              label="Ngay tao"
+              label="Ngày tạo"
               value={formatDate(previewItem.create_time)}
               icon={<ShieldCheck className="size-3.5" />}
             />
@@ -161,7 +161,6 @@ export function TableCellViewer({
           {isEditing ? (
             <SectionCard
               title="Chỉnh sửa nhanh"
-              description="Cập nhật customer và đồng bộ lại thông tin liên hệ chính sang orders cùng customer_id."
             >
               <div className="grid gap-4 md:grid-cols-2">
                 <div className="grid gap-2">
@@ -218,7 +217,7 @@ export function TableCellViewer({
             </SectionCard>
           ) : null}
 
-          <SectionCard title="Thông tin cơ bản" description="Thông tin liên hệ và nhận diện chính của bảng customer.">
+          <SectionCard title="Thông tin cơ bản">
             <div className="grid gap-3 md:grid-cols-2">
               <StatCard
                 label="Số điện thoại"
@@ -246,7 +245,6 @@ export function TableCellViewer({
 
           <SectionCard
             title="Dữ liệu theo dõi"
-            description="Thông tin tracking phục vụ attribution, chăm sóc khách hàng và phân tích hành vi."
           >
             <div className="grid gap-3">
               <StatCard

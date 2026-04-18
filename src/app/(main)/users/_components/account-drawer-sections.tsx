@@ -27,7 +27,6 @@ export function AccountEditSection({
   return (
     <SectionCard
       title="Chỉnh sửa tài khoản"
-      description="Cập nhật trực tiếp bảng user. Các trường role và status được sửa ngay trong panel này."
     >
       <div className="grid gap-4 md:grid-cols-2">
         <div className="grid gap-2">
@@ -50,7 +49,7 @@ export function AccountEditSection({
           />
         </div>
         <div className="grid gap-2">
-          <Label htmlFor="account-password">Mật khẩu mới (để trống nếu không đổi)</Label>
+          <Label htmlFor="account-password">Mật khẩu mới</Label>
           <Input
             id="account-password"
             value={form.password || ""}
@@ -58,6 +57,7 @@ export function AccountEditSection({
             type="password"
             autoComplete="new-password"
             className="h-10 rounded-lg bg-white"
+            placeholder="Để trống nếu không đổi"
           />
         </div>
         <div className="grid gap-2">
@@ -103,7 +103,6 @@ export function AccountEditSection({
               <SelectValue placeholder="Chọn vai trò" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="staff">user</SelectItem>
               <SelectItem value="admin">admin</SelectItem>
               <SelectItem value="staff">staff</SelectItem>
             </SelectContent>
@@ -131,7 +130,6 @@ export function AccountInfoSection({ item }: { item: AccountUser }) {
   return (
     <SectionCard
       title="Thông tin tài khoản"
-      description="Dữ liệu chính của bảng user, phục vụ đăng nhập, phân quyền và đồng bộ mini app."
     >
       <div className="grid gap-3 md:grid-cols-2">
         <StatCard label="Username" value={getDisplayValue(item.username)} icon={<User2 className="size-3.5" />} />

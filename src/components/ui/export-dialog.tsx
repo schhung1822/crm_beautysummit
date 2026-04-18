@@ -124,7 +124,7 @@ export function ExportDialog({
                 </Button>
               )}
             </div>
-            <div className="grid gap-2">
+            <div className="grid grid-cols-2 gap-2">
               <Popover>
                 <PopoverTrigger asChild>
                   <Button
@@ -134,12 +134,14 @@ export function ExportDialog({
                       !dateRange.from && "text-muted-foreground"
                     )}
                   >
-                    <CalendarIcon className="mr-2 h-4 w-4" />
-                    {dateRange.from ? (
-                      formatDate(dateRange.from, "dd/MM/yyyy", { locale: vi })
-                    ) : (
-                      <span>Từ ngày</span>
-                    )}
+                    <CalendarIcon className="mr-2 h-4 w-4 shrink-0" />
+                    <span className="truncate">
+                      {dateRange.from ? (
+                        formatDate(dateRange.from, "dd/MM/yyyy", { locale: vi })
+                      ) : (
+                        "Từ ngày"
+                      )}
+                    </span>
                   </Button>
                 </PopoverTrigger>
                 <PopoverContent className="w-auto p-0" align="start">
@@ -163,12 +165,14 @@ export function ExportDialog({
                       !dateRange.to && "text-muted-foreground"
                     )}
                   >
-                    <CalendarIcon className="mr-2 h-4 w-4" />
-                    {dateRange.to ? (
-                      formatDate(dateRange.to, "dd/MM/yyyy", { locale: vi })
-                    ) : (
-                      <span>Đến ngày</span>
-                    )}
+                    <CalendarIcon className="mr-2 h-4 w-4 shrink-0" />
+                    <span className="truncate">
+                      {dateRange.to ? (
+                        formatDate(dateRange.to, "dd/MM/yyyy", { locale: vi })
+                      ) : (
+                        "Đến ngày"
+                      )}
+                    </span>
                   </Button>
                 </PopoverTrigger>
                 <PopoverContent className="w-auto p-0" align="start">

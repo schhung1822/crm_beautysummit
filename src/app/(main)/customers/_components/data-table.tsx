@@ -155,11 +155,11 @@ export function DataTable({ data: initialData }: { data: Users[] }) {
           filename,
         });
 
-        toast.success(`Xuat ${dataToExport.length} khach hang thanh cong`);
+        toast.success(`Xuất ${dataToExport.length} khách hàng thành công`);
         setExportDialogOpen(false);
       } catch (error) {
         console.error("Export error:", error);
-        toast.error("Co loi xay ra khi xuat du lieu");
+        toast.error("Có lỗi xảy ra khi xuất dữ liệu");
       } finally {
         setIsExporting(false);
       }
@@ -188,7 +188,7 @@ export function DataTable({ data: initialData }: { data: Users[] }) {
           </Button>
           {selectedItems.length > 0 ? (
             <Button size="sm" variant="destructive" onClick={handleDeleteSelected} disabled={isDeleting}>
-              {isDeleting ? "Dang xoa..." : `Xoa (${selectedItems.length})`}
+              {isDeleting ? "Đang xóa..." : `Xóa (${selectedItems.length})`}
             </Button>
           ) : null}
 
@@ -199,7 +199,7 @@ export function DataTable({ data: initialData }: { data: Users[] }) {
             disabled={filteredData.length === 0}
           >
             <Download className="size-4" />
-            <span className="hidden lg:inline">Xuat</span>
+            <span className="hidden lg:inline">Xuất</span>
           </Button>
         </div>
       </div>
@@ -213,8 +213,8 @@ export function DataTable({ data: initialData }: { data: Users[] }) {
         onOpenChange={setExportDialogOpen}
         onExport={handleExport}
         isExporting={isExporting}
-        title="Xuat du lieu khach hang"
-        description="Chon dinh dang va khoang thoi gian de xuat du lieu khach hang"
+        title="Xuất dữ liệu khách hàng"
+        description="Chọn định dạng và khoảng thời gian để xuất dữ liệu khách hàng"
       />
     </div>
   );

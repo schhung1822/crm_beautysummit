@@ -33,8 +33,8 @@ export function createTicketTierFormState(value?: TicketTierRecord | null): Tick
     id: value.id,
     code: value.code,
     name: value.name,
-    regularPrice: String(value.regularPrice),
-    promoPrice: value.promoPrice == null ? "" : String(value.promoPrice),
+    regularPrice: Number(value.regularPrice).toLocaleString("en-US"),
+    promoPrice: value.promoPrice == null ? "" : Number(value.promoPrice).toLocaleString("en-US"),
     promoStart: value.promoStart ? value.promoStart.slice(0, 10) : "",
     promoEnd: value.promoEnd ? value.promoEnd.slice(0, 10) : "",
   };

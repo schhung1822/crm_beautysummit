@@ -26,8 +26,8 @@ type TicketTierManagerProps = {
 async function updateTicketTierRequest(form: TicketTierForm) {
   const payload = {
     id: form.id ?? undefined,
-    regularPrice: Number(form.regularPrice || 0),
-    promoPrice: form.promoPrice === "" ? null : Number(form.promoPrice),
+    regularPrice: Number(String(form.regularPrice || "0").replace(/,/g, "")),
+    promoPrice: form.promoPrice === "" ? null : Number(String(form.promoPrice).replace(/,/g, "")),
     promoStart: form.promoStart || null,
     promoEnd: form.promoEnd || null,
   };

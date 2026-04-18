@@ -1,4 +1,4 @@
-import {
+﻿import {
   Banknote,
   Bell,
   Calendar1Icon,
@@ -50,8 +50,7 @@ export const sidebarItems: NavGroup[] = [
     items: [
       { title: "Tổng quan", url: "/dashboard/default", icon: LayoutDashboard },
       { title: "CRM", url: "/dashboard/crm", icon: ChartBar },
-      { title: "Tài chính", url: "/dashboard/finance", icon: Banknote, comingSoon: true },
-      { title: "Phân tích", url: "/dashboard/coming-soon", icon: Gauge, comingSoon: true },
+
     ],
   },
   {
@@ -74,7 +73,7 @@ export const sidebarItems: NavGroup[] = [
     items: [
       { title: "Hồ sơ", url: "/account", icon: UserCog },
       { title: "Quy tắc", url: "/rules", icon: Scale },
-      { title: "Khác", url: "/other", icon: SquareArrowUpRight },
     ],
   },
 ];
+

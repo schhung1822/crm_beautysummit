@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import Link from "next/link";
 
@@ -84,26 +84,20 @@ export function NavUser() {
               <DropdownMenuItem asChild>
                 <Link href="/account" className="flex items-center gap-2">
                   <CircleUser className="h-4 w-4" />
-                  <span>Tài khoản</span>
-                </Link>
-              </DropdownMenuItem>
-              <DropdownMenuItem asChild>
-                <Link href="/dashboard/finance" className="flex items-center gap-2">
-                  <CreditCard className="h-4 w-4" />
-                  <span>Thanh toán</span>
+                  <span>TÃ i khoáº£n</span>
                 </Link>
               </DropdownMenuItem>
               <DropdownMenuItem asChild>
                 <Link href="/noti/service-notifications" className="flex items-center gap-2">
                   <Bell className="h-4 w-4" />
-                  <span>Thông báo</span>
+                  <span>ThÃ´ng bÃ¡o</span>
                 </Link>
               </DropdownMenuItem>
             </DropdownMenuGroup>
             <DropdownMenuSeparator />
             <DropdownMenuItem onClick={handleLogout} className="cursor-pointer">
               <LogOut />
-              Đăng xuất
+              ÄÄƒng xuáº¥t
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
@@ -111,3 +105,4 @@ export function NavUser() {
     </SidebarMenu>
   );
 }
+

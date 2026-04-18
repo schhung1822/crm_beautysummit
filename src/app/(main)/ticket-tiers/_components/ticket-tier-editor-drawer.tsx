@@ -54,6 +54,21 @@ function TicketTierEditableField({
           }}
           className="h-10 rounded-xl bg-white"
         />
+      ) : type === "money" ? (
+        <Input
+          id={id}
+          type="text"
+          value={value}
+          onChange={(e) => {
+            const numericString = e.target.value.replace(/[^0-9]/g, "");
+            const formattedStr = numericString ? Number(numericString).toLocaleString("en-US") : "";
+            const simulatedEvent = {
+              target: { value: formattedStr }
+            } as React.ChangeEvent<HTMLInputElement>;
+            onChange(simulatedEvent);
+          }}
+          className="h-10 rounded-xl bg-white"
+        />
       ) : (
         <Input
           id={id}
@@ -136,14 +151,14 @@ export function TicketTierEditorDrawer({
                   <TicketTierEditableField
                     id="ticket-price"
                     label="Giá vé"
-                    type="number"
+                    type="money"
                     value={form.regularPrice}
                     onChange={onChange("regularPrice")}
                   />
                   <TicketTierEditableField
                     id="ticket-sale-price"
                     label="Giá khuyến mãi"
-                    type="number"
+                    type="money"
                     value={form.promoPrice}
                     onChange={onChange("promoPrice")}
                   />

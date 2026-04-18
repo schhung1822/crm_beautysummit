@@ -6,14 +6,13 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/
 
 const sections = [
   { id: "overview", label: "Tổng quan hệ thống" },
-  { id: "principle", label: "Nguyên tắc sử dụng" },
-  { id: "sync", label: "Đồng bộ dữ liệu" },
-  { id: "orders", label: "Dữ liệu đơn hàng" },
-  { id: "customers", label: "Dữ liệu khách hàng" },
-  { id: "events", label: "Dữ liệu sự kiện" },
-  { id: "reports", label: "Báo cáo & Dashboard" },
-  { id: "permission", label: "Phân quyền & trách nhiệm" },
-  { id: "audit", label: "Nhật ký & bảo mật" },
+  { id: "orders", label: "Danh sách Đơn hàng" },
+  { id: "customers", label: "Dữ liệu Khách hàng" },
+  { id: "checkin", label: "Sự kiện & Check-in" },
+  { id: "vouchers", label: "Vouchers & Hạng vé" },
+  { id: "votes", label: "Hệ thống Bình chọn" },
+  { id: "accounts", label: "Quản lý Tài khoản" },
+  { id: "zalo_oa", label: "Tương tác Zalo OA" },
   { id: "faq", label: "Câu hỏi thường gặp" },
 ];
 
@@ -94,161 +93,113 @@ export default function Page() {
         <main className="flex-1 space-y-28">
           <Section id="overview" title="1. Tổng quan hệ thống">
             <p>
-              CRM Beauty Summit được xây dựng nhằm tạo ra một hệ thống dữ liệu trung tâm (Single Source of Truth), giúp
-              ban lãnh đạo và các bộ phận liên quan theo dõi toàn bộ hoạt động kinh doanh trên một nền tảng duy nhất.
-            </p>
-
-            <p>
-              Hệ thống không phát sinh dữ liệu gốc mới mà chỉ tiếp nhận dữ liệu từ các hệ thống vận hành hiện có của
-              Beauty Summit, bao gồm KiotViet và Zalo OA.
+              Hệ thống quản trị Beauty Summit được tối ưu hóa cho mục đích quản lý xuyên suốt các khâu từ khách hàng, đơn hàng, cho đến các sự kiện diễn ra.
+              Dữ liệu được cập nhật để giúp ban quản trị xem xét báo cáo theo thời gian thực và quản lý check-in trơn tru.
             </p>
 
             <Table
               headers={["Hạng mục", "Mô tả"]}
               rows={[
-                ["Mục tiêu", "Theo dõi, phân tích và ra quyết định kinh doanh"],
-                ["Phạm vi", "Đơn hàng, khách hàng, hàng hóa, sự kiện"],
-                ["Không bao gồm", "Tạo đơn, sửa dữ liệu, xử lý thanh toán"],
-                ["Đối tượng sử dụng", "Ban lãnh đạo, quản lý, sale, CSKH"],
+                ["Mục tiêu", "Theo dõi quản lý Khách hàng, Đơn hàng, Đối tác tham gia"],
+                ["Phạm vi", "Đơn hàng, Khách hàng, Hạng vé, Voucher, Sự kiện check-in"],
+                ["Đối tượng sử dụng", "Ban lãnh đạo, Admin, Staff, Quản lý sự kiện"],
               ]}
             />
           </Section>
 
-          <Section id="principle" title="2. Nguyên tắc sử dụng">
-            <ul className="list-disc space-y-2 pl-6">
-              <li>CRM chỉ dùng để xem và phân tích dữ liệu.</li>
-              <li>Không chỉnh sửa dữ liệu trực tiếp.</li>
-              <li>Dữ liệu có độ trễ theo chu kỳ đồng bộ.</li>
-              <li>Mọi dữ liệu đều có log truy vết.</li>
-            </ul>
-          </Section>
-
-          <Section id="sync" title="3. Đồng bộ dữ liệu & kiểm soát sai lệch">
-            <p>Dữ liệu trong CRM không được nhập thủ công mà được đồng bộ tự động theo chu kỳ từ các hệ thống nguồn.</p>
-
-            <Table
-              headers={["Nguồn dữ liệu", "Kiểu đồng bộ", "Tần suất", "Ghi chú"]}
-              rows={[
-                ["KiotViet", "Batch", "5–10 phút", "Nguồn dữ liệu chính"],
-                ["Zalo OA", "Realtime + Batch", "Gần realtime", "Phục vụ CSKH"],
-                ["Sự kiện Offline", "Thủ công", "Theo sự kiện", "Nhập sau sự kiện"],
-              ]}
-            />
-
-            <p>Trong một số trường hợp, dữ liệu có thể sai lệch tạm thời do:</p>
-
-            <ul className="list-disc space-y-2 pl-6">
-              <li>Đơn hàng vừa tạo nhưng chưa đồng bộ xong</li>
-              <li>Dữ liệu bị chỉnh sửa ở hệ thống nguồn</li>
-              <li>Lỗi mạng hoặc gián đoạn API</li>
-            </ul>
-          </Section>
-
-          <Section id="orders" title="4. Dữ liệu đơn hàng">
+          <Section id="orders" title="2. Danh sách Đơn hàng">
+            <p>Module đơn hàng lưu trữ và theo dõi các giao dịch mua vé của khách hàng trên hệ thống.</p>
             <Table
               headers={["Nhóm dữ liệu", "Mô tả"]}
               rows={[
-                ["Thông tin chung", "Mã đơn, chi nhánh, ngày tạo"],
-                ["Khách hàng", "Tên, SĐT, địa chỉ"],
-                ["Giá trị", "Tiền hàng, giảm giá, thành tiền"],
-                ["Sản phẩm", "Danh sách SP & số lượng"],
+                ["Thông tin chung", "Mã đơn, ngày tạo, trạng thái thanh toán, tổng tiền"],
+                ["Khách hàng", "Người mua, số điện thoại, email"],
+                ["Chi tiết vé", "Hạng vé, mã số ghế, trạng thái check-in của vé"],
               ]}
             />
           </Section>
 
-          <Section id="customers" title="5. Dữ liệu khách hàng & vòng đời CRM">
-            <p>
-              Mỗi khách hàng trong CRM được theo dõi xuyên suốt vòng đời từ lần mua đầu tiên cho tới các tương tác sau
-              bán.
-            </p>
-
+          <Section id="customers" title="3. Dữ liệu Khách hàng">
+             <p>Hồ sơ người tham dự hệ thống được quản lý tập trung và liên kết với các module khác.</p>
             <Table
-              headers={["Trạng thái", "Điều kiện", "Hành động gợi ý"]}
+              headers={["Thông tin", "Mục đích hiển thị"]}
               rows={[
-                ["Nóng", "Mua gần đây / tương tác cao", "Chăm sóc bán thêm"],
-                ["Ấm", "Lâu chưa mua", "Nhắc mua lại"],
-                ["Lạnh", "Không tương tác", "Remarketing"],
+                ["Thông tin cá nhân", "Tên, SĐT, Email, Hình ảnh avatar"],
+                ["Lịch sử tham gia", "Thống kê những sự kiện/đơn hàng đã phát sinh"],
+                ["Nhóm khách hàng", "Phân loại khách hàng, khách VIP, đại lý"],
               ]}
             />
           </Section>
 
-          <Section id="events" title="6. Dữ liệu sự kiện">
-            <p>
-              Dữ liệu sự kiện giúp doanh nghiệp theo dõi hiệu quả các chương trình offline/online và phục vụ hoạt động
-              chăm sóc sau sự kiện.
-            </p>
+          <Section id="checkin" title="4. Sự kiện & Check-in">
+             <p>Hỗ trợ ban tổ chức kiểm soát lưu lượng người ra vào sự kiện hoặc các gian hàng bằng công cụ quét mã theo từng khu vực.</p>
+             <ul className="list-disc space-y-2 pl-6">
+              <li>Địa điểm Check-in: Phân bổ các địa điểm, khu vực checkin cho từng sự kiện.</li>
+              <li>Tra cứu vé: Staff quét mã QR sinh ra từ vé khách hàng đã mua hoặc được tặng.</li>
+              <li>Chống gian lận: Ngăn chặn quét 1 mã lặp lại nhiều lần cho cùng 1 điểm.</li>
+            </ul>
+          </Section>
 
+          <Section id="vouchers" title="5. Vouchers & Hạng vé">
+            <p>Công cụ quản lý các chính sách phát hành ưu đãi sự kiện và phân loại vé ngồi.</p>
             <Table
               headers={["Thuộc tính", "Nội dung"]}
               rows={[
-                ["Tên sự kiện", "Hội thảo / Workshop / Khai trương"],
-                ["Thời gian", "Ngày – giờ diễn ra"],
-                ["Địa điểm", "Online hoặc Offline"],
-                ["Mục tiêu", "Thu data, bán hàng, branding"],
+                ["Hạng vé", "Thiết lập giá và tên các hạng vé như: VIP, Standard..."],
+                ["Voucher Mệnh giá", "Mã giảm giá với số lượng phát hành giới hạn."],
+                ["Điều kiện áp dụng", "Thời gian hiệu lực, tổng số lượng phát hành."],
               ]}
             />
           </Section>
 
-          <Section id="reports" title="7. Hệ thống báo cáo & cách đọc số">
-            <p>Các dashboard trong CRM được thiết kế nhằm phục vụ từng nhóm người dùng với mục tiêu khác nhau.</p>
-
-            <Table
-              headers={["Dashboard", "Đối tượng xem", "Mục đích"]}
-              rows={[
-                ["Tổng quan doanh thu", "Ban lãnh đạo", "Ra quyết định chiến lược"],
-                ["Doanh thu chi nhánh", "Quản lý", "So sánh hiệu suất"],
-                ["Hiệu suất sale", "Trưởng nhóm", "Đánh giá nhân sự"],
-              ]}
-            />
+          <Section id="votes" title="6. Hệ thống Bình chọn">
+             <p>Quản lý các phiên bình chọn, biểu quyết diễn ra trong xuyên suốt sự kiện.</p>
+             <ul className="list-disc space-y-2 pl-6">
+              <li>Tạo danh sách các hạng mục bình chọn cho khách dự sự kiện tham gia.</li>
+              <li>Thống kê theo thời gian thực kết quả bình chọn (bao nhiêu vote, lượt xem).</li>
+            </ul>
           </Section>
-
-          <Section id="permission" title="8. Phân quyền & trách nhiệm">
+          
+          <Section id="accounts" title="7. Quản lý Tài khoản (User/Admin)">
+            <p>Quản lý danh sách truy cập hệ thống trang Quản trị.</p>
             <Table
               headers={["Vai trò", "Quyền hạn"]}
               rows={[
-                ["Admin", "Toàn quyền xem & xuất báo cáo"],
-                ["Quản lý", "Xem dữ liệu & dashboard"],
-                ["Nhân viên", "Xem giới hạn theo vai trò"],
+                ["Admin", "Toàn quyền xem, xóa, sửa tất cả các hạng mục, xuất dữ liệu và tạo tài khoản mới"],
+                ["Staff", "Xem dữ liệu, dùng tính năng xuất báo cáo, hỗ trợ vận hành check-in"],
               ]}
             />
           </Section>
-
-          <Section id="audit" title="9. Nhật ký & bảo mật">
-            <ul className="list-disc space-y-2 pl-6">
-              <li>Ghi log đăng nhập</li>
-              <li>Ghi log xuất dữ liệu</li>
-              <li>Truy vết thay đổi mapping báo cáo</li>
+          
+          <Section id="zalo_oa" title="8. Tương tác Zalo OA">
+             <p>Tra cứu và xử lý các tin nhắn thông báo gửi qua Zalo Mini App cho khách hàng.</p>
+             <ul className="list-disc space-y-2 pl-6">
+              <li>Tích hợp API Zalo OA đồng bộ dữ liệu người nhận và thông điệp.</li>
+              <li>Giúp quản trị viên kiểm tra log đã gửi thông báo Zalo ZNS cho khách hàng (vé, checkin).</li>
             </ul>
           </Section>
 
           {/* ===== FAQ ===== */}
-          <Section id="faq" title="11. Câu hỏi thường gặp">
+          <Section id="faq" title="9. Câu hỏi thường gặp">
             <Accordion type="single" collapsible>
               <AccordionItem value="1">
-                <AccordionTrigger>CRM có phải là thể nhập liệu hay sửa đổi không?</AccordionTrigger>
+                <AccordionTrigger>Hệ thống có quản lý thanh toán trực tiếp không?</AccordionTrigger>
                 <AccordionContent>
-                  Không. CRM chỉ tiếp nhận dữ liệu từ hệ thống nguồn như KiotViet, Zalo OA hoặc form website.
+                  CRM hiện tại nhận và lưu trạng thái thanh toán từ các cổng online chuyển về, quản trị viên có thể theo dõi biến động dòng tiền qua Module Đơn hàng.
                 </AccordionContent>
               </AccordionItem>
 
               <AccordionItem value="2">
-                <AccordionTrigger>Vì sao số liệu có lúc bị chênh lệch?</AccordionTrigger>
+                <AccordionTrigger>Có thể nhập liệu sự kiện offline sau khi đã diễn ra không?</AccordionTrigger>
                 <AccordionContent>
-                  Do độ trễ đồng bộ, dữ liệu chưa đồng bộ xong hoặc thay đổi ở hệ thống gốc. Độ trễ tối đa là 10 phút.
+                  Có, bạn hoàn toàn có thể cập nhật thông tin và số liệu checkin vào hệ thống để ghi nhận lịch sử tương tác khách hàng.
                 </AccordionContent>
               </AccordionItem>
 
               <AccordionItem value="3">
                 <AccordionTrigger>Có xuất được dữ liệu ra Excel không?</AccordionTrigger>
                 <AccordionContent>
-                  Có. Người dùng được phân quyền có thể xuất dữ liệu theo từng bảng và từng thời gian.
-                </AccordionContent>
-              </AccordionItem>
-
-              <AccordionItem value="4">
-                <AccordionTrigger>Ai chịu trách nhiệm nếu dữ liệu sai?</AccordionTrigger>
-                <AccordionContent>
-                  Bộ phận vận hành hệ thống nguồn chịu trách nhiệm dữ liệu gốc; CRM chỉ phản ánh lại dữ liệu đó.
+                   Có. Người dùng được phân quyền có thể xuất dữ liệu dạng CSV từ các Module Đơn hàng, VIP, Bình chọn dễ dàng.
                 </AccordionContent>
               </AccordionItem>
             </Accordion>

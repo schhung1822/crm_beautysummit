@@ -119,7 +119,7 @@ export default function AccountPage() {
       <div className="grid gap-6 lg:grid-cols-3">
         {/* Cột trái: Thông tin tài khoản */}
         <div className="lg:col-span-1">
-          <Card className="h-full">
+          <Card className="h-full p-3">
             <CardContent className="space-y-6">
               <div className="flex flex-col items-center space-y-4">
                 <Avatar className="h-24 w-24 rounded-full rounded-lg bg-black">
@@ -165,11 +165,12 @@ export default function AccountPage() {
               </div>
 
               <Separator />
-
-              <Button variant="destructive" className="w-full cursor-pointer" onClick={handleLogout}>
-                <LogOut className="mr-2 h-4 w-4" />
-                Đăng xuất
-              </Button>
+              <div className="text-center">
+                <Button variant="destructive" className="w-50 cursor-pointer" onClick={handleLogout}>
+                  <LogOut className="mr-2 h-4 w-4" />
+                  Đăng xuất
+                </Button>
+              </div>
             </CardContent>
           </Card>
         </div>
@@ -191,7 +192,7 @@ export default function AccountPage() {
             </TabsList>
 
             <TabsContent value="change-password">
-              <Card>
+              <Card className="p-3">
                 <CardHeader>
                   <CardTitle>Đổi mật khẩu</CardTitle>
                   <CardDescription>Cập nhật mật khẩu của bạn để bảo mật tài khoản</CardDescription>
@@ -242,7 +243,7 @@ export default function AccountPage() {
 
             {user?.role === "admin" && (
               <TabsContent value="create-user">
-                <Card>
+                <Card className="p-3">
                   <CardHeader>
                     <CardTitle className="flex items-center gap-2">
                       <Shield className="text-primary h-5 w-5" />
@@ -326,10 +327,12 @@ export default function AccountPage() {
                           </Select>
                         </div>
                       </div>
+                      <div className="text-center">
+                        <Button type="submit" disabled={isLoading} className="w-50">
+                          {isLoading ? "Đang tạo..." : "Tạo tài khoản"}
+                        </Button>
 
-                      <Button type="submit" disabled={isLoading} className="w-full">
-                        {isLoading ? "Đang tạo..." : "Tạo tài khoản"}
-                      </Button>
+                      </div>
                     </form>
                   </CardContent>
                 </Card>

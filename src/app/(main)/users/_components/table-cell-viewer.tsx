@@ -159,12 +159,12 @@ export function TableCellViewer({
 
           <div className="grid gap-3 sm:grid-cols-2">
             <StatCard
-              label="Trang thai"
+              label="Trạng thái"
               value={getDisplayValue(previewItem.status)}
               icon={<ShieldCheck className="size-3.5" />}
             />
             <StatCard
-              label="Dang nhap cuoi"
+              label="Đăng nhập cuối"
               value={formatDate(previewItem.last_login)}
               icon={<User2 className="size-3.5" />}
             />
@@ -185,7 +185,7 @@ export function TableCellViewer({
           {isEditing ? (
             <div className="grid w-full grid-cols-2 gap-2">
               <Button variant="outline" className="w-full" onClick={resetEditor} disabled={saving}>
-                Huy
+                Hủy
               </Button>
               <Button
                 className="w-full bg-slate-900 text-white hover:bg-slate-800"
@@ -198,12 +198,12 @@ export function TableCellViewer({
           ) : (
             <Button variant="outline" className="w-full" onClick={() => setIsEditing(true)}>
               <Pencil className="mr-2 size-4" />
-              Chinh sua
+              Chỉnh sửa
             </Button>
           )}
 
           <DrawerClose asChild>
-            <Button variant="outline">Dong</Button>
+            <Button variant="outline">Đóng</Button>
           </DrawerClose>
         </DrawerFooter>
       </DrawerContent>

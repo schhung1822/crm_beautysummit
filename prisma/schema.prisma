@@ -338,3 +338,16 @@ model checkin_log {
   @@index([zone_id], map: "checkin_log_zone_id_idx")
 }
 
+model checkin_locations {
+  id            Int       @id @default(autoincrement()) @db.UnsignedInt
+  name          String    @db.VarChar(255)
+  allowed_tiers String    @db.VarChar(255)
+  image_url     String?   @db.Text
+  prerequisite  String?   @db.VarChar(255)
+  nc_order      Decimal?  @db.Decimal(10, 2)
+  created_at    DateTime? @default(now()) @db.Timestamp(0)
+  updated_at    DateTime? @db.Timestamp(0)
+  is_active     Int?      @default(1) @db.TinyInt
+  event_date    DateTime? @db.Date
+}
+

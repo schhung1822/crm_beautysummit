@@ -58,20 +58,20 @@ export function AccountSwitcher() {
           <DropdownMenuItem asChild>
             <Link href="/account" className="flex items-center gap-2">
               <CircleUser className="h-4 w-4" />
-              <span>TÃ i khoáº£n</span>
+              <span>Tài khoản</span>
             </Link>
           </DropdownMenuItem>
           <DropdownMenuItem asChild>
             <Link href="/noti/service-notifications" className="flex items-center gap-2">
               <Bell className="h-4 w-4" />
-              <span>ThÃ´ng bÃ¡o</span>
+              <span>Thông báo</span>
             </Link>
           </DropdownMenuItem>
         </DropdownMenuGroup>
         <DropdownMenuSeparator />
         <DropdownMenuItem onClick={handleLogout} className="cursor-pointer">
           <LogOut />
-          ÄÄƒng xuáº¥t
+          Đăng xuất
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>

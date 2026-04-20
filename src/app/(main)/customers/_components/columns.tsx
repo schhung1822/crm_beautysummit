@@ -5,6 +5,7 @@ import { DataTableColumnHeader } from "@/components/data-table/data-table-column
 import { RowActionsCell } from "./row-actions-cell";
 import { type Users } from "./schema";
 import { TableCellViewer } from "./table-cell-viewer";
+import { formatGender } from "@/lib/utils";
 
 type OnRowUpdated = (updated: Users) => void;
 type OnDuplicateRow = (row: Users) => Promise<void> | void;
@@ -46,7 +47,7 @@ export const dashboardColumns = (
   {
     accessorKey: "gender",
     header: ({ column }) => <DataTableColumnHeader column={column} title="Gioi tinh" />,
-    cell: ({ row }) => <span className="block max-w-[120px] truncate">{row.original.gender}</span>,
+    cell: ({ row }) => <span className="block max-w-[120px] truncate">{formatGender(row.original.gender)}</span>,
     enableSorting: false,
   },
   {

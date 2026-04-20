@@ -4,8 +4,19 @@ import path from "path";
 
 import { NextRequest, NextResponse } from "next/server";
 
+import { verifyToken } from "@/lib/auth";
+
+export const runtime = 'nodejs';
+
 export async function POST(request: NextRequest) {
   try {
+    const token = request.cookies.get("auth-token")?.value;
+    const user = token ? await verifyToken(token) : null;
+    
+    if (!user || (user.role !== "admin" && user.role !== "administrator")) {
+      return NextResponse.json({ error: "Unauthorized. Only admins can upload files." }, { status: 403 });
+    }
+
     const formData = await request.formData();
     const file = formData.get("file") as File;
 

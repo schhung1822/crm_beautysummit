@@ -31,6 +31,9 @@ function parseString(value: unknown) {
 }
 
 function parseNumber(value: unknown) {
+  if (typeof value === "string") {
+    value = value.replace(/,/g, "");
+  }
   return Number(value) || 0;
 }
 

@@ -25,10 +25,11 @@ import {
 
 import type { Academy } from "./schema";
 import { TableCellViewer } from "./table-cell-viewer";
+import { VoteOptionRecord } from "@/lib/vote-options";
 
 type OnDeleteRow = (row: Academy) => Promise<void> | void;
 
-export function RowActionsCell({ row, onDeleteRow }: { row: Academy; onDeleteRow?: OnDeleteRow }) {
+export function RowActionsCell({ row, onDeleteRow, voteOptions }: { row: Academy; onDeleteRow?: OnDeleteRow, voteOptions?: VoteOptionRecord[] }) {
   const [deleteOpen, setDeleteOpen] = React.useState(false);
   const [isDeleting, setIsDeleting] = React.useState(false);
 
@@ -55,6 +56,7 @@ export function RowActionsCell({ row, onDeleteRow }: { row: Academy; onDeleteRow
         <DropdownMenuContent align="end" className="w-32">
           <TableCellViewer
             item={row}
+            voteOptions={voteOptions}
             triggerElement={
               <DropdownMenuItem onSelect={(event) => event.preventDefault()}>Xem chi tiết</DropdownMenuItem>
             }

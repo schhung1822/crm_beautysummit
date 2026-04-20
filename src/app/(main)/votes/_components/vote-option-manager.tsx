@@ -3,11 +3,12 @@
 
 import * as React from "react";
 
-import { ImagePlus, Pencil, Plus, Tags, ThumbsUp, Trash2, X } from "lucide-react";
+import { ImagePlus, Pencil, Plus, Tags, ThumbsUp, Trash2, X, Search } from "lucide-react";
 import { toast } from "sonner";
 
 import { CreatableSearchSelect, type CreatableSearchSelectOption } from "@/components/creatable-search-select";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
@@ -37,8 +38,8 @@ type CatalogResponse = {
   message?: string;
 };
 
-const MAX_LOGO_SIZE_BYTES = 512 * 1024;
-const IMAGE_SOURCE_PATTERN = /^(data:image\/|https?:\/\/|\/)/i;
+const MAX_LOGO_SIZE_BYTES = 5 * 1024 * 1024; // 5MB
+const IMAGE_SOURCE_PATTERN = /^(https?:\/\/|\/?(avatars|images|public)\/|data:image\/)/i;
 
 const DEFAULT_FORM: VoteOptionFormState = {
   id: null,
@@ -108,8 +109,17 @@ function buildFormState(item?: VoteOptionRecord | null): VoteOptionFormState {
   };
 }
 
-function isImageLogo(value: string): boolean {
-  return IMAGE_SOURCE_PATTERN.test(value.trim());
+function isImageLogo(value?: string | null): boolean {
+  if (!value) return false;
+  const t = value.trim();
+  return t.startsWith("http") || t.startsWith("/") || t.startsWith("data:") || t.startsWith("avatars/") || t.startsWith("images/") || /\.(png|jpe?g|gif|webp|svg)(\?.*)?$/i.test(t);
+}
+
+function getAbsoluteImageUrl(url?: string | null): string {
+  if (!url) return "";
+  const t = url.trim();
+  if (t.startsWith("http") || t.startsWith("data:")) return t;
+  return t.startsWith("/") ? t : `/${t}`;
 }
 
 function buildLogoFallback(product: string): string {
@@ -128,53 +138,17 @@ function getPreviewAccent(category: string): string {
   return palette[index] ?? palette[0];
 }
 
-function resizeImageFileToDataUrl(file: File, size: number): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => {
-      const image = new Image();
-
-      image.onload = () => {
-        const canvas = document.createElement("canvas");
-        canvas.width = size;
-        canvas.height = size;
-
-        const context = canvas.getContext("2d");
-        if (!context) {
-          reject(new Error("Khong the xu ly anh logo"));
-          return;
-        }
-
-        context.clearRect(0, 0, size, size);
-        const ratio = Math.min(size / image.width, size / image.height);
-        const width = image.width * ratio;
-        const height = image.height * ratio;
-        const x = (size - width) / 2;
-        const y = (size - height) / 2;
-
-        context.drawImage(image, x, y, width, height);
-        resolve(canvas.toDataURL("image/png"));
-      };
-
-      image.onerror = () => reject(new Error("Khong the doc file logo"));
-      image.src = String(reader.result ?? "");
-    };
-
-    reader.onerror = () => reject(new Error("Khong the doc file logo"));
-    reader.readAsDataURL(file);
-  });
-}
-
-function VoteLogoPreview({ logo, product, compact = false }: { logo: string; product: string; compact?: boolean }) {
+function VoteLogoPreview({ logo, product, compact = false }: { logo: string | null | undefined; product: string; compact?: boolean }) {
   const sizeClass = compact ? "h-[58px] w-[58px] rounded-[0.9rem]" : "h-[4.5rem] w-[4.5rem] rounded-[1.2rem]";
   const textClass = compact ? "text-[1.2rem]" : "text-[2rem]";
 
   if (isImageLogo(logo)) {
+    const absolutelogo = getAbsoluteImageUrl(logo);
     return (
       <div
         className={`flex items-center justify-center overflow-hidden border border-[#eadfd2] bg-white shadow-[0_8px_18px_rgba(184,134,11,0.08)] ${sizeClass}`}
       >
-        <img src={logo} alt={product} className="h-full w-full object-cover" />
+        <img src={absolutelogo} alt={product} className="h-full w-full object-cover" />
       </div>
     );
   }
@@ -253,7 +227,7 @@ function VotePreviewCard({
                 {categoryLabel}
               </div>
               <div className="truncate text-[1.2rem] font-black text-[#241629]">{productLabel}</div>
-              <div className="mt-1 text-[12px] font-medium text-[#8a7e8b]">Da dong bo du lieu</div>
+              <div className="mt-1 text-[12px] font-medium text-[#8a7e8b]">Đã đồng bộ dữ liệu</div>
             </div>
           </div>
 
@@ -267,23 +241,21 @@ function VotePreviewCard({
             <div className="text-lg font-black" style={{ color: accentColor }}>
               1
             </div>
-            <div className="mt-1 text-[11px] text-[#8a7e8b]">Luot vote</div>
+            <div className="mt-1 text-[11px] text-[#8a7e8b]">Lượt vote</div>
           </div>
           <div className="rounded-[1rem] border border-[#eadfd2] bg-white px-3 py-3.5 text-center">
             <div className="text-lg font-black text-[#241629]">#1</div>
-            <div className="mt-1 text-[11px] text-[#8a7e8b]">Xep hang</div>
+            <div className="mt-1 text-[11px] text-[#8a7e8b]">Xếp hạng</div>
           </div>
           <div className="rounded-[1rem] border border-[#eadfd2] bg-white px-3 py-3.5 text-center">
             <div className="text-lg font-black text-[#b8860b]">1</div>
-            <div className="mt-1 text-[11px] text-[#8a7e8b]">Ung vien</div>
+            <div className="mt-1 text-[11px] text-[#8a7e8b]">Ứng viên</div>
           </div>
         </div>
 
-        <div className="mb-5 rounded-[1.1rem] border border-[#eadfd2] bg-white p-4 shadow-[0_10px_22px_rgba(184,134,11,0.06)]">
+        <div className="mb-5 rounded-[1.1rem] border border-[#eadfd2] bg-white p-4 shadow-[0_10px_22px_rgba(184,134,11,0.06)] max-h-[160px] overflow-y-auto custom-scrollbar">
           <div className="mb-2 text-xs font-semibold tracking-[0.16em] text-[#9a8f9d] uppercase">Tóm tắt</div>
-          <p className="text-sm leading-6 text-[#5b5360]">
-            {summary.trim() || `${productLabel} dang duoc de cu trong hang muc "${categoryLabel}".`}
-          </p>
+            <p className="text-sm leading-6 text-[#5b5360] whitespace-pre-wrap break-words">{summary}</p>
         </div>
 
         <div className="mb-6">
@@ -325,6 +297,13 @@ export function VoteOptionManager({ initialData }: VoteOptionManagerProps) {
   const [productOptions, setProductOptions] = React.useState<CreatableSearchSelectOption[]>(
     buildInitialProductOptions(initialData),
   );
+
+  const [selectedCategory, setSelectedCategory] = React.useState<string | null>(null);
+
+  const filteredData = React.useMemo(() => {
+    if (!selectedCategory) return data;
+    return data.filter((item) => item.category === selectedCategory);
+  }, [data, selectedCategory]);
 
   const categories = React.useMemo(() => categoryOptions.map((item) => item.label), [categoryOptions]);
 
@@ -459,15 +438,38 @@ export function VoteOptionManager({ initialData }: VoteOptionManagerProps) {
     }
 
     if (file.size > MAX_LOGO_SIZE_BYTES) {
-      toast.error("Logo qua lon. Vui long chon anh nho hon 512KB");
+      toast.error("Logo qua lon. Vui long chon anh nho hon 5MB");
       return;
     }
 
     try {
-      const dataUrl = await resizeImageFileToDataUrl(file, 256);
-      setForm((current) => ({ ...current, logo: dataUrl }));
+      const formData = new FormData();
+      formData.append("file", file);
+
+      const res = await fetch("/api/upload", {
+        method: "POST",
+        body: formData,
+      });
+
+      if (!res.ok) {
+        throw new Error(`Tải ảnh thất bại: ${res.status} ${res.statusText}`);
+      }
+
+      const textResult = await res.text();
+      let result;
+      try {
+        result = JSON.parse(textResult);
+      } catch (e) {
+        throw new Error("Lỗi đường truyền trả về sai định dạng. Có thể ảnh quá lớn hoặc server lỗi.");
+      }
+
+      if (!result.url) {
+        throw new Error(result.error ?? "Upload failed");
+      }
+
+      setForm((current) => ({ ...current, logo: result.url }));
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Khong the tai logo");
+      toast.error(error instanceof Error ? error.message : "Khong the tai logo. Vui long thu lai.");
     }
   }, []);
 
@@ -553,60 +555,82 @@ export function VoteOptionManager({ initialData }: VoteOptionManagerProps) {
   const canSave = Boolean(normalizeLabel(form.category) && normalizeLabel(form.product));
 
   return (
-    <div className="bg-card rounded-xl border p-4 shadow-sm">
-      <div className="mb-4 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-        <div>
-          <div className="flex items-center gap-2 text-base font-semibold">
-            <Tags className="size-4" />
-            Quản lý vote mini app
-          </div>
-          <div className="text-muted-foreground mt-1 text-sm">
-            Tạo thể loại, sản phẩm, ảnh logo và giới thiệu để đồng bộ sang giao diện user.
+    <div className="bg-card rounded-xl border p-4 shadow-sm h-full w-full">
+      <div className="mb-4 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+        <div className="flex flex-col gap-3 flex-1">
+          <div className="flex items-center gap-2 text-base font-bold text-primary">
+            <Tags className="size-5" />
+            Sản phẩm bình chọn
           </div>
         </div>
-        <Button onClick={openCreateDialog}>
-          <Plus className="size-4" />
-          Thêm vote
-        </Button>
+
+        <div className="flex flex-1 items-center justify-end gap-3 w-full lg:w-auto">
+          <Button onClick={openCreateDialog} className="rounded-full shadow-sm hover:shadow-md transition-shadow">
+            <Plus className="size-4 mr-1" />
+            Thêm sản phẩm
+          </Button>
+        </div>
       </div>
 
       {categories.length > 0 ? (
-        <div className="mb-4 flex flex-wrap gap-2">
+        <div className="mb-4 flex flex-wrap gap-2 py-2 border-y border-dashed border-muted">
+          <span className="text-xs text-muted-foreground mr-1 self-center font-medium">Thể loại hiện có:</span>
+          <Badge
+            variant={selectedCategory === null ? "default" : "secondary"}
+            className={`cursor-pointer rounded-full px-3 py-1 font-semibold transition-colors ${
+              selectedCategory === null ? "bg-primary text-primary-foreground" : "text-slate-600 bg-slate-100 hover:bg-slate-200"
+            }`}
+            onClick={() => setSelectedCategory(null)}
+          >
+            Tất cả
+          </Badge>
           {categories.map((category) => (
-            <Badge key={category} variant="outline" className="rounded-full px-3 py-1">
+            <Badge
+              key={category}
+              variant={selectedCategory === category ? "default" : "secondary"}
+              className={`cursor-pointer rounded-full px-3 py-1 font-semibold transition-colors ${
+                selectedCategory === category ? "bg-primary text-primary-foreground" : "text-slate-600 bg-slate-100 hover:bg-slate-200"
+              }`}
+              onClick={() => setSelectedCategory(category)}
+            >
               {category}
             </Badge>
           ))}
         </div>
       ) : null}
 
-      <div className="nice-scroll max-h-[520px] overflow-y-auto rounded-lg border">
+      <div className="nice-scroll max-h-[620px] overflow-y-auto rounded-lg border shadow-sm">
         <table className="relative w-full text-sm">
-          <thead className="bg-muted/40 sticky top-0 z-10 shadow-sm">
-            <tr className="text-left">
-              <th className="px-4 py-3 font-medium">Logo</th>
-              <th className="px-4 py-3 font-medium">Thể loại</th>
-              <th className="px-4 py-3 font-medium">Sản phẩm</th>
-              <th className="px-4 py-3 font-medium">Giới thiệu</th>
-              <th className="px-4 py-3 text-right font-medium">Thao tác</th>
+          <thead className="bg-[#f8f9fa] sticky top-0 z-10 shadow-[0_1px_2px_rgba(0,0,0,0.05)]">
+            <tr className="text-left text-[#4b5563]">
+              <th className="px-5 py-3.5 font-bold uppercase tracking-wider text-[11px]">Logo</th>
+              <th className="px-5 py-3.5 font-bold uppercase tracking-wider text-[11px]">Thể loại</th>
+              <th className="px-5 py-3.5 font-bold uppercase tracking-wider text-[11px]">Sản phẩm</th>
+              <th className="px-5 py-3.5 font-bold uppercase tracking-wider text-[11px]">Giới thiệu</th>
+              <th className="px-5 py-3.5 text-right font-bold uppercase tracking-wider text-[11px]">Thao tác</th>
             </tr>
           </thead>
           <tbody>
-            {data.length === 0 ? (
+            {filteredData.length === 0 ? (
               <tr>
-                <td colSpan={5} className="text-muted-foreground px-4 py-8 text-center">
-                  Chưa có vote nào.
+                <td colSpan={5} className="text-muted-foreground px-4 py-16 text-center w-full">
+                  <div className="flex flex-col items-center justify-center gap-3">
+                    <Search className="size-8 text-slate-300" />
+                    <span>Không tìm thấy sản phẩm nào.</span>
+                  </div>
                 </td>
               </tr>
             ) : (
-              data.map((item) => (
+              filteredData.map((item) => (
                 <tr key={item.id} className="border-t align-top">
                   <td className="px-4 py-3">
                     <VoteLogoPreview logo={item.logo} product={item.product} />
                   </td>
                   <td className="px-4 py-3">{item.category}</td>
                   <td className="px-4 py-3 font-medium">{item.product}</td>
-                  <td className="text-muted-foreground max-w-[360px] px-4 py-3">{item.summary || "--"}</td>
+                  <td className="text-muted-foreground max-w-[360px] px-4 py-3">
+                    <div className="line-clamp-2">{item.summary || "--"}</div>
+                  </td>
                   <td className="px-4 py-3">
                     <div className="flex justify-end gap-2">
                       <Button size="sm" variant="outline" onClick={() => openEditDialog(item)}>
@@ -710,7 +734,7 @@ export function VoteOptionManager({ initialData }: VoteOptionManagerProps) {
                     rows={6}
                     value={form.summary}
                     onChange={(event) => setForm((current) => ({ ...current, summary: event.target.value }))}
-                    className="rounded-[1.2rem] border-[#eadfd2] bg-white px-4 py-3 text-[15px] leading-7 shadow-[0_10px_24px_rgba(184,134,11,0.05)]"
+                      className="max-h-[200px] w-full min-w-0 resize-none break-words overflow-y-auto custom-scrollbar rounded-[1.2rem] border-[#eadfd2] bg-white px-4 py-3 text-[15px] leading-7 shadow-[0_10px_24px_rgba(184,134,11,0.05)] ![field-sizing:fixed]"
                     placeholder="Nhập mô tả ngắn cho item vote..."
                   />
                 </div>

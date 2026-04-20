@@ -5,20 +5,19 @@ import { z } from "zod";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import {
-  Drawer,
-  DrawerClose,
-  DrawerContent,
-  DrawerDescription,
-  DrawerFooter,
-  DrawerHeader,
-  DrawerTitle,
-  DrawerTrigger,
-} from "@/components/ui/drawer";
+import { Drawer, DrawerClose, DrawerContent, DrawerDescription, DrawerFooter, DrawerHeader, DrawerTitle, DrawerTrigger } from "@/components/ui/drawer";
 import { Separator } from "@/components/ui/separator";
 import { useIsMobile } from "@/hooks/use-mobile";
 
 import { academySchema } from "./schema";
+import { VoteOptionRecord } from "@/lib/vote-options";
+
+function getAbsoluteImageUrl(url?: string | null): string {
+  if (!url) return "";
+  const t = url.trim();
+  if (t.startsWith("http") || t.startsWith("data:")) return t;
+  return t.startsWith("/") ? t : `/${t}`;
+}
 
 /* ---------- UI helpers ---------- */
 function InfoRow({ icon, label, value }: { icon: React.ReactNode; label: string; value?: React.ReactNode }) {
@@ -43,24 +42,33 @@ function Block({ title, children }: { title: string; children: React.ReactNode }
 }
 
 function formatGender(value?: string | null) {
-  const v = String(value ?? "")
-    .trim()
-    .toLowerCase();
+  const v = String(value ?? "").trim().toLowerCase();
+  if (!v) return "Khác";
   if (v === "f" || v === "female" || v === "nữ" || v === "nu") return "Nữ";
   if (v === "m" || v === "male" || v === "nam") return "Nam";
-  return value ?? "";
+  return "Khác";
 }
 
 /* ---------- Component ---------- */
 
 export function TableCellViewer({
   item,
+  voteOptions,
   triggerElement,
 }: {
   item: z.infer<typeof academySchema>;
+  voteOptions?: VoteOptionRecord[];
   triggerElement?: React.ReactElement;
 }) {
   const isMobile = useIsMobile();
+
+  const logo = React.useMemo(() => {
+    if (!voteOptions || !item.product) return null;
+    const opt = voteOptions.find((o) => (o.product || "").trim().toLowerCase() === item.product.trim().toLowerCase());
+    return opt?.logo || null;
+  }, [item.product, voteOptions]);
+
+  const isImg = logo && (logo.startsWith("http") || logo.startsWith("/") || logo.startsWith("data:") || logo.startsWith("avatars/") || logo.startsWith("images/") || /\.(png|jpe?g|gif|webp|svg)(\?.*)?$/i.test(logo));
 
   return (
     <Drawer direction={isMobile ? "bottom" : "right"}>
@@ -76,21 +84,31 @@ export function TableCellViewer({
       <DrawerContent className="h-screen sm:ml-auto sm:max-w-[400px]">
         {/* ===== HEADER ===== */}
         <DrawerHeader className="bg-background/95 sticky top-0 z-10 border-b backdrop-blur">
-          <div className="min-w-0">
-            <div className="flex items-start justify-between gap-3">
-              <DrawerTitle className="truncate text-base">{item.name}</DrawerTitle>
-
-              {item.brand_name && (
-                <Badge variant="secondary" className="shrink-0 rounded-full">
-                  <Tag className="mr-1 h-3.5 w-3.5" />
-                  {item.brand_name}
-                </Badge>
+          <div className="flex items-center gap-4">
+            <div className="flex h-14 w-14 shrink-0 overflow-hidden rounded-xl border bg-muted shadow-sm">
+              {isImg && logo ? (
+                <img src={getAbsoluteImageUrl(logo)} alt={item.product} className="h-full w-full object-cover" />
+              ) : (
+                <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-indigo-500 to-purple-500 text-lg font-black text-white">
+                  {item.product ? item.product.charAt(0).toUpperCase() : "V"}
+                </div>
               )}
             </div>
+            <div className="min-w-0 flex-1">
+              <div className="flex items-start justify-between gap-3">
+                <DrawerTitle className="truncate text-base">{item.name}</DrawerTitle>
+              </div>
 
-            <DrawerDescription className="mt-1 flex items-center gap-2 truncate">
-              Mã đơn: {item.ordercode || "N/A"}
-            </DrawerDescription>
+              <DrawerDescription className="mt-1 flex flex-col gap-1 truncate text-xs">
+                <span>Mã đơn: {item.ordercode || "N/A"}</span>
+                {item.brand_name && (
+                  <Badge variant="secondary" className="w-fit shrink-0 font-medium">
+                    <Tag className="mr-1 h-3 w-3" />
+                    {item.brand_name}
+                  </Badge>
+                )}
+              </DrawerDescription>
+            </div>
           </div>
         </DrawerHeader>
 

@@ -240,33 +240,36 @@ export function CheckinLocationManager({ initialData }: { initialData: CheckinLo
                 <div className="mt-2 w-full h-40 sm:h-48 rounded-xl bg-cover bg-center border shadow-sm" style={{ backgroundImage: `url('${form.image_url}')` }} />
               )}
             </div>
-            <div className="space-y-2">
-              <Label>Địa điểm cần check-in trước</Label>
-              <Select
-                value={form.prerequisite || "none"}
-                onValueChange={(val) => setForm({ ...form, prerequisite: val === "none" ? null : val })}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Chọn khu vực..." />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="none">Không yêu cầu</SelectItem>
-                  {data
-                    .filter((d) => d.id !== form.id)
-                    .map((d) => (
-                      <SelectItem key={d.id} value={String(d.id)}>
-                        {d.name}
-                      </SelectItem>
-                    ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <Label>Ngày diễn ra Check-in</Label>
-              <DatePicker
-                value={form.event_date || ""}
-                onChange={(val) => setForm({ ...form, event_date: val })}
-              />
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Địa điểm cần check-in trước</Label>
+                <Select
+                  value={form.prerequisite || "none"}
+                  onValueChange={(val) => setForm({ ...form, prerequisite: val === "none" ? null : val })}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Chọn khu vực..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">Không yêu cầu</SelectItem>
+                    {data
+                      .filter((d) => d.id !== form.id)
+                      .map((d) => (
+                        <SelectItem key={d.id} value={String(d.id)}>
+                          {d.name}
+                        </SelectItem>
+                      ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label>Ngày diễn ra Check-in</Label>
+                <DatePicker
+                  value={form.event_date || ""}
+                  onChange={(val) => setForm({ ...form, event_date: val })}
+                />
+              </div>
             </div>
           </div>
           <div className="flex justify-end">

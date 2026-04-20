@@ -101,15 +101,15 @@ export function TableCellViewer({ item, onRowUpdated, triggerElement }: ViewerPr
 
       if (!response.ok) {
         const result = await response.json().catch(() => ({}));
-        throw new Error(result?.error ?? "Khong the cap nhat ban ghi");
+        throw new Error(result?.error ?? "Không thể cập nhật bản ghi");
       }
 
       setForm(payload);
       setIsEditing(false);
       onRowUpdated?.(payload, item.ordercode);
-      toast.success("Da cap nhat ban ghi");
+      toast.success("Đã cập nhật bản ghi");
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Co loi xay ra khi cap nhat");
+      toast.error(error instanceof Error ? error.message : "Có lỗi xảy ra khi cập nhật");
     } finally {
       setIsSaving(false);
     }

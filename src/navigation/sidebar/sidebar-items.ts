@@ -58,6 +58,7 @@ export const sidebarItems: NavGroup[] = [
     label: "Quản lý",
     items: [
       { title: "Đơn hàng", url: "/orders", icon: ShoppingBagIcon },
+      { title: "Sản phẩm bình chọn", url: "/vote-options", icon: PackageIcon },
       { title: "Bình chọn", url: "/votes", icon: Calendar1Icon },
       { title: "Voucher", url: "/vouchers", icon: Gift },
       { title: "Hạng vé", url: "/ticket-tiers", icon: Ticket },

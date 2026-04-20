@@ -142,7 +142,7 @@ export function CreatableSearchSelect({
           <CommandInput
             value={query}
             onValueChange={setQuery}
-            placeholder={searchPlaceholder ?? `Tim ${placeholder.toLowerCase()}...`}
+            placeholder={searchPlaceholder ?? `Tìm ${placeholder.toLowerCase()}...`}
             className="text-sm"
           />
           <CommandList className="max-h-72">
@@ -158,13 +158,13 @@ export function CreatableSearchSelect({
                 >
                   <div className="flex items-center gap-2">
                     <Plus className="size-4 text-[#c24db0]" />
-                    <span className="font-medium">Them &quot;{normalizedQuery}&quot;</span>
+                    <span className="font-medium">Thêm &quot;{normalizedQuery}&quot;</span>
                   </div>
-                  <span className="text-xs text-[#8a7e8b]">{creating ? "Dang tao..." : "Moi"}</span>
+                  <span className="text-xs text-[#8a7e8b]">{creating ? "Đang tạo..." : "Mới"}</span>
                 </CommandItem>
               </CommandGroup>
             ) : null}
-            <CommandGroup heading="Lua chon">
+            <CommandGroup heading="Lựa chọn">
               {filteredOptions.map((option) => {
                 const isActive =
                   normalizeLabel(option.label).localeCompare(normalizedValue, undefined, { sensitivity: "accent" }) ===
@@ -197,14 +197,14 @@ export function CreatableSearchSelect({
                           event.stopPropagation();
                           void handleDelete(option);
                         }}
-                        aria-label={`Xoa ${option.label}`}
+                        aria-label={`Xóa ${option.label}`}
                       >
                         <Trash2 className="size-4" />
                       </button>
                     ) : (
                       <span className="w-6 shrink-0" />
                     )}
-                    {deletingKey === option.id ? <span className="sr-only">Dang xoa</span> : null}
+                    {deletingKey === option.id ? <span className="sr-only">Đang xóa</span> : null}
                   </CommandItem>
                 );
               })}

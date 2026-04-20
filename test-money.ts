@@ -1,0 +1,1 @@
+import { getDB } from './src/lib/db'; async function start() { const db = getDB(); const [rows] = await db.query('SELECT money, money_VAT FROM orders LIMIT 5'); console.log(rows); process.exit(0); } start();

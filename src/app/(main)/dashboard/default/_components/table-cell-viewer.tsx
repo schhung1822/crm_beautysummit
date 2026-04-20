@@ -35,12 +35,11 @@ function formatDateVN(v: unknown) {
   return d.toLocaleDateString("en-GB");
 }
 function formatGender(value?: string | null) {
-  const v = String(value ?? "")
-    .trim()
-    .toLowerCase();
+  const v = String(value ?? "").trim().toLowerCase();
+  if (!v) return "Khác";
   if (v === "f" || v === "female" || v === "nữ" || v === "nu") return "Nữ";
   if (v === "m" || v === "male" || v === "nam") return "Nam";
-  return value ?? "";
+  return "Khác";
 }
 function money(v: unknown) {
   const n = typeof v === "number" ? v : Number(String(v ?? 0).replaceAll(",", ""));

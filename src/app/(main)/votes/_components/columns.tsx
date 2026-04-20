@@ -10,6 +10,7 @@ import {
 import { RowActionsCell } from "./row-actions-cell";
 import { Academy } from "./schema";
 import { TableCellViewer } from "./table-cell-viewer";
+import { VoteOptionRecord } from "@/lib/vote-options";
 
 type OnDeleteRow = (row: Academy) => Promise<void> | void;
 
@@ -29,7 +30,7 @@ function formatGender(value?: string | null) {
   return value ?? "";
 }
 
-export const dashboardColumns = (onDeleteRow?: OnDeleteRow): ColumnDef<Academy>[] => [
+export const dashboardColumns = (onDeleteRow?: OnDeleteRow, voteOptions?: VoteOptionRecord[]): ColumnDef<Academy>[] => [
   {
     id: "select",
     header: ({ table }) => {
@@ -62,7 +63,7 @@ export const dashboardColumns = (onDeleteRow?: OnDeleteRow): ColumnDef<Academy>[
     header: ({ column }) => <DataTableColumnHeader column={column} title="Tên" />,
     cell: ({ row }) => (
       <div className="max-w-[300px] truncate">
-        <TableCellViewer item={row.original} />
+        <TableCellViewer item={row.original} voteOptions={voteOptions} />
       </div>
     ),
     enableSorting: false,
@@ -147,7 +148,7 @@ export const dashboardColumns = (onDeleteRow?: OnDeleteRow): ColumnDef<Academy>[
   },
   {
     id: "actions",
-    cell: ({ row }) => <RowActionsCell row={row.original} onDeleteRow={onDeleteRow} />,
+    cell: ({ row }) => <RowActionsCell row={row.original} onDeleteRow={onDeleteRow} voteOptions={voteOptions} />,
     enableSorting: false,
     size: 64,
     minSize: 64,

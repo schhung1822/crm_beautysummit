@@ -10,6 +10,7 @@ import { toast } from "sonner";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { formatGender } from "@/lib/utils";
 import {
   Drawer,
   DrawerClose,
@@ -199,8 +200,8 @@ export function TableCellViewer({
                     className="border-input bg-background ring-offset-background focus-visible:ring-ring h-10 rounded-lg border px-3 text-sm outline-none focus-visible:ring-2 focus-visible:ring-offset-2"
                   >
                     <option value="">Chưa chọn</option>
-                    <option value="Nam">Nam</option>
-                    <option value="Nữ">Nữ</option>
+                    <option value="m">Nam</option>
+                    <option value="f">Nữ</option>
                     <option value="Khác">Khác</option>
                   </select>
                 </div>
@@ -232,7 +233,7 @@ export function TableCellViewer({
               />
               <StatCard
                 label="Giới tính"
-                value={getDisplayValue(previewItem.gender)}
+                value={formatGender(previewItem.gender)}
                 icon={<User2 className="size-3.5" />}
               />
               <StatCard

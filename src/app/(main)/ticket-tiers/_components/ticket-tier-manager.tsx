@@ -98,9 +98,9 @@ export default function TicketTierManager({ initialData }: TicketTierManagerProp
       setData((prev) => prev.map((item) => (item.id === saved.id ? saved : item)));
       setOpen(false);
       resetEditor();
-      toast.success("Da cap nhat hạng vé");
+      toast.success("Đã cập nhật hạng vé");
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Khong the luu hạng vé");
+      toast.error(error instanceof Error ? error.message : "Không thể lưu hạng vé");
     } finally {
       setSaving(false);
     }

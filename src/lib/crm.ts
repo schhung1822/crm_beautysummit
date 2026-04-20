@@ -27,6 +27,9 @@ function parseString(value: unknown): string {
 }
 
 function parseNumber(value: unknown): number {
+  if (typeof value === "string") {
+    value = value.replace(/,/g, "");
+  }
   return Number(value) || 0;
 }
 

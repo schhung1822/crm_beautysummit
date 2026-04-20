@@ -10,6 +10,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
 
 import type { Channel } from "./schema";
@@ -90,10 +91,19 @@ export function EditOrderDialog({
             </div>
             <div className="space-y-1.5">
               <Label>Giới tính</Label>
-              <Input
-                value={form.gender}
-                onChange={(event) => onChange((prev) => (prev ? { ...prev, gender: event.target.value } : prev))}
-              />
+              <Select
+  value={form.gender}
+  onValueChange={(value) => onChange((prev) => (prev ? { ...prev, gender: value } : prev))}
+>
+  <SelectTrigger>
+    <SelectValue placeholder="Chọn giới tính" />
+  </SelectTrigger>
+  <SelectContent>
+    <SelectItem value={"m"}>Nam</SelectItem>
+    <SelectItem value={"f"}>Nữ</SelectItem>
+    <SelectItem value={"Khác"}>Khác</SelectItem>
+  </SelectContent>
+</Select>
             </div>
             <div className="space-y-1.5">
               <Label>Ngành nghề</Label>

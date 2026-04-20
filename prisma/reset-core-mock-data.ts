@@ -55,7 +55,7 @@ const CAREERS = [
   "KOC/KOL",
   "Khách mới",
 ] as const;
-const GENDERS = ["female", "male"] as const;
+const GENDERS = ["Nữ", "Nam"] as const;
 const TIERS: readonly TicketTier[] = ["RUBY", "GOLD", "VIP"] as const;
 
 function parsePositiveInt(value: string | undefined, fallback: number): number {

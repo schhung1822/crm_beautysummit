@@ -13,11 +13,11 @@ import { CHECKIN_DONE_STATUS, CHECKIN_PENDING_STATUS } from "@/lib/ticket-orders
 type ChartResult = ReturnType<typeof buildRevenuePie>;
 type RevenueRow = RowDataPacket & Record<string, unknown>;
 
-const moneyExpr = "COALESCE(CAST(NULLIF(money, '') AS UNSIGNED), 0)";
-const moneyVatExpr = "COALESCE(CAST(NULLIF(money_VAT, '') AS UNSIGNED), 0)";
+const moneyExpr = "COALESCE(CAST(NULLIF(REPLACE(money, ',', ''), '') AS UNSIGNED), 0)";
+const moneyVatExpr = "COALESCE(CAST(NULLIF(REPLACE(money_VAT, ',', ''), '') AS UNSIGNED), 0)";
 const ticketClassExpr = "COALESCE(NULLIF(class, ''), 'Khong ro')";
 const careerExpr = "COALESCE(NULLIF(career, ''), 'Khong ro')";
-const genderExpr = "COALESCE(NULLIF(gender, ''), 'Khong ro')";
+const genderExpr = "COALESCE(NULLIF(gender, ''), 'Khác')";
 const checkinStatusExpr = `CASE
   WHEN COALESCE(is_checkin, 0) = 1 OR COALESCE(number_checkin, 0) > 0 OR checkin_time IS NOT NULL THEN '${CHECKIN_DONE_STATUS}'
   ELSE '${CHECKIN_PENDING_STATUS}'
@@ -268,7 +268,7 @@ export const getTopSalesByRevenue = unstable_cache(
     );
 
     return (rows ?? []).map((row) => ({
-      seller: String(row.seller ?? "Khong ro"),
+      seller: String(row.seller ?? "Khác"),
       revenue: Number(row.totalRevenue) || 0,
       orders: Number(row.totalOrders) || 0,
     }));

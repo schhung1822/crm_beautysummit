@@ -15,12 +15,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useDataTableInstance } from "@/hooks/use-data-table-instance";
 import { exportData } from "@/lib/export-utils";
 import { matchesSearchTerm } from "@/lib/search-utils";
+import { formatGender } from "@/lib/utils";
 import type { VoteOptionRecord } from "@/lib/vote-options";
 
 import { dashboardColumns } from "./columns";
 import { EventsSummary } from "./events-summary";
 import { Academy } from "./schema";
-import { VoteOptionManager } from "./vote-option-manager";
 
 const colorPalette = ["#22c55e", "#3b82f6", "#f59e0b", "#a855f7", "#ec4899", "#14b8a6", "#f97316"];
 
@@ -63,13 +63,13 @@ export function DataTable({
     return nextData;
   }, [data, searchTerm, selectedBrand]);
 
-  const totalVotes = filteredData.length;
+  const totalVotes = data.length;
 
   const summaryDataFactory = React.useCallback(
     (getter: (item: Academy) => string) => {
       const counts = new Map<string, number>();
 
-      filteredData.forEach((item) => {
+      data.forEach((item) => {
         const key = (getter(item) || "Không rõ").trim() || "Không rõ";
         counts.set(key, (counts.get(key) ?? 0) + 1);
       });
@@ -90,10 +90,20 @@ export function DataTable({
         fill: colorPalette[index % colorPalette.length],
       }));
     },
-    [filteredData],
+    [data],
   );
 
-  const genderData = React.useMemo(() => summaryDataFactory((item) => item.gender), [summaryDataFactory]);
+
+  const leaderboardData = React.useMemo(() => {
+    const counts = new Map<string, number>();
+    data.forEach((item) => {
+      const key = (item.brand_name || "Không rõ").trim();
+      counts.set(key, (counts.get(key) ?? 0) + 1);
+    });
+    return Array.from(counts.entries()).map(([name, value]) => ({ name, value })).sort((a, b) => b.value - a.value);
+  }, [data]);
+
+  const genderData = React.useMemo(() => summaryDataFactory((item) => formatGender(item.gender)), [summaryDataFactory]);
   const brandRatioData = React.useMemo(() => summaryDataFactory((item) => item.brand_name), [summaryDataFactory]);
 
   const handleDeleteRow = React.useCallback(async (row: Academy) => {
@@ -126,7 +136,7 @@ export function DataTable({
     }
   }, []);
 
-  const columns = React.useMemo(() => withSelectionColumn(dashboardColumns(handleDeleteRow)), [handleDeleteRow]);
+  const columns = React.useMemo(() => withSelectionColumn(dashboardColumns(handleDeleteRow, initialVoteOptions)), [handleDeleteRow, initialVoteOptions]);
   const table = useDataTableInstance({
     data: filteredData,
     columns,
@@ -219,9 +229,7 @@ export function DataTable({
 
   return (
     <div className="flex w-full flex-col gap-6">
-      <VoteOptionManager initialData={initialVoteOptions} />
-
-      <EventsSummary totalVotes={totalVotes} genderData={genderData} brandRatioData={brandRatioData} />
+      <EventsSummary totalVotes={totalVotes} genderData={genderData} brandRatioData={brandRatioData} leaderboardData={leaderboardData} voteOptions={initialVoteOptions} />
 
       <div className="flex items-center justify-between gap-4">
         <div className="flex flex-1 items-center gap-2">

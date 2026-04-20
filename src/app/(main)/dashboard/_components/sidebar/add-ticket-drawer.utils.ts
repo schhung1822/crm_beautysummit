@@ -46,7 +46,7 @@ type PreparedOrderSubmission = {
     status: string;
     update_time: string;
     create_time: string;
-    gender: "m" | "f";
+    gender: string;
     career: string;
     is_checkin: number;
     number_checkin: number;
@@ -98,7 +98,7 @@ export function prepareOrderSubmission(
   const quantityValue = Math.max(1, parseNumberInput(form.quantity, 1));
   const normalizedUnitPrice = form.ticketType === "gift" ? 0 : Math.max(0, Math.round(unitPrice));
   const paymentStatus = form.ticketType === "gift" ? "present" : "paydone";
-  const genderValue: "m" | "f" = form.gender === "f" ? "f" : "m";
+  const genderValue = form.gender === "f" ? "f" : "m";
 
   return {
     invoicePayload: {

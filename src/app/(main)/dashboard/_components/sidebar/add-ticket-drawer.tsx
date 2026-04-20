@@ -41,7 +41,7 @@ const ticketTypeOptions = [
 
 const genderOptions = [
   { label: "Nam", value: "m" },
-  { label: "Nu", value: "f" },
+  { label: "Nữ", value: "f" },
 ] as const;
 
 type TicketTierOption = {

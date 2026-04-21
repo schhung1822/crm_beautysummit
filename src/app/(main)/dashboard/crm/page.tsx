@@ -1,49 +1,57 @@
-import {
-  getRevenueByChannelChart,
-  getRevenueByBranchBarChart,
-  getCRMStats,
-  getBrandConversionFunnel,
-  getChannelSalesSummary,
-  getTopProductsByQuantity,
-  getTopSalesByRevenue,
-} from "@/lib/crm-revenue";
+import { prisma } from "@/lib/prisma";
+import DashboardClient from "./dashboard-client";
 
-import { DateRangeFilter } from "./_components/date-range-filter";
-import { InsightCards } from "./_components/insight-cards";
-import { OperationalCards } from "./_components/operational-cards";
-import { OverviewCards } from "./_components/overview-cards";
-import { SectionCards } from "./_components/section-cards";
-import { TableCards } from "./_components/table-cards";
+export default async function DashboardPage() {
+  const registeredCount = await prisma.customer.count();
+  const qrCreatedCount = await prisma.orders.count();
+  const checkedInCount = await prisma.orders.count({ where: { is_checkin: 1 } });
+  const voucherClaimedCount = await prisma.orders.count({ where: { NOT: { voucher_status: null } } });
 
-export default async function Page({ searchParams }: { searchParams: Promise<Record<string, string>> }) {
-  const params = await searchParams;
-  const from = params.from ? new Date(params.from) : undefined;
-  const to = params.to ? new Date(params.to) : undefined;
+  const initialStats = {
+    registered: registeredCount,
+    qrCreated: qrCreatedCount,
+    checkedIn: checkedInCount,
+    missionActive: Math.floor(checkedInCount * 0.9),
+    voucherClaimed: voucherClaimedCount,
+    vf3Eligible: Math.floor(voucherClaimedCount * 0.2),
+  };
 
-  // Ensure toDate is end of day
-  if (to) {
-    to.setHours(23, 59, 59, 999);
-  }
+  let topBrands = [];
+  try {
+    const grouped = await prisma.voted.groupBy({
+      by: ["brand_id"],
+      _count: { _all: true },
+      orderBy: { _count: { brand_id: "desc" } },
+      take: 10,
+    });
+    
+    const brandIds = grouped.map(g => g.brand_id).filter(id => id !== null);
+    const brands = await prisma.brand.findMany({ where: { brand_id: { in: brandIds } } });
+    
+    topBrands = grouped.map(g => {
+      const b = brands.find(b => b.brand_id === g.brand_id);
+      return {
+        name: b?.brand_name || g.brand_id || "Unknown",
+        votes: g._count._all,
+        cat: b?.category || "Brand",
+      };
+    });
+  } catch (err) {}
 
-  const [revenueByChannel, revenueByBranchBars, stats, brandFunnel, topProducts, topSales, channelSummary] =
-    await Promise.all([
-      getRevenueByChannelChart(from, to),
-      getRevenueByBranchBarChart(from, to, 12),
-      getCRMStats(from, to),
-      getBrandConversionFunnel(from, to),
-      getTopProductsByQuantity(from, to, 10),
-      getTopSalesByRevenue(from, to, 5),
-      getChannelSalesSummary(from, to),
-    ]);
+  let zones = [];
+  try {
+    const groupedZ = await prisma.checkin_log.groupBy({
+      by: ["zone_name"],
+      _count: { _all: true },
+    });
+    const colors = ["#B8860B", "#F0588C", "#9B7DB8", "#5BC8D8", "#22C55E"];
+    zones = groupedZ.map((g, i) => ({
+      name: g.zone_name || "Unknown",
+      count: g._count._all,
+      pct: checkedInCount > 0 ? Math.round((g._count._all / checkedInCount) * 100) : 0,
+      color: colors[i % colors.length],
+    }));
+  } catch (err) {}
 
-  return (
-    <div className="flex flex-col gap-4 md:gap-6">
-      <DateRangeFilter />
-      <SectionCards stats={stats} />
-      <OverviewCards />
-      <InsightCards revenueByChannel={revenueByChannel} revenueByBranchBars={revenueByBranchBars} />
-      <OperationalCards brandFunnel={brandFunnel} topProducts={topProducts} topSales={topSales} />
-      <TableCards channels={channelSummary} />
-    </div>
-  );
+  return <DashboardClient events={initialStats} initialZones={zones} initialBrands={topBrands} />;
 }

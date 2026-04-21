@@ -118,11 +118,11 @@ export function TableCellViewer({
       </DrawerTrigger>
 
       <DrawerContent className="h-screen sm:ml-auto sm:h-screen sm:max-w-[560px]">
-        <DrawerHeader className="gap-4 border-b border-slate-200 bg-gradient-to-br from-white via-slate-50 to-sky-50/50 pb-5">
+        <DrawerHeader className="gap-4 border-b border-slate-200 dark:border-slate-800 bg-gradient-to-br from-white via-slate-50 to-sky-50/50 dark:from-slate-950 dark:via-slate-900 dark:to-sky-900/20 pb-5">
           <div className="flex items-start gap-4">
             <Avatar className="h-14 w-14 shrink-0 rounded-2xl border border-white/90 shadow-[0_14px_28px_rgba(15,23,42,0.1)] ring-2 ring-sky-100">
               <AvatarImage src="/avatars/nghecontent.jpg" alt={previewItem.name} className="rounded-2xl object-cover" />
-              <AvatarFallback className="rounded-2xl bg-slate-200 text-slate-700">
+              <AvatarFallback className="rounded-2xl bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300">
                 {getInitials(previewItem.name)}
               </AvatarFallback>
             </Avatar>
@@ -132,7 +132,7 @@ export function TableCellViewer({
                 <DrawerTitle className="truncate text-xl">{getDisplayValue(previewItem.name)}</DrawerTitle>
                 <Badge
                   variant="outline"
-                  className="rounded-full border-sky-200 bg-sky-50 px-2.5 py-1 text-[11px] font-semibold text-sky-700"
+                  className="rounded-full border-sky-200 dark:border-sky-900/50 bg-sky-50 dark:bg-sky-900/30 px-2.5 py-1 text-[11px] font-semibold text-sky-700 dark:text-sky-300"
                 >
                   Hồ sơ khách hàng
                 </Badge>
@@ -158,7 +158,7 @@ export function TableCellViewer({
           </div>
         </DrawerHeader>
 
-        <div className="nice-scroll flex max-h-[80vh] flex-col gap-4 overflow-y-auto bg-slate-50/60 px-4 py-4 text-sm sm:max-h-[82vh]">
+        <div className="nice-scroll flex max-h-[80vh] flex-col gap-4 overflow-y-auto bg-slate-50/60 dark:bg-slate-950 px-4 py-4 text-sm sm:max-h-[82vh]">
           {isEditing ? (
             <SectionCard
               title="Chỉnh sửa nhanh"
@@ -170,7 +170,7 @@ export function TableCellViewer({
                     id="customer-name"
                     value={form.name}
                     onChange={handleChange("name")}
-                    className="h-10 rounded-lg bg-white"
+                    className="h-10 rounded-lg bg-white dark:bg-slate-900 dark:border-slate-800"
                   />
                 </div>
                 <div className="grid gap-2">
@@ -179,7 +179,7 @@ export function TableCellViewer({
                     id="customer-phone"
                     value={form.phone}
                     onChange={handleChange("phone")}
-                    className="h-10 rounded-lg bg-white"
+                    className="h-10 rounded-lg bg-white dark:bg-slate-900 dark:border-slate-800"
                   />
                 </div>
                 <div className="grid gap-2">
@@ -188,7 +188,7 @@ export function TableCellViewer({
                     id="customer-email"
                     value={form.email}
                     onChange={handleChange("email")}
-                    className="h-10 rounded-lg bg-white"
+                    className="h-10 rounded-lg bg-white dark:bg-slate-900 dark:border-slate-800"
                   />
                 </div>
                 <div className="grid gap-2">
@@ -211,7 +211,7 @@ export function TableCellViewer({
                     id="customer-career"
                     value={form.career}
                     onChange={handleChange("career")}
-                    className="h-10 rounded-lg bg-white"
+                    className="h-10 rounded-lg bg-white dark:bg-slate-900 dark:border-slate-800"
                   />
                 </div>
               </div>
@@ -262,7 +262,7 @@ export function TableCellViewer({
           </SectionCard>
         </div>
 
-        <DrawerFooter className="border-t border-slate-200 bg-white/95">
+        <DrawerFooter className="border-t border-slate-200 dark:border-slate-800 bg-white/95 dark:bg-slate-950/95">
           {isEditing ? (
             <div className="grid w-full grid-cols-2 gap-2">
               <Button
@@ -277,7 +277,7 @@ export function TableCellViewer({
                 Hủy
               </Button>
               <Button
-                className="w-full bg-slate-900 text-white hover:bg-slate-800"
+                className="w-full bg-slate-900 text-white hover:bg-slate-800 dark:bg-slate-50 dark:text-slate-900 dark:hover:bg-slate-200"
                 onClick={() => void handleSave()}
                 disabled={saving}
               >
@@ -291,7 +291,7 @@ export function TableCellViewer({
                 Chỉnh sửa
               </Button>
               <Link href={`/orders/${item.customer_ID}`} className="w-full">
-                <Button className="w-full bg-slate-900 text-white hover:bg-slate-800">Xem đơn hàng</Button>
+                <Button className="w-full bg-slate-900 text-white hover:bg-slate-800 dark:bg-slate-50 dark:text-slate-900 dark:hover:bg-slate-200">Xem đơn hàng</Button>
               </Link>
             </div>
           )}

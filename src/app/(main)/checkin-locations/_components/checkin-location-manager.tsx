@@ -154,11 +154,11 @@ export function CheckinLocationManager({ initialData }: { initialData: CheckinLo
               </div>
               
               <div className="space-y-1 mb-3">
-                <p className="text-xs text-slate-500">
-                  <span className="font-medium">Ngày:</span> {item.event_date ? item.event_date.split('-').reverse().join('/') : "Chưa chọn"}
+                <p className="text-xs text-slate-500 dark:text-slate-400">
+                  <span className="font-medium dark:text-slate-300">Ngày:</span> {item.event_date ? item.event_date.split('-').reverse().join('/') : "Chưa chọn"}
                 </p>
                 <div className="flex flex-wrap gap-1">
-                  <span className="text-xs font-medium text-slate-500 mr-1">Hạng vé:</span>
+                  <span className="text-xs font-medium text-slate-500 dark:text-slate-300 mr-1">Hạng vé:</span>
                   {item.allowed_tiers.split(",").map((t) => (
                     <Badge key={t} variant="secondary" className="text-[10px] px-1 py-0 h-4">
                       {t}
@@ -186,9 +186,9 @@ export function CheckinLocationManager({ initialData }: { initialData: CheckinLo
       </div>
 
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent>
+        <DialogContent className="bg-background dark:bg-slate-900 border-border dark:border-slate-800">
           <DialogHeader>
-            <DialogTitle>{form.id ? "Sửa địa điểm" : "Thêm địa điểm"}</DialogTitle>
+            <DialogTitle className="text-foreground">{form.id ? "Sửa địa điểm" : "Thêm địa điểm"}</DialogTitle>
           </DialogHeader>
           <div className="grid gap-4 py-4">
             <div className="flex gap-4">

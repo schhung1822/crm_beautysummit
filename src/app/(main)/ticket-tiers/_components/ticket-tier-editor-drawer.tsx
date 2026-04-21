@@ -20,8 +20,8 @@ import { formatMoney, formatTicketTierRange, type TicketTierForm } from "./ticke
 function TicketTierReadonlyField({ id, label, value }: { id: string; label: string; value: string }) {
   return (
     <div className="grid gap-2">
-      <Label htmlFor={id}>{label}</Label>
-      <Input id={id} value={value} readOnly disabled className="h-10 rounded-xl bg-slate-100" />
+      <Label htmlFor={id} className="text-foreground">{label}</Label>
+      <Input id={id} value={value} readOnly disabled className="h-10 rounded-xl bg-muted border-input dark:border-slate-800 text-foreground" />
     </div>
   );
 }
@@ -41,7 +41,7 @@ function TicketTierEditableField({
 }) {
   return (
     <div className="grid gap-2">
-      <Label htmlFor={id}>{label}</Label>
+      <Label htmlFor={id} className="text-foreground">{label}</Label>
       {type === "date" ? (
         <DatePicker
           id={id}
@@ -52,7 +52,7 @@ function TicketTierEditableField({
             } as React.ChangeEvent<HTMLInputElement>;
             onChange(simulatedEvent);
           }}
-          className="h-10 rounded-xl bg-white"
+          className="h-10 rounded-xl bg-white dark:bg-slate-800"
         />
       ) : type === "money" ? (
         <Input
@@ -67,7 +67,7 @@ function TicketTierEditableField({
             } as React.ChangeEvent<HTMLInputElement>;
             onChange(simulatedEvent);
           }}
-          className="h-10 rounded-xl bg-white"
+          className="h-10 rounded-xl bg-white dark:bg-slate-800"
         />
       ) : (
         <Input
@@ -76,7 +76,7 @@ function TicketTierEditableField({
           min={type === "number" ? "0" : undefined}
           value={value}
           onChange={onChange}
-          className="h-10 rounded-xl bg-white"
+          className="h-10 rounded-xl bg-white dark:bg-slate-800"
         />
       )}
     </div>
@@ -85,23 +85,23 @@ function TicketTierEditableField({
 
 function TicketTierPreviewPanel({ form }: { form: TicketTierForm }) {
   return (
-    <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+    <div className="rounded-2xl border border-slate-200 bg-white dark:bg-slate-800 p-4 shadow-sm">
       <div className="text-muted-foreground text-[11px] font-semibold tracking-[0.18em] uppercase">Xem nhanh</div>
       <div className="mt-3 grid gap-3">
-        <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
+        <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 px-4 py-3">
           <div className="text-muted-foreground text-[11px] font-medium tracking-[0.16em] uppercase">Giá thường</div>
-          <div className="mt-2 text-base font-semibold text-slate-900">
+          <div className="mt-2 text-base font-semibold text-slate-900 dark:text-slate-50">
             {formatMoney(Number(String(form.regularPrice || 0).replace(/,/g, "")))}
           </div>
         </div>
-        <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
+        <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 px-4 py-3">
           <div className="text-muted-foreground text-[11px] font-medium tracking-[0.16em] uppercase">
             Giá khuyến mãi
           </div>
-          <div className="mt-2 text-base font-semibold text-slate-900">
+          <div className="mt-2 text-base font-semibold text-slate-900 dark:text-slate-50">
             {form.promoPrice === "" ? "Chưa cài đặt" : formatMoney(Number(String(form.promoPrice || 0).replace(/,/g, "")))}
           </div>
-          <div className="mt-1 text-xs text-slate-500">
+          <div className="mt-1 text-xs text-slate-500 dark:text-slate-400">
             {formatTicketTierRange(form.promoStart || null, form.promoEnd || null)}
           </div>
         </div>
@@ -131,18 +131,18 @@ export function TicketTierEditorDrawer({
 }) {
   return (
     <Drawer open={open} onOpenChange={onOpenChange} direction={isMobile ? "bottom" : "right"}>
-      <DrawerContent className="h-screen sm:ml-auto sm:h-screen sm:max-w-[460px]">
-        <DrawerHeader className="border-b border-slate-200 bg-gradient-to-br from-white via-slate-50 to-sky-50/50">
+      <DrawerContent className="h-screen sm:ml-auto sm:h-screen sm:max-w-[460px] border-border dark:border-slate-800 bg-background dark:bg-slate-800">
+        <DrawerHeader className="border-b border-border dark:border-slate-800 bg-gradient-to-br from-background to-muted/20">
           <div className="text-muted-foreground text-[11px] font-semibold tracking-[0.18em] uppercase">
             Cập nhật hạng vé
           </div>
-          <DrawerTitle className="mt-1 text-2xl">{selectedTier?.code ?? form.code}</DrawerTitle>
+          <DrawerTitle className="mt-1 text-2xl text-foreground">{selectedTier?.code ?? form.code}</DrawerTitle>
           <DrawerDescription>{selectedTier?.name ?? form.name}</DrawerDescription>
         </DrawerHeader>
 
-        <div className="nice-scroll flex-1 overflow-y-auto bg-slate-50/60 px-4 py-4">
+        <div className="nice-scroll flex-1 overflow-y-auto bg-muted/10 px-4 py-4">
           <div className="grid gap-4">
-            <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+            <div className="rounded-2xl border border-border dark:border-slate-800 bg-card p-4 shadow-sm">
               <div className="grid gap-4">
                 <TicketTierReadonlyField id="ticket-code" label="Mã hạng vé" value={form.code} />
                 <TicketTierReadonlyField id="ticket-name" label="Tên hiển thị" value={form.name} />
@@ -187,7 +187,7 @@ export function TicketTierEditorDrawer({
           </div>
         </div>
 
-        <DrawerFooter className="border-t border-slate-200 bg-white/95">
+        <DrawerFooter className="border-t border-slate-200 bg-white dark:bg-slate-800/95">
           <div className="grid w-full grid-cols-2 gap-2">
             <DrawerClose asChild>
               <Button variant="outline" className="w-full rounded-xl" disabled={saving}>

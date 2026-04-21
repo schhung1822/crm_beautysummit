@@ -12,6 +12,7 @@ import { Input } from "@/components/ui/input";
 import { useDataTableInstance } from "@/hooks/use-data-table-instance";
 import { matchesSearchTerm } from "@/lib/search-utils";
 
+import { CreateAccountDialog } from "./create-account-dialog";
 import { dashboardColumns } from "./columns";
 import type { AccountUser } from "./schema";
 
@@ -116,6 +117,7 @@ export function DataTable({ data: initialData }: { data: AccountUser[] }) {
           />
         </div>
         <div className="flex items-center gap-2">
+          <CreateAccountDialog />
           <Button size="sm" variant="outline" onClick={() => toggleFilteredRows(table, true)}>
             Chọn tất cả
           </Button>

@@ -72,25 +72,25 @@ function TopRankItem({ item, rank, voteOptions }: { item: RatioItem; rank: numbe
   return (
     <div className="flex flex-col items-center justify-end transition-transform hover:-translate-y-1">
       <div className="relative z-10 -mb-3 sm:-mb-4">
-        <div className={`relative flex items-center justify-center overflow-hidden rounded-full ring-4 ${ringColor} bg-white ${sizeClass} shadow-xl`}>
+        <div className={`relative flex items-center justify-center overflow-hidden rounded-full ring-4 ${ringColor} bg-background ${sizeClass} shadow-xl`}>
           {isImage ? (
             <img src={getAbsoluteImageUrl(logo)} alt={displayName} className="h-full w-full object-cover" />
           ) : (
             <span className="text-xl font-bold text-muted-foreground">{item.name.charAt(0)}</span>
           )}
         </div>
-        <div className={`absolute -bottom-2 left-1/2 -translate-x-1/2 flex h-6 w-6 sm:h-7 sm:w-7 items-center justify-center rounded-full text-xs sm:text-sm font-black shadow-md border-2 border-white ${badgeColor} ${badgeText}`}>
+        <div className={`absolute -bottom-2 left-1/2 -translate-x-1/2 flex h-6 w-6 sm:h-7 sm:w-7 items-center justify-center rounded-full text-xs sm:text-sm font-black shadow-md border-2 border-background ${badgeColor} ${badgeText}`}>
           {rank}
         </div>
       </div>
       
       <div className={`w-[72px] sm:w-[90px] ${pillarHeight} ${pillarBg} border-t-[3px] rounded-t-xl shadow-inner flex flex-col items-center pt-5 sm:pt-6 px-1 pb-2`}>
-        <span className={`text-[0.65rem] sm:text-[0.75rem] font-bold line-clamp-2 text-center leading-tight ${item.name === "?" ? "text-slate-600/50 italic" : "text-slate-900"}`} title={displayName}>
+        <span className={`text-[0.65rem] sm:text-[0.75rem] font-bold line-clamp-2 text-center leading-tight ${item.name === "?" ? "text-primary/50 italic" : "text-primary"}`} title={displayName}>
           {displayName}
         </span>
         <div className="mt-auto flex flex-col items-center">
-          <span className="text-[0.95rem] sm:text-[1.1rem] font-black text-slate-900 leading-none">{item.value > 0 ? item.value : 0}</span>
-          <span className="text-[8px] sm:text-[9px] font-bold uppercase tracking-wider text-slate-800/80">vote</span>
+          <span className="text-[0.95rem] sm:text-[1.1rem] font-black text-primary leading-none">{item.value > 0 ? item.value : 0}</span>
+          <span className="text-[8px] sm:text-[9px] font-bold uppercase tracking-wider text-primary/80">vote</span>
         </div>
       </div>
     </div>
@@ -133,7 +133,7 @@ export function EventsSummary({ totalVotes, genderData, brandRatioData, leaderbo
         </CardHeader>
         <CardContent className="flex flex-col sm:flex-row h-auto sm:h-[300px] overflow-hidden px-2 pb-0 p-0">
           {/* Top 3 Podium (Trái) */}
-          <div className="flex h-full w-full flex-col justify-center border-b bg-gradient-to-b from-white to-muted/10 px-4 sm:w-1/2 sm:border-b-0 sm:border-r shadow-inner-sm">
+          <div className="flex h-full w-full flex-col justify-center border-b bg-gradient-to-b from-background to-muted/10 px-4 sm:w-1/2 sm:border-b-0 sm:border-r shadow-inner-sm">
             <div className="flex flex-row items-end justify-center gap-2 sm:gap-4 pb-0 sm:pb-4">
               <TopRankItem item={top2} rank={2} voteOptions={voteOptions} />
               <TopRankItem item={top1} rank={1} voteOptions={voteOptions} />
@@ -141,40 +141,40 @@ export function EventsSummary({ totalVotes, genderData, brandRatioData, leaderbo
             </div>
           </div>
           {/* List rest (Phải) */}
-          <div className="flex-1 bg-white p-3 space-y-3 overflow-y-auto custom-scrollbar pt-4 sm:pt-4 w-full sm:w-1/2 h-full">
+          <div className="flex-1 bg-background p-3 space-y-3 overflow-y-auto custom-scrollbar pt-4 sm:pt-4 w-full sm:w-1/2 h-full">
             {fullLeaderboardData.map((item, i) => {
               const logo = getProductLogo(item.name, voteOptions);
               const isImg = logo && (logo.startsWith("http") || logo.startsWith("/") || logo.startsWith("data:") || logo.startsWith("avatars/") || logo.startsWith("images/"));
               const rank = i + 1;
               return (
                 <div key={item.name} className="relative">
-                  <div className="overflow-hidden rounded-[1.2rem] border border-[#eadfd2] bg-white shadow-sm hover:shadow-md transition-shadow">
+                  <div className="overflow-hidden rounded-[1.2rem] border border-border bg-card shadow-sm hover:shadow-md transition-shadow">
                     <div className="flex items-center gap-3 px-2.5 py-2.5">
-                      <div className="flex w-6 shrink-0 justify-center font-black text-[1.1rem] text-[#9ca3af]">
+                      <div className="flex w-6 shrink-0 justify-center font-black text-[1.1rem] text-muted-foreground">
                         {rank}
                       </div>
                       
                       {isImg ? (
-                        <img src={getAbsoluteImageUrl(logo)} alt={item.name} className="h-[58px] w-[58px] shrink-0 rounded-[0.9rem] object-cover shadow-[0_6px_14px_rgba(36,22,41,0.1)]" />
+                        <img src={getAbsoluteImageUrl(logo)} alt={item.name} className="h-[58px] w-[58px] shrink-0 rounded-[0.9rem] object-cover shadow-[0_6px_14px_rgba(0,0,0,0.1)]" />
                       ) : (
-                        <div className="flex h-[58px] w-[58px] shrink-0 items-center justify-center rounded-[0.9rem] bg-gradient-to-br from-indigo-500 to-purple-500 text-[1.2rem] font-black text-white shadow-[0_6px_14px_rgba(36,22,41,0.1)]">
+                        <div className="flex h-[58px] w-[58px] shrink-0 items-center justify-center rounded-[0.9rem] bg-gradient-to-br from-indigo-500 to-purple-500 text-[1.2rem] font-black text-white shadow-[0_6px_14px_rgba(0,0,0,0.1)]">
                           {item.name !== "?" ? item.name.charAt(0) : "?"}
                         </div>
                       )}
 
                       <div className="min-w-0 flex-1">
-                        <div className="mt-1 truncate text-[0.95rem] font-black text-[#1f2937]" title={item.name}>
+                        <div className="mt-1 truncate text-[0.95rem] font-black text-card-foreground" title={item.name}>
                           {item.name === "?" ? "Chưa có" : item.name}
                         </div>
-                        <div className="inline-flex max-w-full rounded bg-[#f4e8ff] px-1.5 py-0.5 mt-0.5 text-[11px] font-semibold text-[#8b34ff]">
+                        <div className="inline-flex max-w-full rounded bg-purple-100 dark:bg-purple-900/30 px-1.5 py-0.5 mt-0.5 text-[11px] font-semibold text-purple-700 dark:text-purple-400">
                           <span className="truncate">Thứ hạng {rank}</span>
                         </div>
                       </div>
 
                       <div className="flex shrink-0 flex-col items-end gap-2 pr-1">
                         <div className="flex items-baseline gap-1 text-right">
-                          <span className="text-[0.95rem] font-bold text-[#111827]">{item.value}</span>
-                          <span className="text-[11px] text-[#8a7e8b]">vote</span>
+                          <span className="text-[0.95rem] font-bold text-foreground">{item.value}</span>
+                          <span className="text-[11px] text-muted-foreground">vote</span>
                         </div>
                       </div>
                     </div>

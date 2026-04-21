@@ -125,7 +125,7 @@ export function TableCellViewer({
       </DrawerTrigger>
 
       <DrawerContent className="h-screen sm:ml-auto sm:h-screen sm:max-w-[620px]">
-        <DrawerHeader className="gap-4 border-b border-slate-200 bg-gradient-to-br from-white via-slate-50 to-indigo-50/50 pb-5">
+        <DrawerHeader className="gap-4 border-b border-slate-200 dark:border-slate-800 bg-gradient-to-br from-white via-slate-50 to-indigo-50/50 dark:from-slate-950 dark:via-slate-900 dark:to-indigo-900/20 pb-5">
           <div className="flex items-start gap-4">
             <Avatar className="h-14 w-14 shrink-0 rounded-2xl border border-white/90 shadow-[0_14px_28px_rgba(15,23,42,0.1)] ring-2 ring-indigo-100">
               <AvatarImage
@@ -133,7 +133,7 @@ export function TableCellViewer({
                 alt={previewItem.name || previewItem.username}
                 className="rounded-2xl object-cover"
               />
-              <AvatarFallback className="rounded-2xl bg-slate-200 text-slate-700">
+              <AvatarFallback className="rounded-2xl bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300">
                 {getInitials(previewItem.name || previewItem.username)}
               </AvatarFallback>
             </Avatar>
@@ -145,7 +145,7 @@ export function TableCellViewer({
                 </DrawerTitle>
                 <Badge
                   variant="outline"
-                  className="rounded-full border-indigo-200 bg-indigo-50 px-2.5 py-1 text-[11px] font-semibold text-indigo-700"
+                  className="rounded-full border-indigo-200 dark:border-indigo-900/50 bg-indigo-50 dark:bg-indigo-900/30 px-2.5 py-1 text-[11px] font-semibold text-indigo-700 dark:text-indigo-300"
                 >
                   {getDisplayValue(previewItem.role)}
                 </Badge>
@@ -171,7 +171,7 @@ export function TableCellViewer({
           </div>
         </DrawerHeader>
 
-        <div className="nice-scroll flex max-h-[80vh] flex-col gap-4 overflow-y-auto bg-slate-50/60 px-4 py-4 text-sm sm:max-h-[82vh]">
+        <div className="nice-scroll flex max-h-[80vh] flex-col gap-4 overflow-y-auto bg-slate-50/60 dark:bg-slate-950 px-4 py-4 text-sm sm:max-h-[82vh]">
           <AccountEditSection
             visible={isEditing}
             form={form}
@@ -181,14 +181,14 @@ export function TableCellViewer({
           <AccountInfoSection item={previewItem} />
         </div>
 
-        <DrawerFooter className="border-t border-slate-200 bg-white/95">
+        <DrawerFooter className="border-t border-slate-200 dark:border-slate-800 bg-white/95 dark:bg-slate-950/95">
           {isEditing ? (
             <div className="grid w-full grid-cols-2 gap-2">
               <Button variant="outline" className="w-full" onClick={resetEditor} disabled={saving}>
                 Hủy
               </Button>
               <Button
-                className="w-full bg-slate-900 text-white hover:bg-slate-800"
+                className="w-full bg-slate-900 text-white hover:bg-slate-800 dark:bg-slate-50 dark:text-slate-900 dark:hover:bg-slate-200"
                 onClick={() => void handleSave()}
                 disabled={saving}
               >

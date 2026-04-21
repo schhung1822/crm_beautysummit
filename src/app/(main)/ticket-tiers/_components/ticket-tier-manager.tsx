@@ -109,13 +109,13 @@ export default function TicketTierManager({ initialData }: TicketTierManagerProp
   return (
     <>
       <div className="flex flex-col gap-6">
-        <div className="rounded-3xl border border-slate-200 bg-gradient-to-br from-white via-slate-50 to-sky-50/60 p-5 shadow-sm">
+        <div className="rounded-3xl border border-slate-200 dark:border-slate-800 bg-gradient-to-br from-white via-slate-50 to-sky-50/60 dark:from-slate-800 dark:via-slate-800/80 dark:to-slate-800/50 p-5 shadow-sm">
           <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
             <div className="max-w-2xl">
               <div className="text-muted-foreground text-[20px] font-semibold tracking-[0.2em] uppercase">
                 Quản lý hạng vé
               </div>
-              <h2 className="mt-1 text-2xl font-semibold text-slate-950">Bảng giá vé và lịch khuyến mãi</h2>
+              <h2 className="mt-1 text-2xl font-semibold text-slate-950 dark:text-slate-50">Bảng giá vé và lịch khuyến mãi</h2>
               
             </div>
 
@@ -125,7 +125,7 @@ export default function TicketTierManager({ initialData }: TicketTierManagerProp
                 value={search}
                 onChange={(event) => setSearch(event.target.value)}
                 placeholder="Tim theo ma hoac ten hạng vé..."
-                className="h-10 rounded-xl border-slate-200 bg-white pl-10 shadow-sm"
+                className="h-10 rounded-xl border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-800 pl-10 shadow-sm"
               />
             </div>
           </div>

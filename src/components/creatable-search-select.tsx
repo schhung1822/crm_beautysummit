@@ -128,7 +128,7 @@ export function CreatableSearchSelect({
           variant="outline"
           disabled={disabled}
           className={cn(
-            "h-12 w-full justify-between rounded-[1rem] border-[#e7dfd4] bg-white px-4 text-left font-medium text-[#241629] shadow-[0_10px_24px_rgba(184,134,11,0.06)] hover:bg-white",
+            "h-12 w-full justify-between rounded-[1rem] border-[#e7dfd4] dark:border-slate-800 bg-white dark:bg-slate-900 border-border dark:border-slate-800 px-4 text-left font-medium text-[#241629] dark:text-slate-50 shadow-[0_10px_24px_rgba(184,134,11,0.06)] dark:shadow-none hover:bg-white dark:hover:bg-slate-800",
             !normalizedValue && "text-[#9a8f97]",
             triggerClassName,
           )}

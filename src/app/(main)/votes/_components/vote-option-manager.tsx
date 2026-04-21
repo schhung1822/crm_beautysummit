@@ -146,7 +146,7 @@ function VoteLogoPreview({ logo, product, compact = false }: { logo: string | nu
     const absolutelogo = getAbsoluteImageUrl(logo);
     return (
       <div
-        className={`flex items-center justify-center overflow-hidden border border-[#eadfd2] bg-white shadow-[0_8px_18px_rgba(184,134,11,0.08)] ${sizeClass}`}
+        className={`flex items-center justify-center overflow-hidden border border-border bg-background shadow-sm ${sizeClass}`}
       >
         <img src={absolutelogo} alt={product} className="h-full w-full object-cover" />
       </div>
@@ -155,7 +155,7 @@ function VoteLogoPreview({ logo, product, compact = false }: { logo: string | nu
 
   return (
     <div
-      className={`flex items-center justify-center border border-[#f3b9e1] bg-[linear-gradient(135deg,#7c1d5b,#db2777)] font-black text-white shadow-[0_12px_24px_rgba(219,39,119,0.18)] ${sizeClass} ${textClass}`}
+      className={`flex items-center justify-center border border-primary/20 bg-gradient-to-br from-primary/80 to-primary font-black text-primary-foreground shadow-sm ${sizeClass} ${textClass}`}
     >
       {buildLogoFallback(product || "Vote") || "V"}
     </div>
@@ -174,22 +174,22 @@ function VotePreviewCard({
 
   return (
     <div className="space-y-3">
-      <div className="rounded-[1.5rem] border border-[#f0e4d8] bg-[linear-gradient(145deg,#fffdf9,#fff8f1)] p-4 shadow-[0_14px_32px_rgba(184,134,11,0.06)]">
+      <div className="rounded-[1.5rem] border border-border bg-card p-4 shadow-sm">
         <div className="mb-3 flex items-center justify-between">
-          <div className="text-[11px] font-semibold tracking-[0.16em] text-[#8a7e8b] uppercase">Preview</div>
-          <div className="rounded-full border border-[#f4e7da] bg-white px-2.5 py-1 text-[10px] font-semibold text-[#b088a6]">
+          <div className="text-[11px] font-semibold tracking-[0.16em] text-muted-foreground uppercase">Preview</div>
+          <div className="rounded-full border border-border bg-background px-2.5 py-1 text-[10px] font-semibold text-muted-foreground">
             Vote card
           </div>
         </div>
 
-        <div className="overflow-hidden rounded-[1.2rem] border border-[#eadfd2] bg-white shadow">
+        <div className="overflow-hidden rounded-[1.2rem] border border-border bg-background shadow-sm">
           <div className="flex items-center gap-3 px-2.5 py-2.5">
             <div className="flex min-w-0 flex-1 items-center gap-3 text-left">
               <VoteLogoPreview logo={logo} product={productLabel} compact />
 
               <div className="min-w-0">
-                <div className="mt-1 truncate text-[0.95rem] font-black text-[#1f2937]">{productLabel}</div>
-                <div className="inline-flex max-w-full rounded bg-[#f4e8ff] px-1.5 py-0.5 text-[11px] font-semibold text-[#8b34ff]">
+                <div className="mt-1 truncate text-[0.95rem] font-black text-foreground">{productLabel}</div>
+                <div className="inline-flex max-w-full rounded bg-primary/10 px-1.5 py-0.5 text-[11px] font-semibold text-primary">
                   <span className="truncate">{categoryLabel}</span>
                 </div>
               </div>
@@ -197,10 +197,10 @@ function VotePreviewCard({
 
             <div className="flex shrink-0 flex-col items-end gap-2">
               <div className="flex items-baseline gap-1 text-right">
-                <span className="text-[0.95rem] font-bold text-[#111827]">156</span>
-                <span className="text-[11px] text-[#8a7e8b]">vote</span>
+                <span className="text-[0.95rem] font-bold text-foreground">156</span>
+                <span className="text-[11px] text-muted-foreground">vote</span>
               </div>
-              <div className="inline-flex min-w-[82px] items-center justify-center gap-1 rounded-full border border-[#ece7f2] bg-[#faf8fc] px-2.5 py-1 text-xs font-semibold text-[#4a5568] shadow-sm">
+              <div className="inline-flex min-w-[82px] items-center justify-center gap-1 rounded-full border border-border bg-muted/50 px-2.5 py-1 text-xs font-semibold text-muted-foreground shadow-sm">
                 <ThumbsUp className="size-3" />
                 <span>Vote</span>
               </div>
@@ -209,8 +209,8 @@ function VotePreviewCard({
         </div>
       </div>
 
-      <div className="rounded-[1.5rem] border border-[#f0e4d8] bg-[linear-gradient(145deg,#fffdf9,#fff8f1)] p-4 shadow-[0_14px_32px_rgba(184,134,11,0.06)]">
-        <div className="mx-auto mb-4 h-1.5 w-12 rounded-full bg-[#e3d8df]" />
+      <div className="rounded-[1.5rem] border border-border bg-card p-4 shadow-sm">
+        <div className="mx-auto mb-4 h-1.5 w-12 rounded-full bg-muted-foreground/20" />
 
         <div className="mb-5 flex items-start justify-between gap-4">
           <div className="flex min-w-0 items-start gap-3">
@@ -226,46 +226,46 @@ function VotePreviewCard({
               >
                 {categoryLabel}
               </div>
-              <div className="truncate text-[1.2rem] font-black text-[#241629]">{productLabel}</div>
-              <div className="mt-1 text-[12px] font-medium text-[#8a7e8b]">Đã đồng bộ dữ liệu</div>
+              <div className="truncate text-[1.2rem] font-black text-foreground">{productLabel}</div>
+              <div className="mt-1 text-[12px] font-medium text-muted-foreground">Đã đồng bộ dữ liệu</div>
             </div>
           </div>
 
-          <div className="rounded-full border border-[#eadfd2] bg-white p-2 text-[#8a7e8b]">
+          <div className="rounded-full border border-border bg-background p-2 text-muted-foreground">
             <X className="size-4" />
           </div>
         </div>
 
         <div className="mb-5 grid grid-cols-3 gap-3">
-          <div className="rounded-[1rem] border border-[#eadfd2] bg-white px-3 py-3.5 text-center">
+          <div className="rounded-[1rem] border border-border bg-background px-3 py-3.5 text-center">
             <div className="text-lg font-black" style={{ color: accentColor }}>
               1
             </div>
-            <div className="mt-1 text-[11px] text-[#8a7e8b]">Lượt vote</div>
+            <div className="mt-1 text-[11px] text-muted-foreground">Lượt vote</div>
           </div>
-          <div className="rounded-[1rem] border border-[#eadfd2] bg-white px-3 py-3.5 text-center">
-            <div className="text-lg font-black text-[#241629]">#1</div>
-            <div className="mt-1 text-[11px] text-[#8a7e8b]">Xếp hạng</div>
+          <div className="rounded-[1rem] border border-border bg-background px-3 py-3.5 text-center">
+            <div className="text-lg font-black text-foreground">#1</div>
+            <div className="mt-1 text-[11px] text-muted-foreground">Xếp hạng</div>
           </div>
-          <div className="rounded-[1rem] border border-[#eadfd2] bg-white px-3 py-3.5 text-center">
-            <div className="text-lg font-black text-[#b8860b]">1</div>
-            <div className="mt-1 text-[11px] text-[#8a7e8b]">Ứng viên</div>
+          <div className="rounded-[1rem] border border-border bg-background px-3 py-3.5 text-center">
+            <div className="text-lg font-black text-amber-600">1</div>
+            <div className="mt-1 text-[11px] text-muted-foreground">Ứng viên</div>
           </div>
         </div>
 
-        <div className="mb-5 rounded-[1.1rem] border border-[#eadfd2] bg-white p-4 shadow-[0_10px_22px_rgba(184,134,11,0.06)] max-h-[160px] overflow-y-auto custom-scrollbar">
-          <div className="mb-2 text-xs font-semibold tracking-[0.16em] text-[#9a8f9d] uppercase">Tóm tắt</div>
-            <p className="text-sm leading-6 text-[#5b5360] whitespace-pre-wrap break-words">{summary}</p>
+        <div className="mb-5 rounded-[1.1rem] border border-border bg-background p-4 shadow-sm max-h-[160px] overflow-y-auto custom-scrollbar">
+          <div className="mb-2 text-xs font-semibold tracking-[0.16em] text-muted-foreground uppercase">Tóm tắt</div>
+            <p className="text-sm leading-6 text-foreground/80 whitespace-pre-wrap break-words">{summary}</p>
         </div>
 
         <div className="mb-6">
           <div className="mb-2 flex items-center justify-between text-xs">
-            <span className="text-[#8a7e8b]">Tỷ lệ vote</span>
+            <span className="text-muted-foreground">Tỷ lệ vote</span>
             <span className="font-semibold" style={{ color: accentColor }}>
               100%
             </span>
           </div>
-          <div className="h-2 rounded-full bg-[#efe8f0]">
+          <div className="h-2 rounded-full bg-muted">
             <div
               className="h-2 rounded-full"
               style={{
@@ -276,7 +276,7 @@ function VotePreviewCard({
           </div>
         </div>
 
-        <div className="flex w-full items-center justify-center gap-2 rounded-2xl border border-[#eadfd2] bg-white px-4 py-3 text-sm font-bold text-[#5f5662]">
+        <div className="flex w-full items-center justify-center gap-2 rounded-2xl border border-border bg-background px-4 py-3 text-sm font-bold text-muted-foreground">
           <ThumbsUp className="size-4" />
           Bỏ chọn mục này
         </div>
@@ -578,7 +578,7 @@ export function VoteOptionManager({ initialData }: VoteOptionManagerProps) {
           <Badge
             variant={selectedCategory === null ? "default" : "secondary"}
             className={`cursor-pointer rounded-full px-3 py-1 font-semibold transition-colors ${
-              selectedCategory === null ? "bg-primary text-primary-foreground" : "text-slate-600 bg-slate-100 hover:bg-slate-200"
+              selectedCategory === null ? "bg-primary text-primary-foreground" : "text-muted-foreground bg-muted hover:bg-muted/80"
             }`}
             onClick={() => setSelectedCategory(null)}
           >
@@ -589,7 +589,7 @@ export function VoteOptionManager({ initialData }: VoteOptionManagerProps) {
               key={category}
               variant={selectedCategory === category ? "default" : "secondary"}
               className={`cursor-pointer rounded-full px-3 py-1 font-semibold transition-colors ${
-                selectedCategory === category ? "bg-primary text-primary-foreground" : "text-slate-600 bg-slate-100 hover:bg-slate-200"
+                selectedCategory === category ? "bg-primary text-primary-foreground" : "text-muted-foreground bg-muted hover:bg-muted/80"
               }`}
               onClick={() => setSelectedCategory(category)}
             >
@@ -601,8 +601,8 @@ export function VoteOptionManager({ initialData }: VoteOptionManagerProps) {
 
       <div className="nice-scroll max-h-[620px] overflow-y-auto rounded-lg border shadow-sm">
         <table className="relative w-full text-sm">
-          <thead className="bg-[#f8f9fa] sticky top-0 z-10 shadow-[0_1px_2px_rgba(0,0,0,0.05)]">
-            <tr className="text-left text-[#4b5563]">
+          <thead className="bg-muted sticky top-0 z-10 shadow-[0_1px_2px_rgba(0,0,0,0.05)]">
+            <tr className="text-left text-muted-foreground">
               <th className="px-5 py-3.5 font-bold uppercase tracking-wider text-[11px]">Logo</th>
               <th className="px-5 py-3.5 font-bold uppercase tracking-wider text-[11px]">Thể loại</th>
               <th className="px-5 py-3.5 font-bold uppercase tracking-wider text-[11px]">Sản phẩm</th>
@@ -615,7 +615,7 @@ export function VoteOptionManager({ initialData }: VoteOptionManagerProps) {
               <tr>
                 <td colSpan={5} className="text-muted-foreground px-4 py-16 text-center w-full">
                   <div className="flex flex-col items-center justify-center gap-3">
-                    <Search className="size-8 text-slate-300" />
+                    <Search className="size-8 text-muted-foreground/30" />
                     <span>Không tìm thấy sản phẩm nào.</span>
                   </div>
                 </td>
@@ -656,19 +656,19 @@ export function VoteOptionManager({ initialData }: VoteOptionManagerProps) {
       </div>
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="max-w-[calc(100%-2rem)] rounded-[2rem] border-0 bg-white p-0 shadow-[0_32px_90px_rgba(17,24,39,0.18)] sm:max-w-[1100px]">
-          <div className="border-b border-[#f2e8dd] px-8 py-7">
+        <DialogContent className="max-w-[calc(100%-2rem)] rounded-[2rem] border-border dark:border-slate-800 bg-background dark:bg-slate-900 p-0 shadow-lg sm:max-w-[1100px]">
+          <div className="border-b border-border dark:border-slate-800 px-8 py-7">
             <DialogHeader className="space-y-2 text-left">
-              <DialogTitle className="text-[2rem] text-[#111827]">{form.id ? "Sửa vote" : "Thêm vote"}</DialogTitle>
+              <DialogTitle className="text-[2rem] text-foreground">{form.id ? "Sửa vote" : "Thêm vote"}</DialogTitle>
             </DialogHeader>
           </div>
 
-          <div className="flex flex-col gap-6 px-8 lg:flex-row lg:items-start">
+          <div className="flex flex-col gap-6 px-8 lg:flex-row lg:items-start pt-6">
             <div className="min-w-0 flex-1">
               <div className="flex flex-col gap-5">
                 <div className="flex flex-col gap-4 sm:flex-row sm:items-start">
                   <div className="space-y-2 sm:flex-1">
-                    <Label className="text-base font-semibold text-[#241629]">Thể loại</Label>
+                    <Label className="text-base font-semibold text-foreground">Thể loại</Label>
                     <CreatableSearchSelect
                       value={form.category}
                       options={categoryOptions}
@@ -681,7 +681,7 @@ export function VoteOptionManager({ initialData }: VoteOptionManagerProps) {
                   </div>
 
                   <div className="space-y-2 sm:flex-1">
-                    <Label className="text-base font-semibold text-[#241629]">Sản phẩm</Label>
+                    <Label className="text-base font-semibold text-foreground">Sản phẩm</Label>
                     <CreatableSearchSelect
                       value={form.product}
                       options={productOptions}
@@ -695,21 +695,21 @@ export function VoteOptionManager({ initialData }: VoteOptionManagerProps) {
                 </div>
 
                 <div className="space-y-2">
-                  <Label className="text-base font-semibold text-[#241629]">Ảnh logo</Label>
-                  <div className="flex flex-col gap-4 rounded-[1.5rem] border border-[#f0e1cf] bg-[linear-gradient(145deg,#fffdf8,#fff6ea)] p-4 shadow-[0_12px_30px_rgba(184,134,11,0.07)] sm:flex-row sm:items-center sm:justify-between">
+                  <Label className="text-base font-semibold text-foreground">Ảnh logo</Label>
+                  <div className="flex flex-col gap-4 rounded-[1.5rem] border border-border bg-muted/20 p-4 shadow-sm sm:flex-row sm:items-center sm:justify-between">
                     <div className="flex items-center gap-4">
                       <VoteLogoPreview logo={form.logo} product={form.product || "Vote"} />
                       <div className="text-sm">
-                        <div className="font-semibold text-[#241629]">
+                        <div className="font-semibold text-foreground">
                           {isImageLogo(form.logo) ? "Đã chọn ảnh logo" : "Đang dùng logo chữ"}
                         </div>
-                        <div className="mt-1 text-[13px] text-[#7a7280]">
+                        <div className="mt-1 text-[13px] text-muted-foreground">
                           Khuyến nghị ảnh vuông, dung lượng dưới 512KB.
                         </div>
                       </div>
                     </div>
                     <div className="flex shrink-0 items-center gap-2">
-                      <label className="inline-flex shrink-0 cursor-pointer items-center gap-2 rounded-[1rem] border border-[#eadfd2] bg-white px-4 py-3 text-sm font-semibold whitespace-nowrap text-[#241629] shadow-[0_8px_18px_rgba(184,134,11,0.05)]">
+                      <label className="inline-flex shrink-0 cursor-pointer items-center gap-2 rounded-[1rem] border border-input bg-background px-4 py-3 text-sm font-semibold whitespace-nowrap text-foreground shadow-sm hover:bg-muted transition-colors">
                         <ImagePlus className="size-4" />
                         Chọn ảnh
                         <input type="file" accept="image/*" className="hidden" onChange={handleLogoFileChange} />
@@ -718,7 +718,7 @@ export function VoteOptionManager({ initialData }: VoteOptionManagerProps) {
                         <Button
                           type="button"
                           variant="outline"
-                          className="shrink-0 rounded-[1rem] border-[#eadfd2] bg-white whitespace-nowrap text-[#241629]"
+                          className="shrink-0 rounded-[1rem] border-input bg-background whitespace-nowrap text-foreground"
                           onClick={() => setForm((current) => ({ ...current, logo: "" }))}
                         >
                           Xóa logo
@@ -729,12 +729,12 @@ export function VoteOptionManager({ initialData }: VoteOptionManagerProps) {
                 </div>
 
                 <div className="space-y-2">
-                  <Label className="text-base font-semibold text-[#241629]">Giới thiệu</Label>
+                  <Label className="text-base font-semibold text-foreground">Giới thiệu</Label>
                   <Textarea
                     rows={6}
                     value={form.summary}
                     onChange={(event) => setForm((current) => ({ ...current, summary: event.target.value }))}
-                      className="max-h-[200px] w-full min-w-0 resize-none break-words overflow-y-auto custom-scrollbar rounded-[1.2rem] border-[#eadfd2] bg-white px-4 py-3 text-[15px] leading-7 shadow-[0_10px_24px_rgba(184,134,11,0.05)] ![field-sizing:fixed]"
+                      className="max-h-[200px] w-full min-w-0 resize-none break-words overflow-y-auto custom-scrollbar rounded-[1.2rem] border-input bg-background px-4 py-3 text-[15px] leading-7 shadow-sm ![field-sizing:fixed]"
                     placeholder="Nhập mô tả ngắn cho item vote..."
                   />
                 </div>
@@ -751,12 +751,12 @@ export function VoteOptionManager({ initialData }: VoteOptionManagerProps) {
             </div>
           </div>
 
-          <DialogFooter className="border-t border-[#f2e8dd] px-8 py-6">
+          <DialogFooter className="border-t border-border px-8 py-6 pb-8">
             <Button variant="outline" className="rounded-[1rem] px-6" onClick={() => setDialogOpen(false)}>
               Hủy
             </Button>
             <Button
-              className="rounded-[1rem] bg-[#111111] px-6 text-white hover:bg-[#1f1f1f]"
+              className="rounded-[1rem] px-6"
               onClick={() => void handleSave()}
               disabled={isSaving || !canSave}
             >

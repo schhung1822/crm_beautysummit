@@ -780,12 +780,11 @@ export default function VoucherManager({ initialData }: VoucherManagerProps) {
       </div>
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="sm:max-w-2xl">
+        <DialogContent className="sm:max-w-2xl bg-background dark:bg-slate-900 border-border dark:border-slate-800">
           <DialogHeader>
-            <DialogTitle>{isEditing ? "Cập nhật voucher" : "Tạo voucher mới"}</DialogTitle>
-          </DialogHeader>
-
-          <div className="grid gap-4 sm:grid-cols-2">
+<DialogTitle></DialogTitle>
+</DialogHeader>
+<div className="grid gap-4 sm:grid-cols-2">
             <div className="grid gap-4 sm:col-span-2 sm:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)_auto] sm:items-end">
               <div className="space-y-1.5">
                 <Label>Loại voucher</Label>
@@ -835,22 +834,21 @@ export default function VoucherManager({ initialData }: VoucherManagerProps) {
 
             <div className="grid gap-4 sm:col-span-2 lg:grid-cols-[minmax(0,1fr)_220px] lg:items-start">
               <div
-                className={`relative overflow-hidden rounded-[1.2rem] border px-4 py-4 shadow-[0_10px_24px_rgba(184,134,11,0.06)] ${form.isGrand ? "border-[#f4b16a]" : "border-[#eadfd2] bg-[linear-gradient(145deg,#fffdf8,#fff6ea)]"}`}
+                className={`relative overflow-hidden rounded-[1.2rem] border px-4 py-4 shadow-sm ${form.isGrand ? "border-orange-200 dark:border-orange-800" : "border-border dark:border-slate-800 bg-card dark:bg-slate-900"}`}
                 style={
                   form.isGrand
                     ? {
                         background:
-                          "radial-gradient(circle at top right, rgba(255,175,64,0.24), transparent 34%), radial-gradient(circle at bottom left, rgba(236,72,153,0.16), transparent 42%), linear-gradient(145deg,#fff8ef 0%,#fff3e0 52%,#fff7fb 100%)",
-                        boxShadow: "0 12px 26px rgba(249,115,22,0.12), 0 4px 14px rgba(236,72,153,0.08)",
+                          "radial-gradient(circle at top right, rgba(255,175,64,0.14), transparent 34%), radial-gradient(circle at bottom left, rgba(236,72,153,0.06), transparent 42%)",
                       }
                     : undefined
                 }
               >
-                <div className="mb-3 text-xs font-semibold tracking-[0.14em] uppercase" style={{ color: form.color }}>
+                <div className="mb-3 text-xs font-semibold tracking-[0.14em] uppercase text-muted-foreground" style={{ color: form.color }}>
                   Preview
                 </div>
                 <div
-                  className={`relative flex items-center gap-3 rounded-[1.25rem] border px-3.5 py-3.5 shadow-[0_10px_22px_rgba(184,134,11,0.05)] ${form.isGrand ? "overflow-hidden border-[#f2bf7b] bg-[linear-gradient(145deg,#fffdf8_0%,#fff7ee_100%)]" : "border-[#eadfd2] bg-white"}`}
+                  className={`relative flex items-center gap-3 rounded-[1.25rem] border px-3.5 py-3.5 shadow-sm ${form.isGrand ? "overflow-hidden border-orange-300 dark:border-orange-800 bg-background/50 dark:bg-background/20" : "border-border dark:border-slate-800 bg-background dark:bg-slate-950"}`}
                 >
                   {form.isGrand ? (
                     <div className="absolute top-0 right-0 rounded-tr-[1.15rem] rounded-bl-[1rem] bg-[linear-gradient(135deg,#f9c529_0%,#ffb347_46%,#ff72bc_100%)] px-4 py-1 text-[11px] font-black tracking-[0.04em] text-white">
@@ -871,11 +869,11 @@ export default function VoucherManager({ initialData }: VoucherManagerProps) {
                       {form.brand || "Brand voucher"}
                     </div>
                     <div
-                      className={`truncate text-[17px] leading-tight font-black ${form.isGrand ? "text-[#241629]" : "text-[#241629]"}`}
+                      className={`truncate text-[17px] leading-tight font-black ${form.isGrand ? "text-[#241629] dark:text-slate-50" : "text-[#241629] dark:text-slate-50"}`}
                     >
                       {form.discount || "Title voucher"}
                     </div>
-                    <div className={`mt-1 truncate text-[12px] ${form.isGrand ? "text-[#7a7280]" : "text-[#7a7280]"}`}>
+                    <div className={`mt-1 truncate text-[12px] ${form.isGrand ? "text-[#7a7280] dark:text-slate-400" : "text-[#7a7280] dark:text-slate-400"}`}>
                       {form.desc || "Mô tả voucher 1 dòng, dài thì sẽ tự cắt."}
                     </div>
                   </div>
@@ -920,7 +918,7 @@ export default function VoucherManager({ initialData }: VoucherManagerProps) {
 
             <div className="space-y-2 sm:col-span-2">
               <Label>Logo voucher</Label>
-              <div className="flex flex-col gap-3 rounded-[1.1rem] border border-[#eadfd2] bg-[linear-gradient(145deg,#fffdf8,#fff6ea)] p-3.5 shadow-[0_10px_24px_rgba(184,134,11,0.06)] sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex flex-col gap-3 rounded-[1.1rem] border border-[#eadfd2] dark:border-slate-800 bg-[linear-gradient(145deg,#fffdf8,#fff6ea)] dark:bg-[linear-gradient(145deg,#020817,#0f172a)] p-3.5 shadow-[0_10px_24px_rgba(184,134,11,0.06)] sm:flex-row sm:items-center sm:justify-between">
                 <div className="flex items-center gap-3">
                   <LogoPreview logo={form.logo} brand={form.brand || "Voucher"} color={form.color} />
                   <div className="text-sm">

@@ -24,6 +24,7 @@ type VoteOptionFormState = {
   category: string;
   product: string;
   logo: string;
+  productImage: string;
   summary: string;
 };
 
@@ -46,6 +47,7 @@ const DEFAULT_FORM: VoteOptionFormState = {
   category: "",
   product: "",
   logo: "",
+  productImage: "",
   summary: "",
 };
 
@@ -105,6 +107,7 @@ function buildFormState(item?: VoteOptionRecord | null): VoteOptionFormState {
     category: item.category,
     product: item.product,
     logo: item.logo,
+    productImage: item.productImage,
     summary: item.summary,
   };
 }
@@ -138,25 +141,37 @@ function getPreviewAccent(category: string): string {
   return palette[index] ?? palette[0];
 }
 
-function VoteLogoPreview({ logo, product, compact = false }: { logo: string | null | undefined; product: string; compact?: boolean }) {
+function VoteLogoPreview({
+  logo,
+  product,
+  compact = false,
+  fit = "cover",
+  className = "",
+}: {
+  logo: string | null | undefined;
+  product: string;
+  compact?: boolean;
+  fit?: "cover" | "contain";
+  className?: string;
+}) {
   const sizeClass = compact ? "h-[58px] w-[58px] rounded-[0.9rem]" : "h-[4.5rem] w-[4.5rem] rounded-[1.2rem]";
   const textClass = compact ? "text-[1.2rem]" : "text-[2rem]";
 
   if (isImageLogo(logo)) {
     const absolutelogo = getAbsoluteImageUrl(logo);
     return (
-      <div
-        className={`flex items-center justify-center overflow-hidden border border-border bg-background shadow-sm ${sizeClass}`}
-      >
-        <img src={absolutelogo} alt={product} className="h-full w-full object-cover" />
+      <div className={`flex items-center justify-center overflow-hidden border border-border bg-background shadow-sm ${sizeClass} ${className}`.trim()}>
+        <img
+          src={absolutelogo}
+          alt={product}
+          className={`h-full w-full ${fit === "contain" ? "object-contain p-2" : "object-cover"}`}
+        />
       </div>
     );
   }
 
   return (
-    <div
-      className={`flex items-center justify-center border border-primary/20 bg-gradient-to-br from-primary/80 to-primary font-black text-primary-foreground shadow-sm ${sizeClass} ${textClass}`}
-    >
+    <div className={`flex items-center justify-center border border-primary/20 bg-gradient-to-br from-primary/80 to-primary font-black text-primary-foreground shadow-sm ${sizeClass} ${textClass} ${className}`.trim()}>
       {buildLogoFallback(product || "Vote") || "V"}
     </div>
   );
@@ -166,11 +181,14 @@ function VotePreviewCard({
   category,
   product,
   logo,
+  productImage,
   summary,
-}: Pick<VoteOptionFormState, "category" | "product" | "logo" | "summary">) {
+}: Pick<VoteOptionFormState, "category" | "product" | "logo" | "productImage" | "summary">) {
   const productLabel = product || "Ten san pham";
   const categoryLabel = category || "The loai";
   const accentColor = getPreviewAccent(categoryLabel);
+  const detailImage = productImage || logo;
+  const summaryText = summary.trim() || "Mo ta san pham se hien thi tai day.";
 
   return (
     <div className="space-y-3">
@@ -209,75 +227,84 @@ function VotePreviewCard({
         </div>
       </div>
 
-      <div className="rounded-[1.5rem] border border-border bg-card p-4 shadow-sm">
-        <div className="mx-auto mb-4 h-1.5 w-12 rounded-full bg-muted-foreground/20" />
+      <div className="overflow-hidden rounded-[1.7rem] border border-[#f1a0ff] bg-[linear-gradient(180deg,#d246b7_0%,#ba28b7_34%,#a117bc_68%,#8f12be_100%)] p-4 text-white shadow-[0_18px_38px_rgba(163,24,171,0.22)]">
+        <div className="mx-auto mb-4 h-1.5 w-12 rounded-full bg-white/22" />
 
         <div className="mb-5 flex items-start justify-between gap-4">
-          <div className="flex min-w-0 items-start gap-3">
-            <VoteLogoPreview logo={logo} product={productLabel} />
-            <div className="min-w-0">
-              <div
-                className="mb-2 inline-flex rounded-full border px-3 py-1 text-[11px] font-semibold"
-                style={{
-                  borderColor: `${accentColor}33`,
-                  background: `${accentColor}12`,
-                }}
-              >
-                {categoryLabel}
+          <div className="flex min-w-0 flex-1 items-start gap-3">
+            <VoteLogoPreview
+              logo={logo}
+              product={productLabel}
+              fit="contain"
+              className="border-white/35 bg-white"
+            />
+            <div className="min-w-0 flex-1 pt-1">
+              <div className="mb-2 inline-flex rounded-full border border-white/28 bg-white/12 px-3 py-1 text-[11px] font-semibold text-white shadow-[0_10px_22px_rgba(255,105,200,0.18)]">
+                <span className="truncate">{categoryLabel}</span>
               </div>
-              <div className="truncate text-[1.2rem] font-black ">{productLabel}</div>
-              <div className="mt-1 text-[12px] font-medium text-muted-foreground">Đã đồng bộ dữ liệu</div>
+              <div className="line-clamp-2 text-[1.3rem] font-black leading-tight text-white">{productLabel}</div>
+              <div className="mt-1 text-[12px] font-medium text-white/78">Đã đồng bộ dữ liệu</div>
             </div>
           </div>
 
-          <div className="rounded-full border border-border bg-background p-2 text-muted-foreground">
+          <div className="rounded-full border border-white/30 bg-white/10 p-2 text-white/82 shadow-[0_10px_18px_rgba(121,9,111,0.18)]">
             <X className="size-4" />
           </div>
         </div>
 
         <div className="mb-5 grid grid-cols-3 gap-3">
-          <div className="rounded-[1rem] border border-border bg-background px-3 py-3.5 text-center">
-            <div className="text-lg font-black" style={{ color: accentColor }}>
-              1
-            </div>
-            <div className="mt-1 text-[11px] text-muted-foreground">Lượt vote</div>
+          <div className="rounded-[1rem] border border-white/14 bg-[linear-gradient(180deg,rgba(255,64,180,0.32)_0%,rgba(167,24,185,0.24)_100%)] px-3 py-3.5 text-center shadow-[0_14px_24px_rgba(116,7,109,0.16)]">
+            <div className="text-[1.9rem] font-black leading-none text-white">299</div>
+            <div className="mt-1 text-[0.86rem] font-semibold text-white/86">Lượt vote</div>
           </div>
-          <div className="rounded-[1rem] border border-border bg-background px-3 py-3.5 text-center">
-            <div className="text-lg font-black text-foreground">#1</div>
-            <div className="mt-1 text-[11px] text-muted-foreground">Xếp hạng</div>
+          <div className="rounded-[1rem] border border-white/14 bg-[linear-gradient(180deg,rgba(255,64,180,0.32)_0%,rgba(167,24,185,0.24)_100%)] px-3 py-3.5 text-center shadow-[0_14px_24px_rgba(116,7,109,0.16)]">
+            <div className="text-[1.9rem] font-black leading-none text-white">#3</div>
+            <div className="mt-1 text-[0.86rem] font-semibold text-white/86">Xếp hạng</div>
           </div>
-          <div className="rounded-[1rem] border border-border bg-background px-3 py-3.5 text-center">
-            <div className="text-lg font-black text-amber-600">1</div>
-            <div className="mt-1 text-[11px] text-muted-foreground">Ứng viên</div>
+          <div className="rounded-[1rem] border border-white/14 bg-[linear-gradient(180deg,rgba(255,64,180,0.32)_0%,rgba(167,24,185,0.24)_100%)] px-3 py-3.5 text-center shadow-[0_14px_24px_rgba(116,7,109,0.16)]">
+            <div className="text-[1.9rem] font-black leading-none text-white">12</div>
+            <div className="mt-1 text-[0.86rem] font-semibold text-white/86">Ứng viên</div>
           </div>
         </div>
 
-        <div className="mb-5 rounded-[1.1rem] border border-border bg-background p-4 shadow-sm max-h-[160px] overflow-y-auto custom-scrollbar">
-          <div className="mb-2 text-xs font-semibold tracking-[0.16em] text-muted-foreground uppercase">Tóm tắt</div>
-            <p className="text-sm leading-6 text-foreground/80 whitespace-pre-wrap break-words">{summary}</p>
+        <div className="mb-5 rounded-[1.15rem] border border-white/16 bg-[linear-gradient(180deg,rgba(245,34,162,0.22)_0%,rgba(128,11,171,0.22)_100%)] p-4 shadow-[0_16px_34px_rgba(139,9,142,0.16)]">
+          <div className="grid grid-cols-[96px_minmax(0,1fr)] items-start gap-4">
+            <div className="flex min-h-[7.25rem] items-center justify-center rounded-[1rem] bg-white/10 px-2">
+              <VoteLogoPreview
+                logo={detailImage}
+                product={productLabel}
+                fit="contain"
+                className="h-[92px] w-[92px] rounded-[1rem] border-white/18 bg-white/95"
+              />
+            </div>
+            <div className="min-w-0 border-l border-white/24 pl-4">
+              <div className="mb-1 text-sm font-semibold text-white">Giới thiệu</div>
+              <div className="custom-scrollbar max-h-[8.5rem] overflow-y-auto pr-1">
+                <p className="whitespace-pre-wrap break-words text-sm leading-6 text-white/92">{summaryText}</p>
+              </div>
+            </div>
+          </div>
         </div>
 
         <div className="mb-6">
           <div className="mb-2 flex items-center justify-between text-xs">
-            <span className="text-muted-foreground">Tỷ lệ vote</span>
-            <span className="font-semibold" style={{ color: accentColor }}>
-              100%
-            </span>
+            <span className="text-white/86">Tỷ lệ vote</span>
+            <span className="font-semibold text-white">50%</span>
           </div>
-          <div className="h-2 rounded-full bg-muted">
+          <div className="h-2 rounded-full bg-white/24">
             <div
               className="h-2 rounded-full"
               style={{
-                width: "100%",
-                background: `linear-gradient(90deg, ${accentColor}, ${accentColor}cc)`,
+                width: "50%",
+                background: `linear-gradient(90deg,#ffffff 0%,${accentColor}80 56%,#ffffff 100%)`,
               }}
             />
           </div>
         </div>
 
-        <div className="flex w-full items-center justify-center gap-2 rounded-2xl border border-border bg-background px-4 py-3 text-sm font-bold text-muted-foreground">
+        <div className="flex w-full items-center justify-center gap-2 rounded-[1rem] border border-white/35 bg-[linear-gradient(180deg,#ff2b8d_0%,#ea0f7e_100%)] px-4 py-3 text-sm font-bold text-white shadow-[0_12px_24px_rgba(255,49,150,0.26)]">
           <ThumbsUp className="size-4" />
-          Bỏ chọn mục này
+          Vote cho {productLabel}
         </div>
       </div>
     </div>
@@ -472,6 +499,45 @@ export function VoteOptionManager({ initialData }: VoteOptionManagerProps) {
     }
   }, []);
 
+  const handleProductImageFileChange = React.useCallback(async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+
+    if (!file) {
+      return;
+    }
+
+    if (!file.type.startsWith("image/")) {
+      toast.error("Vui long chon file anh san pham");
+      return;
+    }
+
+    if (file.size > MAX_LOGO_SIZE_BYTES) {
+      toast.error("Anh san pham qua lon. Vui long chon anh nho hon 5MB");
+      return;
+    }
+
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+
+      const res = await fetch("/api/upload", {
+        method: "POST",
+        body: formData,
+      });
+
+      const result = (await res.json().catch(() => ({}))) as { url?: string; error?: string };
+      if (!res.ok || !result.url) {
+        throw new Error(result.error ?? `Tai anh that bai: ${res.status} ${res.statusText}`);
+      }
+
+      const productImageUrl = result.url;
+      setForm((current) => ({ ...current, productImage: productImageUrl }));
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Khong the tai anh san pham. Vui long thu lai.");
+    }
+  }, []);
+
   const handleSave = React.useCallback(async () => {
     setIsSaving(true);
 
@@ -486,6 +552,7 @@ export function VoteOptionManager({ initialData }: VoteOptionManagerProps) {
           category: form.category,
           product: form.product,
           logo: form.logo,
+          productImage: form.productImage,
           summary: form.summary,
         }),
       });
@@ -728,6 +795,44 @@ export function VoteOptionManager({ initialData }: VoteOptionManagerProps) {
                 </div>
 
                 <div className="space-y-2">
+                  <Label className="text-base font-semibold text-foreground">Ảnh sản phẩm</Label>
+                  <div className="flex flex-col gap-4 rounded-[1.5rem] border border-border bg-muted/20 p-4 shadow-sm sm:flex-row sm:items-center sm:justify-between">
+                    <div className="flex items-center gap-4">
+                      <VoteLogoPreview
+                        logo={form.productImage || form.logo}
+                        product={form.product || "Vote"}
+                        fit="contain"
+                      />
+                      <div className="text-sm">
+                        <div className="font-semibold text-foreground">
+                          {isImageLogo(form.productImage) ? "Đã chọn ảnh sản phẩm" : "Đang dùng ảnh sản phẩm mặc định"}
+                        </div>
+                        <div className="mt-1 text-[13px] text-muted-foreground">
+                          Ảnh này sẽ hiện ở bên trái phần mô tả sản phẩm.
+                        </div>
+                      </div>
+                    </div>
+                    <div className="flex shrink-0 items-center gap-2">
+                      <label className="inline-flex shrink-0 cursor-pointer items-center gap-2 rounded-[1rem] border border-input bg-background px-4 py-3 text-sm font-semibold whitespace-nowrap text-foreground shadow-sm hover:bg-muted transition-colors">
+                        <ImagePlus className="size-4" />
+                        Chọn ảnh
+                        <input type="file" accept="image/*" className="hidden" onChange={handleProductImageFileChange} />
+                      </label>
+                      {form.productImage ? (
+                        <Button
+                          type="button"
+                          variant="outline"
+                          className="shrink-0 rounded-[1rem] border-input bg-background whitespace-nowrap text-foreground"
+                          onClick={() => setForm((current) => ({ ...current, productImage: "" }))}
+                        >
+                          Xóa ảnh
+                        </Button>
+                      ) : null}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="space-y-2">
                   <Label className="text-base font-semibold text-foreground">Giới thiệu</Label>
                   <Textarea
                     rows={6}
@@ -745,6 +850,7 @@ export function VoteOptionManager({ initialData }: VoteOptionManagerProps) {
                 category={form.category}
                 product={form.product}
                 logo={form.logo}
+                productImage={form.productImage}
                 summary={form.summary}
               />
             </div>

@@ -45,8 +45,8 @@ type HistoryRow = RowDataPacket & {
   phone: string | null;
   ordercode: string | null;
   ticketClass: string | null;
-  ref: string | null;
-  source: string | null;
+  zoneId: string | null;
+  zoneName: string | null;
   checkin_time: Date | string | null;
 };
 
@@ -81,23 +81,6 @@ function toIsoString(value: Date | string | null): string | null {
   return Number.isNaN(parsed.getTime()) ? null : parsed.toISOString();
 }
 
-function buildZoneSource(zone: StaffCheckinZone): string {
-  return `staff-checkin:${zone.id}:${zone.name}`;
-}
-
-function parseZoneSource(value: string | null | undefined): { zoneId: string; zoneName: string } {
-  const sourceRaw = String(value ?? "");
-  const parts = sourceRaw.split("|");
-  const lastSource = parts[parts.length - 1] || "";
-  
-  if (!lastSource.startsWith("staff-checkin:")) {
-    return { zoneId: "", zoneName: "" };
-  }
-
-  const [, zoneId = "", zoneName = ""] = lastSource.split(":");
-  return { zoneId, zoneName };
-}
-
 function maskPhoneString(phoneValue: string | null | undefined): string {
   const display = toDisplayPhone(phoneValue);
   if (!display) return "";
@@ -108,24 +91,15 @@ function maskPhoneString(phoneValue: string | null | undefined): string {
 }
 
 function buildGuest(ticket: TicketOrderRow, zone: StaffCheckinZone): StaffCheckinGuest {
-  const sourceRaw = String(ticket.source ?? "");
   const refRaw = String(ticket.ref ?? "");
   const checkedZonesRaw = String(ticket.checked_zones ?? "");
 
-  const checkedZoneArray = checkedZonesRaw.split(",").map(v => v.trim()).filter(Boolean);
-  const refZoneArray = refRaw.split(",").map(v => v.trim()).filter(Boolean);
+  const checkedZoneArray = checkedZonesRaw.split(",").map((value) => value.trim()).filter(Boolean);
+  const refZoneArray = refRaw.split(",").map((value) => value.trim()).filter(Boolean);
 
   const isInCheckedZones = checkedZoneArray.includes(String(zone.id));
   const isInRefZones = refZoneArray.includes(String(zone.id));
-
-  const sourceParts = sourceRaw.split("|");
-  const isInSource = sourceParts.some(part => {
-    if (!part.startsWith("staff-checkin:")) return false;
-    const segments = part.split(":");
-    return segments[1] === String(zone.id);
-  });
-
-  const hasCheckedInCurrentZone = isInCheckedZones || isInRefZones || isInSource;
+  const hasCheckedInCurrentZone = isInCheckedZones || isInRefZones;
 
   return {
     code: normalizeTicketCode(ticket.ordercode),
@@ -191,16 +165,14 @@ async function markTicketCheckedIn(ticket: TicketOrderRow, currentUser: JWTPaylo
   const now = new Date();
   const nextNumberCheckin = Math.max(1, Number(ticket.number_checkin ?? 0) + 1);
 
-  const prevSource = String(ticket.source ?? "");
   const prevRef = String(ticket.ref ?? "");
-
-  const newSource = prevSource ? `${prevSource}|${buildZoneSource(zone)}` : buildZoneSource(zone);
   const newRef = prevRef ? `${prevRef},${zone.id}` : zone.id;
+  const preservedSource = String(ticket.source ?? "").trim();
 
   await db.query(
     `INSERT INTO checkin_log (order_id, ordercode, zone_id, zone_name, source, created_by)
      VALUES (?, ?, ?, ?, ?, ?)`,
-    [ticket.id, ticket.ordercode, zone.id, zone.name, newSource, currentUser.username]
+    [ticket.id, ticket.ordercode, zone.id, zone.name, preservedSource || null, currentUser.username]
   );
 
   await db.query(
@@ -211,13 +183,12 @@ async function markTicketCheckedIn(ticket: TicketOrderRow, currentUser: JWTPaylo
       number_checkin = ?,
       checkin_time = ?,
       ref = ?,
-      source = ?,
       updated_by = ?,
       updated_at = ?
     WHERE id = ?
     LIMIT 1
     `,
-    [nextNumberCheckin, now, newRef, newSource, currentUser.username, now, ticket.id],
+    [nextNumberCheckin, now, newRef, currentUser.username, now, ticket.id],
   );
 
   return {
@@ -226,7 +197,7 @@ async function markTicketCheckedIn(ticket: TicketOrderRow, currentUser: JWTPaylo
     number_checkin: nextNumberCheckin,
     checkin_time: now,
     ref: newRef,
-    source: newSource,
+    source: ticket.source,
   };
 }
 
@@ -245,8 +216,8 @@ async function loadSnapshot() {
       COALESCE(o.phone, '') AS phone,
       COALESCE(l.ordercode, o.ordercode, '') AS ordercode,
       COALESCE(o.class, '') AS ticketClass,
-      l.zone_id AS ref,
-      l.source,
+      COALESCE(l.zone_id, '') AS zoneId,
+      COALESCE(l.zone_name, '') AS zoneName,
       l.checkin_time
     FROM checkin_log l
     LEFT JOIN orders o ON l.order_id = o.id
@@ -298,22 +269,18 @@ async function loadSnapshot() {
     stats.gold.max += max;
   }
 
-  const history = historyRows.map((row) => {
-    const zoneMeta = parseZoneSource(row.source);
-
-    return {
-      id: row.id,
-      name: String(row.name ?? ""),
-      phone: maskPhoneString(row.phone),
-      code: normalizeTicketCode(row.ordercode),
-      tier: normalizeStaffTicketTier(row.ticketClass),
-      ticketClass: String(row.ticketClass ?? ""),
-      zoneId: row.ref ?? zoneMeta.zoneId,
-      zoneName: zoneMeta.zoneName,
-      time: toIsoString(row.checkin_time),
-      statusLabel: buildCheckinStatusLabel(1),
-    };
-  });
+  const history = historyRows.map((row) => ({
+    id: row.id,
+    name: String(row.name ?? ""),
+    phone: maskPhoneString(row.phone),
+    code: normalizeTicketCode(row.ordercode),
+    tier: normalizeStaffTicketTier(row.ticketClass),
+    ticketClass: String(row.ticketClass ?? ""),
+    zoneId: String(row.zoneId ?? ""),
+    zoneName: String(row.zoneName ?? ""),
+    time: toIsoString(row.checkin_time),
+    statusLabel: buildCheckinStatusLabel(1),
+  }));
 
   const [zonesRows] = await db.query(
     "SELECT id, name, allowed_tiers, event_date FROM checkin_locations WHERE is_active = 1 ORDER BY nc_order ASC, id ASC"
@@ -386,7 +353,6 @@ export async function POST(request: NextRequest) {
       ticketCode,
       zoneIdStr,
       zoneId: zone.id,
-      sourceRaw: ticket.source,
       checkedZones: ticket.checked_zones,
       ref: ticket.ref,
       guestCheckedIn: guest.checkedIn

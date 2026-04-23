@@ -38,6 +38,7 @@ model brand {
   category   String?   @db.Text
   product    String?   @db.Text
   voted      String?   @db.Text
+  logo_url   String?   @db.Text
   link       String?   @db.Text
 
   @@index([nc_order], map: "brand_order_idx")

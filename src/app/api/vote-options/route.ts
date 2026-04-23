@@ -9,6 +9,7 @@ type VoteOptionPayload = {
   product?: string;
   summary?: string;
   logo?: string;
+  productImage?: string;
 };
 
 function normalizePayload(body: VoteOptionPayload) {
@@ -18,6 +19,7 @@ function normalizePayload(body: VoteOptionPayload) {
     product: String(body.product ?? "").trim(),
     summary: String(body.summary ?? "").trim(),
     logo: String(body.logo ?? "").trim(),
+    productImage: String(body.productImage ?? "").trim(),
   };
 }
 

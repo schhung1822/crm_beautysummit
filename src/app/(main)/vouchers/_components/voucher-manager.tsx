@@ -215,43 +215,6 @@ function LogoPreview({
   );
 }
 
-function resizeImageFileToDataUrl(file: File, size: number): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => {
-      const image = new Image();
-
-      image.onload = () => {
-        const canvas = document.createElement("canvas");
-        canvas.width = size;
-        canvas.height = size;
-
-        const context = canvas.getContext("2d");
-        if (!context) {
-          reject(new Error("Khong the xu ly logo"));
-          return;
-        }
-
-        context.clearRect(0, 0, size, size);
-
-        const ratio = Math.min(size / image.width, size / image.height);
-        const width = image.width * ratio;
-        const height = image.height * ratio;
-        const x = (size - width) / 2;
-        const y = (size - height) / 2;
-
-        context.drawImage(image, x, y, width, height);
-        resolve(canvas.toDataURL("image/png"));
-      };
-
-      image.onerror = () => reject(new Error("Khong the doc file logo"));
-      image.src = String(reader.result ?? "");
-    };
-    reader.onerror = () => reject(new Error("Khong the doc file logo"));
-    reader.readAsDataURL(file);
-  });
-}
-
 export default function VoucherManager({ initialData }: VoucherManagerProps) {
   const [data, setData] = React.useState<MiniAppVoucherRecord[]>(initialData);
   const [search, setSearch] = React.useState("");
@@ -470,8 +433,21 @@ export default function VoucherManager({ initialData }: VoucherManagerProps) {
     }
 
     try {
-      const dataUrl = await resizeImageFileToDataUrl(file, 256);
-      setForm((current) => ({ ...current, logo: dataUrl }));
+      const formData = new FormData();
+      formData.append("file", file);
+
+      const response = await fetch("/api/upload", {
+        method: "POST",
+        body: formData,
+      });
+      const result = (await response.json()) as { url?: string; error?: string };
+
+      if (!response.ok || !result.url) {
+        throw new Error(result.error ?? "Khong the tai logo");
+      }
+
+      const uploadUrl = result.url;
+      setForm((current) => ({ ...current, logo: uploadUrl }));
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Khong the tai logo");
     }

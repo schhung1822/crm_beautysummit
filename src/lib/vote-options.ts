@@ -5,6 +5,7 @@ import type { ResultSetHeader, RowDataPacket } from "mysql2/promise";
 
 import { createApiTrace } from "@/lib/api-observability";
 import { getDB } from "@/lib/db";
+import { isDataImageUrl, normalizeStoredImageUrl } from "@/lib/image-storage";
 
 type VoteOptionRow = RowDataPacket & {
   id: number;
@@ -13,6 +14,7 @@ type VoteOptionRow = RowDataPacket & {
   category: string | null;
   product: string | null;
   voted: string | null;
+  logo_url: string | null;
   link: string | null;
 };
 
@@ -27,6 +29,7 @@ export type VoteOptionRecord = {
   category: string;
   product: string;
   logo: string;
+  productImage: string;
   summary: string;
 };
 
@@ -43,6 +46,7 @@ export type VoteCategoryRecord = {
     summary?: string;
     link?: string;
     logo?: string;
+    productImage?: string;
     voteCount: number;
     rank: number;
     progressPct: number;
@@ -54,6 +58,7 @@ type VoteOptionInput = {
   category: string;
   product: string;
   logo?: string;
+  productImage?: string;
   summary?: string;
 };
 
@@ -62,6 +67,7 @@ type NormalizedVoteOptionInput = {
   category: string;
   product: string;
   logo: string;
+  productImage: string;
   summary: string;
 };
 
@@ -96,12 +102,16 @@ function buildVoteOptionRowLabel(row: VoteOptionRow): string {
 }
 
 function mapVoteOptionRow(row: VoteOptionRow): VoteOptionRecord {
+  const logo = parseString(row.logo_url) || parseString(row.link);
+  const productImage = parseString(row.link);
+
   return {
     id: row.id,
     brandId: parseString(row.brand_id),
     category: parseString(row.category),
     product: buildVoteOptionRowLabel(row),
-    logo: parseString(row.link),
+    logo,
+    productImage,
     summary: parseString(row.voted),
   };
 }
@@ -112,6 +122,7 @@ function normalizeVoteOptionInput(input: VoteOptionInput): NormalizedVoteOptionI
     category: parseString(input.category),
     product: parseString(input.product),
     logo: parseString(input.logo),
+    productImage: parseString(input.productImage),
     summary: parseString(input.summary),
   };
 }
@@ -139,6 +150,7 @@ async function queryVoteOptionRows(): Promise<VoteOptionRow[]> {
       category,
       product,
       voted,
+      logo_url,
       link
     FROM brand
     WHERE COALESCE(TRIM(brand_id), '') <> ''
@@ -146,7 +158,50 @@ async function queryVoteOptionRows(): Promise<VoteOptionRow[]> {
     `,
   );
 
-  return rows;
+  const sanitizedRows = await Promise.all(
+    rows.map(async (row) => {
+      const currentLogoUrl = parseString(row.logo_url);
+      const currentLink = parseString(row.link);
+
+      let nextLogoUrl = currentLogoUrl;
+      let nextLink = currentLink;
+
+      if (isDataImageUrl(currentLogoUrl)) {
+        nextLogoUrl = await normalizeStoredImageUrl(currentLogoUrl, "vote-logo");
+      }
+
+      if (isDataImageUrl(currentLink)) {
+        nextLink = await normalizeStoredImageUrl(currentLink, "vote-product");
+      }
+
+      if (nextLogoUrl === currentLogoUrl && nextLink === currentLink) {
+        return row;
+      }
+
+      const now = new Date();
+      await db.query(
+        `
+        UPDATE brand
+        SET
+          logo_url = ?,
+          link = ?,
+          updated_at = ?,
+          updated_by = ?
+        WHERE id = ?
+        LIMIT 1
+        `,
+        [nextLogoUrl || null, nextLink || null, now, "image-migrator", row.id],
+      );
+
+      return {
+        ...row,
+        logo_url: nextLogoUrl,
+        link: nextLink,
+      };
+    }),
+  );
+
+  return sanitizedRows;
 }
 
 async function queryVoteCountRows(): Promise<VoteCountRow[]> {
@@ -204,8 +259,9 @@ export async function listVoteCategories(): Promise<VoteCategoryRecord[]> {
         name: item.product,
         product: item.product || undefined,
         summary: item.summary || undefined,
-        link: item.logo || undefined,
+        link: item.productImage || item.logo || undefined,
         logo: item.logo || undefined,
+        productImage: item.productImage || undefined,
         voteCount: voteCountMap.get(item.brandId) ?? 0,
       }))
       .sort((left, right) => right.voteCount - left.voteCount || left.name.localeCompare(right.name))
@@ -265,6 +321,8 @@ export async function createVoteOption(input: VoteOptionInput): Promise<VoteOpti
     normalizedInput.brandId.length > 0
       ? normalizedInput.brandId
       : `brand-${randomUUID().replace(/-/g, "").slice(0, 12)}`;
+  const logo = await normalizeStoredImageUrl(normalizedInput.logo, "vote-logo");
+  const productImage = await normalizeStoredImageUrl(normalizedInput.productImage, "vote-product");
 
   await db.query(
     `
@@ -280,9 +338,10 @@ export async function createVoteOption(input: VoteOptionInput): Promise<VoteOpti
         category,
         product,
         voted,
+        logo_url,
         link
       )
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `,
     [
       now,
@@ -295,7 +354,8 @@ export async function createVoteOption(input: VoteOptionInput): Promise<VoteOpti
       normalizedInput.category,
       normalizedInput.product,
       normalizedInput.summary.length > 0 ? normalizedInput.summary : null,
-      normalizedInput.logo.length > 0 ? normalizedInput.logo : null,
+      logo.length > 0 ? logo : null,
+      productImage.length > 0 ? productImage : null,
     ],
   );
 
@@ -318,6 +378,8 @@ export async function updateVoteOption(optionId: number, input: VoteOptionInput)
 
   const db = getDB();
   const now = new Date();
+  const logo = await normalizeStoredImageUrl(normalizedInput.logo, "vote-logo");
+  const productImage = await normalizeStoredImageUrl(normalizedInput.productImage, "vote-product");
   await db.query(
     `
     UPDATE brand
@@ -326,6 +388,7 @@ export async function updateVoteOption(optionId: number, input: VoteOptionInput)
       category = ?,
       product = ?,
       voted = ?,
+      logo_url = ?,
       link = ?,
       updated_at = ?,
       updated_by = ?
@@ -337,7 +400,8 @@ export async function updateVoteOption(optionId: number, input: VoteOptionInput)
       normalizedInput.category,
       normalizedInput.product,
       normalizedInput.summary.length > 0 ? normalizedInput.summary : null,
-      normalizedInput.logo.length > 0 ? normalizedInput.logo : null,
+      logo.length > 0 ? logo : null,
+      productImage.length > 0 ? productImage : null,
       now,
       "studio-admin",
       optionId,

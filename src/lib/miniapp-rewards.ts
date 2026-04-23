@@ -5,6 +5,7 @@ import type { ResultSetHeader, RowDataPacket } from "mysql2/promise";
 
 import { createApiTrace, maskPhoneForLogs, shortIdForLogs } from "@/lib/api-observability";
 import { getDB } from "@/lib/db";
+import { isDataImageUrl, normalizeStoredImageUrl } from "@/lib/image-storage";
 import { buildPhoneVariants, toDatabasePhone } from "@/lib/phone";
 import { clearVoteCategoryCache, listVoteCategories } from "@/lib/vote-options";
 
@@ -672,8 +673,37 @@ async function queryVoucherRows(includeInactive: boolean): Promise<MiniAppVouche
     ORDER BY kind ASC, COALESCE(nc_order, id) ASC, id ASC
     `,
   );
-  voucherRowCache.set(cacheKey, writeTimedCache(VOUCHER_CACHE_TTL_MS, rows));
-  return rows;
+  const sanitizedRows = await Promise.all(
+    rows.map(async (row) => {
+      const currentLogo = parseString(row.logo);
+      if (!isDataImageUrl(currentLogo)) {
+        return row;
+      }
+
+      const nextLogo = await normalizeStoredImageUrl(currentLogo, "voucher-logo");
+      const now = new Date();
+      await db.query(
+        `
+        UPDATE miniapp_voucher
+        SET
+          logo = ?,
+          updated_at = ?,
+          updated_by = ?
+        WHERE id = ?
+        LIMIT 1
+        `,
+        [nextLogo, now, "image-migrator", row.id],
+      );
+
+      return {
+        ...row,
+        logo: nextLogo,
+      };
+    }),
+  );
+
+  voucherRowCache.set(cacheKey, writeTimedCache(VOUCHER_CACHE_TTL_MS, sanitizedRows));
+  return sanitizedRows;
 }
 
 async function findVoucherRowById(voucherId: string): Promise<MiniAppVoucherRecord | null> {
@@ -702,7 +732,35 @@ async function findVoucherRowById(voucherId: string): Promise<MiniAppVoucherReco
     [voucherId],
   );
 
-  return rows.length > 0 ? mapVoucherRow(rows[0]) : null;
+  if (rows.length === 0) {
+    return null;
+  }
+
+  const row = rows[0];
+  const currentLogo = parseString(row.logo);
+  if (!isDataImageUrl(currentLogo)) {
+    return mapVoucherRow(row);
+  }
+
+  const nextLogo = await normalizeStoredImageUrl(currentLogo, "voucher-logo");
+  const now = new Date();
+  await db.query(
+    `
+    UPDATE miniapp_voucher
+    SET
+      logo = ?,
+      updated_at = ?,
+      updated_by = ?
+    WHERE id = ?
+    LIMIT 1
+    `,
+    [nextLogo, now, "image-migrator", row.id],
+  );
+
+  return mapVoucherRow({
+    ...row,
+    logo: nextLogo,
+  });
 }
 
 export async function listMiniAppVouchers(): Promise<MiniAppRewardsBundle["vouchers"]> {
@@ -1042,6 +1100,7 @@ export async function createMiniAppVoucher(input: AdminVoucherInput): Promise<Mi
   const nextOrder = parseNumber(orderRows[0]?.next_order) || 1;
   const voucherId = buildVoucherId();
   const code = normalizedInput.isGrand ? null : buildVoucherCode();
+  const logo = await normalizeStoredImageUrl(normalizedInput.logo ?? "", "voucher-logo");
 
   await db.query(
     `
@@ -1076,7 +1135,7 @@ export async function createMiniAppVoucher(input: AdminVoucherInput): Promise<Mi
       voucherId,
       normalizedInput.kind,
       normalizedInput.brand,
-      normalizedInput.logo ? normalizedInput.logo : null,
+      logo ? logo : null,
       normalizedInput.discount,
       normalizedInput.desc ? normalizedInput.desc : null,
       code,
@@ -1113,6 +1172,7 @@ export async function updateMiniAppVoucher(voucherId: string, input: AdminVouche
   const db = getDB();
   const now = new Date();
   const nextCode = normalizedInput.isGrand ? null : (existingVoucher.code ?? buildVoucherCode());
+  const logo = await normalizeStoredImageUrl(normalizedInput.logo ?? "", "voucher-logo");
   await db.query(
     `
     UPDATE miniapp_voucher
@@ -1136,7 +1196,7 @@ export async function updateMiniAppVoucher(voucherId: string, input: AdminVouche
     [
       normalizedInput.kind,
       normalizedInput.brand,
-      normalizedInput.logo ? normalizedInput.logo : null,
+      logo ? logo : null,
       normalizedInput.discount,
       normalizedInput.desc ? normalizedInput.desc : null,
       nextCode,

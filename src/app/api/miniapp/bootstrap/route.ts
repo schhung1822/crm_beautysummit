@@ -8,6 +8,7 @@ import { normalizeMiniAppName, upsertMiniAppUser } from "@/lib/miniapp-users";
 import { toDatabasePhone } from "@/lib/phone";
 import { listVoteCategories } from "@/lib/vote-options";
 import { getDB } from "@/lib/db";
+import { isDataImageUrl, normalizeStoredImageUrl } from "@/lib/image-storage";
 
 const MINIAPP_CHECKIN_LOCATION_LABEL = "VEC Đông Anh - Cổng chính";
 
@@ -16,7 +17,32 @@ async function getActiveCheckinLocations() {
   const [rows] = await db.query(
     "SELECT id, name, allowed_tiers AS allowedTiers, image_url AS imageUrl, prerequisite, is_active AS isActive, event_date AS eventDate FROM checkin_locations WHERE is_active = 1 ORDER BY nc_order ASC, id ASC"
   );
-  return (rows as any[]).map((r) => ({
+  const sanitizedRows = await Promise.all(
+    (rows as any[]).map(async (row) => {
+      const currentImageUrl = String(row.imageUrl ?? "").trim();
+      if (!isDataImageUrl(currentImageUrl)) {
+        return row;
+      }
+
+      const nextImageUrl = await normalizeStoredImageUrl(currentImageUrl, "checkin-location");
+      await db.query(
+        `
+        UPDATE checkin_locations
+        SET image_url = ?
+        WHERE id = ?
+        LIMIT 1
+        `,
+        [nextImageUrl, row.id],
+      );
+
+      return {
+        ...row,
+        imageUrl: nextImageUrl,
+      };
+    }),
+  );
+
+  return sanitizedRows.map((r) => ({
     id: String(r.id),
     name: r.name,
     allowedTiers: String(r.allowedTiers || "")

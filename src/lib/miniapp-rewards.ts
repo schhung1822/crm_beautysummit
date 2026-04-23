@@ -5,7 +5,7 @@ import type { ResultSetHeader, RowDataPacket } from "mysql2/promise";
 
 import { createApiTrace, maskPhoneForLogs, shortIdForLogs } from "@/lib/api-observability";
 import { getDB } from "@/lib/db";
-import { isDataImageUrl, normalizeStoredImageUrl } from "@/lib/image-storage";
+import { normalizeStoredImageUrl } from "@/lib/image-storage";
 import { buildPhoneVariants, toDatabasePhone } from "@/lib/phone";
 import { clearVoteCategoryCache, listVoteCategories } from "@/lib/vote-options";
 
@@ -676,11 +676,11 @@ async function queryVoucherRows(includeInactive: boolean): Promise<MiniAppVouche
   const sanitizedRows = await Promise.all(
     rows.map(async (row) => {
       const currentLogo = parseString(row.logo);
-      if (!isDataImageUrl(currentLogo)) {
+      const nextLogo = await normalizeStoredImageUrl(currentLogo, "voucher-logo");
+      if (nextLogo === currentLogo) {
         return row;
       }
 
-      const nextLogo = await normalizeStoredImageUrl(currentLogo, "voucher-logo");
       const now = new Date();
       await db.query(
         `
@@ -738,11 +738,11 @@ async function findVoucherRowById(voucherId: string): Promise<MiniAppVoucherReco
 
   const row = rows[0];
   const currentLogo = parseString(row.logo);
-  if (!isDataImageUrl(currentLogo)) {
+  const nextLogo = await normalizeStoredImageUrl(currentLogo, "voucher-logo");
+  if (nextLogo === currentLogo) {
     return mapVoucherRow(row);
   }
 
-  const nextLogo = await normalizeStoredImageUrl(currentLogo, "voucher-logo");
   const now = new Date();
   await db.query(
     `

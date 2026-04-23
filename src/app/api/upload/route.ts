@@ -1,12 +1,66 @@
 import { existsSync } from "fs";
-import { writeFile, mkdir } from "fs/promises";
+import { writeFile, mkdir, readFile } from "fs/promises";
 import path from "path";
 
 import { NextRequest, NextResponse } from "next/server";
 
 import { verifyToken } from "@/lib/auth";
+import { buildManagedImageUrl } from "@/lib/image-storage";
 
 export const runtime = 'nodejs';
+
+const MIME_TYPE_MAP: Record<string, string> = {
+  ".gif": "image/gif",
+  ".jpeg": "image/jpeg",
+  ".jpg": "image/jpeg",
+  ".png": "image/png",
+  ".svg": "image/svg+xml",
+  ".webp": "image/webp",
+};
+
+function resolveUploadDir(): string {
+  return path.join(process.cwd(), "public", "images");
+}
+
+function extractSafeFileName(request: NextRequest): string {
+  const fileParam = request.nextUrl.searchParams.get("file") ?? request.nextUrl.searchParams.get("path") ?? "";
+  const safeFileName = path.basename(fileParam).trim();
+  return safeFileName;
+}
+
+function resolveMimeType(fileName: string): string {
+  return MIME_TYPE_MAP[path.extname(fileName).toLowerCase()] ?? "application/octet-stream";
+}
+
+export async function GET(request: NextRequest) {
+  try {
+    const fileName = extractSafeFileName(request);
+    if (!fileName) {
+      return NextResponse.json({ error: "Missing file" }, { status: 400 });
+    }
+
+    const uploadDir = resolveUploadDir();
+    const filePath = path.join(uploadDir, fileName);
+    const resolvedUploadDir = path.resolve(uploadDir);
+    const resolvedFilePath = path.resolve(filePath);
+
+    if (!resolvedFilePath.startsWith(resolvedUploadDir) || !existsSync(resolvedFilePath)) {
+      return NextResponse.json({ error: "File not found" }, { status: 404 });
+    }
+
+    const buffer = await readFile(resolvedFilePath);
+    return new NextResponse(buffer, {
+      status: 200,
+      headers: {
+        "Cache-Control": "public, max-age=31536000, immutable",
+        "Content-Type": resolveMimeType(fileName),
+      },
+    });
+  } catch (error) {
+    console.error("Upload asset read error:", error);
+    return NextResponse.json({ error: "Failed to read file" }, { status: 500 });
+  }
+}
 
 export async function POST(request: NextRequest) {
   try {
@@ -35,7 +89,7 @@ export async function POST(request: NextRequest) {
     const filename = `${timestamp}-${Math.random().toString(36).substring(7)}.${extension}`;
 
     // Create images directory if it doesn't exist
-    const uploadDir = path.join(process.cwd(), "public", "images");
+    const uploadDir = resolveUploadDir();
     if (!existsSync(uploadDir)) {
       await mkdir(uploadDir, { recursive: true });
     }
@@ -48,9 +102,9 @@ export async function POST(request: NextRequest) {
     await writeFile(filepath, buffer);
 
     // Return the public URL
-    const url = `/images/${filename}`;
+    const url = buildManagedImageUrl(filename);
 
-    return NextResponse.json({ url, success: true });
+    return NextResponse.json({ url, path: `/images/${filename}`, success: true });
   } catch (error) {
     console.error("Upload error:", error);
     return NextResponse.json({ error: "Failed to upload file" }, { status: 500 });

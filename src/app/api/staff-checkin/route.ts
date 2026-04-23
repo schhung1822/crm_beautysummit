@@ -14,7 +14,7 @@ import {
   type StaffCheckinTier,
   type StaffCheckinZone,
 } from "@/lib/staff-checkin";
-import { buildCheckinStatusLabel, isTicketCheckedIn } from "@/lib/ticket-orders";
+import { buildCheckinStatusLabel } from "@/lib/ticket-orders";
 
 type StaffCheckinPayload = {
   payload?: string;
@@ -34,9 +34,11 @@ type TicketOrderRow = RowDataPacket & {
   is_checkin: number | string | null;
   number_checkin: number | string | null;
   checkin_time: Date | string | null;
-  ref: string | null;
+  latest_checkin_time: Date | string | null;
+  latest_zone_id: string | null;
   source: string | null;
   checked_zones: string | null;
+  checkin_count: number | string | null;
 };
 
 type HistoryRow = RowDataPacket & {
@@ -91,15 +93,11 @@ function maskPhoneString(phoneValue: string | null | undefined): string {
 }
 
 function buildGuest(ticket: TicketOrderRow, zone: StaffCheckinZone): StaffCheckinGuest {
-  const refRaw = String(ticket.ref ?? "");
-  const checkedZonesRaw = String(ticket.checked_zones ?? "");
-
-  const checkedZoneArray = checkedZonesRaw.split(",").map((value) => value.trim()).filter(Boolean);
-  const refZoneArray = refRaw.split(",").map((value) => value.trim()).filter(Boolean);
-
-  const isInCheckedZones = checkedZoneArray.includes(String(zone.id));
-  const isInRefZones = refZoneArray.includes(String(zone.id));
-  const hasCheckedInCurrentZone = isInCheckedZones || isInRefZones;
+  const checkedZoneArray = String(ticket.checked_zones ?? "")
+    .split(",")
+    .map((value) => value.trim())
+    .filter(Boolean);
+  const hasCheckedInCurrentZone = checkedZoneArray.includes(String(zone.id));
 
   return {
     code: normalizeTicketCode(ticket.ordercode),
@@ -110,7 +108,7 @@ function buildGuest(ticket: TicketOrderRow, zone: StaffCheckinZone): StaffChecki
     zoneId: zone.id,
     zoneName: zone.name,
     checkedIn: hasCheckedInCurrentZone,
-    checkinTime: toIsoString(ticket.checkin_time),
+    checkinTime: toIsoString(ticket.latest_checkin_time ?? ticket.checkin_time),
   };
 }
 
@@ -136,21 +134,38 @@ async function findTicketOrder(ticketCode: string, phone: string | null): Promis
   const [rows] = await db.query<TicketOrderRow[]>(
     `
     SELECT
-      id,
-      COALESCE(ordercode, '') AS ordercode,
-      COALESCE(name, '') AS name,
-      COALESCE(phone, '') AS phone,
-      COALESCE(class, '') AS ticketClass,
-      COALESCE(customer_id, '') AS customerId,
-      COALESCE(status, '') AS status,
-      COALESCE(is_checkin, 0) AS is_checkin,
-      COALESCE(number_checkin, 0) AS number_checkin,
-      checkin_time,
-      COALESCE(ref, '') AS ref,
-      COALESCE(source, '') AS source,
-      (SELECT GROUP_CONCAT(zone_id) FROM checkin_log WHERE order_id = orders.id) AS checked_zones
-    FROM orders
-    WHERE ordercode = ?
+      o.id,
+      COALESCE(o.ordercode, '') AS ordercode,
+      COALESCE(o.name, '') AS name,
+      COALESCE(o.phone, '') AS phone,
+      COALESCE(o.class, '') AS ticketClass,
+      COALESCE(o.customer_id, '') AS customerId,
+      COALESCE(o.status, '') AS status,
+      COALESCE(o.is_checkin, 0) AS is_checkin,
+      COALESCE(o.number_checkin, 0) AS number_checkin,
+      o.checkin_time,
+      checkin_summary.latest_checkin_time,
+      COALESCE(checkin_summary.latest_zone_id, '') AS latest_zone_id,
+      COALESCE(o.source, '') AS source,
+      COALESCE(checkin_summary.checked_zones, '') AS checked_zones,
+      COALESCE(checkin_summary.checkin_count, 0) AS checkin_count
+    FROM orders o
+    LEFT JOIN (
+      SELECT
+        l.order_id,
+        COUNT(*) AS checkin_count,
+        MAX(l.checkin_time) AS latest_checkin_time,
+        GROUP_CONCAT(DISTINCT l.zone_id ORDER BY l.zone_id SEPARATOR ',') AS checked_zones,
+        SUBSTRING_INDEX(
+          GROUP_CONCAT(l.zone_id ORDER BY l.checkin_time DESC, l.id DESC SEPARATOR ','),
+          ',',
+          1
+        ) AS latest_zone_id
+      FROM checkin_log l
+      GROUP BY l.order_id
+    ) checkin_summary
+      ON checkin_summary.order_id = o.id
+    WHERE o.ordercode = ?
       ${phoneCondition}
     LIMIT 1
     `,
@@ -163,16 +178,13 @@ async function findTicketOrder(ticketCode: string, phone: string | null): Promis
 async function markTicketCheckedIn(ticket: TicketOrderRow, currentUser: JWTPayload, zone: StaffCheckinZone) {
   const db = getDB();
   const now = new Date();
-  const nextNumberCheckin = Math.max(1, Number(ticket.number_checkin ?? 0) + 1);
-
-  const prevRef = String(ticket.ref ?? "");
-  const newRef = prevRef ? `${prevRef},${zone.id}` : zone.id;
+  const nextNumberCheckin = Math.max(1, Number(ticket.checkin_count ?? 0) + 1);
   const preservedSource = String(ticket.source ?? "").trim();
 
   await db.query(
-    `INSERT INTO checkin_log (order_id, ordercode, zone_id, zone_name, source, created_by)
-     VALUES (?, ?, ?, ?, ?, ?)`,
-    [ticket.id, ticket.ordercode, zone.id, zone.name, preservedSource || null, currentUser.username]
+    `INSERT INTO checkin_log (order_id, ordercode, zone_id, zone_name, source, checkin_time, created_by)
+     VALUES (?, ?, ?, ?, ?, ?, ?)`,
+    [ticket.id, ticket.ordercode, zone.id, zone.name, preservedSource || null, now, currentUser.username]
   );
 
   await db.query(
@@ -182,13 +194,12 @@ async function markTicketCheckedIn(ticket: TicketOrderRow, currentUser: JWTPaylo
       is_checkin = 1,
       number_checkin = ?,
       checkin_time = ?,
-      ref = ?,
       updated_by = ?,
       updated_at = ?
     WHERE id = ?
     LIMIT 1
     `,
-    [nextNumberCheckin, now, newRef, currentUser.username, now, ticket.id],
+    [nextNumberCheckin, now, currentUser.username, now, ticket.id],
   );
 
   return {
@@ -196,8 +207,17 @@ async function markTicketCheckedIn(ticket: TicketOrderRow, currentUser: JWTPaylo
     is_checkin: 1,
     number_checkin: nextNumberCheckin,
     checkin_time: now,
-    ref: newRef,
+    latest_checkin_time: now,
+    latest_zone_id: zone.id,
     source: ticket.source,
+    checked_zones: String(ticket.checked_zones ?? "")
+      .split(",")
+      .map((value) => value.trim())
+      .filter(Boolean)
+      .concat(zone.id)
+      .filter((value, index, values) => values.indexOf(value) === index)
+      .join(","),
+    checkin_count: nextNumberCheckin,
   };
 }
 
@@ -348,15 +368,6 @@ export async function POST(request: NextRequest) {
     }
 
     const guest = buildGuest(ticket, zone);
-    
-    console.log("=== CHECKIN DEBUG ===", {
-      ticketCode,
-      zoneIdStr,
-      zoneId: zone.id,
-      checkedZones: ticket.checked_zones,
-      ref: ticket.ref,
-      guestCheckedIn: guest.checkedIn
-    });
 
     if (zone.eventDate) {
       const eventTime = new Date(zone.eventDate).getTime();

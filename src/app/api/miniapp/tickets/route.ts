@@ -7,9 +7,12 @@ import { createApiTrace, maskPhoneForLogs, shortIdForLogs } from "@/lib/api-obse
 import { applyCorsHeaders, buildCorsHeaders } from "@/lib/cors";
 import { getDB } from "@/lib/db";
 import { hasMiniAppUserAccess as sharedHasMiniAppUserAccess } from "@/lib/miniapp-rewards";
-import { mapMiniAppTicketRow, queryMiniAppTicketRowsByPhone, type MiniAppTicketRow } from "@/lib/miniapp-tickets";
+import {
+  mapMiniAppTicketRow,
+  queryMiniAppTicketRowByCode,
+  queryMiniAppTicketRowsByPhone,
+} from "@/lib/miniapp-tickets";
 import { buildPhoneVariants, normalizePhoneDigits, toDatabasePhone } from "@/lib/phone";
-import { isTicketCheckedIn } from "@/lib/ticket-orders";
 
 type CustomerRow = RowDataPacket & {
   id: number;
@@ -200,39 +203,19 @@ export async function POST(request: NextRequest) {
     }
 
     const db = getDB();
-    const [rows] = await trace.step("query_ticket_by_code", () =>
-      db.query<MiniAppTicketRow[]>(
-        `
-        SELECT
-          id,
-          COALESCE(ordercode, '') AS ordercode,
-          COALESCE(name, '') AS name,
-          COALESCE(phone, '') AS phone,
-          COALESCE(class, '') AS ticketClass,
-          COALESCE(status, '') AS status,
-          create_time,
-          COALESCE(is_checkin, 0) AS is_checkin,
-          COALESCE(number_checkin, 0) AS number_checkin,
-          checkin_time
-        FROM orders
-        WHERE ordercode = ?
-        LIMIT 1
-        `,
-        [ticketCode],
-      ),
-    );
-    const ticket = rows.length > 0 ? rows[0] : null;
+    const ticket = await trace.step("query_ticket_by_code", () => queryMiniAppTicketRowByCode(ticketCode));
 
     if (!ticket) {
       trace.mark("ticket_not_found");
       return jsonWithCors(request, { message: "Ticket code not found" }, { status: 404 });
     }
 
-    if (isTicketCheckedIn(ticket)) {
+    const mappedTicket = mapMiniAppTicketRow(ticket);
+    if (mappedTicket.checkedIn) {
       trace.mark("ticket_already_checked_in", { ticketId: ticket.id });
       return jsonWithCors(
         request,
-        { message: "Ticket already checked in", data: mapMiniAppTicketRow(ticket) },
+        { message: "Ticket already checked in", data: mappedTicket },
         { status: 409 },
       );
     }

@@ -4,7 +4,7 @@ import { getDB } from "@/lib/db";
 import { CheckinLocationManager } from "./_components/checkin-location-manager";
 
 export const metadata = {
-  title: "Địa điểm check-in | Beauty Summit 2026",
+  title: "Địa điểm check-in | Beauty Summit",
 };
 
 export default async function CheckinLocationsPage() {

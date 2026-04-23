@@ -103,7 +103,7 @@ export function EventsSummary({ totalVotes, genderData, brandRatioData, leaderbo
   
   if (voteOptions && voteOptions.length > 0) {
     voteOptions.forEach(opt => {
-      const name = opt.product || opt.title || "Unknown";
+      const name = opt.product || opt.brandId || "Unknown";
       if (name && !fullLeaderboardMap.has(name)) {
         fullLeaderboardMap.set(name, 0);
       }

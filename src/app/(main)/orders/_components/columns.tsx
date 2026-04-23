@@ -36,10 +36,11 @@ function getTicketClassBadge(value?: string | null) {
 
   const rules = [
     { keywords: ["vip", "v.i.p"], className: "bg-fuchsia-600 text-white" },
+    { keywords: ["ruby", "pre"], className: "bg-rose-600 text-white" },
     { keywords: ["gold", "vàng"], className: "bg-amber-500 text-black" },
     { keywords: ["silver", "bạc"], className: "bg-slate-400 text-white" },
     { keywords: ["platinum", "bạch kim"], className: "bg-indigo-600 text-white" },
-    { keywords: ["standard", "std", "thường"], className: "bg-emerald-600 text-white" },
+    { keywords: ["std", "thường"], className: "bg-amber-500 text-black" },
   ];
 
   const matched = rules.find((rule) => hasAnyKeyword(v, rule.keywords));

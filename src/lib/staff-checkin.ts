@@ -37,7 +37,7 @@ export function normalizeStaffTicketTier(value: unknown): StaffCheckinTier {
     return "VIP";
   }
 
-  if (normalized.includes("RUBY") || normalized.includes("PREMIUM") || normalized.includes("PRE")) {
+  if (normalized.includes("RUBY") || normalized.includes("PRE")) {
     return "RUBY";
   }
 

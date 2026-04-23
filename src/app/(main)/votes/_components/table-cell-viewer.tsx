@@ -1,5 +1,6 @@
 "use client";
 
+import React from "react";
 import { Calendar, Link as LinkIcon, Mail, Phone, Tag, User } from "lucide-react";
 import { z } from "zod";
 

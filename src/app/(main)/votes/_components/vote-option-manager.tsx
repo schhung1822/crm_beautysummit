@@ -220,13 +220,12 @@ function VotePreviewCard({
                 className="mb-2 inline-flex rounded-full border px-3 py-1 text-[11px] font-semibold"
                 style={{
                   borderColor: `${accentColor}33`,
-                  color: accentColor,
                   background: `${accentColor}12`,
                 }}
               >
                 {categoryLabel}
               </div>
-              <div className="truncate text-[1.2rem] font-black text-foreground">{productLabel}</div>
+              <div className="truncate text-[1.2rem] font-black ">{productLabel}</div>
               <div className="mt-1 text-[12px] font-medium text-muted-foreground">Đã đồng bộ dữ liệu</div>
             </div>
           </div>

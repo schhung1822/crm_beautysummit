@@ -1,3 +1,1 @@
-import { writeFileSync } from 'fs';
-const content = \/* eslint-disable prettier/prettier */\n\n\n\ + \\;
-writeFileSync('d:/Projects/zaui-uni/crm_beautysummit/src/app/(main)/votes/_components/events-summary.tsx', content);
+console.log("write-events-summary.ts is deprecated and kept as a no-op helper.");

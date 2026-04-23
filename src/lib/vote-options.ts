@@ -223,7 +223,7 @@ export async function listVoteCategories(): Promise<VoteCategoryRecord[]> {
     return {
       id: buildCategoryId(title) || `category-${index + 1}`,
       title,
-      desc: `Bình chọn san pham trong the loai ${title}.`,
+      desc: "",
       color: CATEGORY_COLORS[index % CATEGORY_COLORS.length],
       totalVotes,
       brands: rankedBrands,

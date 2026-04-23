@@ -851,7 +851,7 @@ export default function VoucherManager({ initialData }: VoucherManagerProps) {
                   className={`relative flex items-center gap-3 rounded-[1.25rem] border px-3.5 py-3.5 shadow-sm ${form.isGrand ? "overflow-hidden border-orange-300 dark:border-orange-800 bg-background/50 dark:bg-background/20" : "border-border dark:border-slate-800 bg-background dark:bg-slate-950"}`}
                 >
                   {form.isGrand ? (
-                    <div className="absolute top-0 right-0 rounded-tr-[1.15rem] rounded-bl-[1rem] bg-[linear-gradient(135deg,#f9c529_0%,#ffb347_46%,#ff72bc_100%)] px-4 py-1 text-[11px] font-black tracking-[0.04em] text-white">
+                    <div className="absolute top-0 right-0 rounded-tr-[1.15rem] rounded-bl-[1rem] bg-[linear-gradient(135deg,#f9c529_0%,#ffb347_46%,#ff72bc_100%)] px-4 text-[11px] tracking-[0.04em] text-white">
                       Giải đặc biệt
                     </div>
                   ) : null}

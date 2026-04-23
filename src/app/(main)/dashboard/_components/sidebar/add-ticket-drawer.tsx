@@ -284,7 +284,7 @@ export function AddTicketDrawer() {
                           </SelectItem>
                         ))
                       ) : (
-                        <SelectItem value={form.class || "STANDARD"}>{form.class || "STANDARD"}</SelectItem>
+                        <SelectItem value={form.class || "GOLD"}>{form.class || "GOLD"}</SelectItem>
                       )}
                     </SelectContent>
                   </Select>

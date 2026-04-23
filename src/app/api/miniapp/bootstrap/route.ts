@@ -9,18 +9,25 @@ import { toDatabasePhone } from "@/lib/phone";
 import { listVoteCategories } from "@/lib/vote-options";
 import { getDB } from "@/lib/db";
 
+const MINIAPP_CHECKIN_LOCATION_LABEL = "VEC Đông Anh - Cổng chính";
+
 async function getActiveCheckinLocations() {
   const db = getDB();
   const [rows] = await db.query(
-    "SELECT id, name, allowed_tiers AS allowedTiers, image_url AS imageUrl, is_active AS isActive, event_date AS eventDate FROM checkin_locations WHERE is_active = 1 ORDER BY nc_order ASC, id ASC"
+    "SELECT id, name, allowed_tiers AS allowedTiers, image_url AS imageUrl, prerequisite, is_active AS isActive, event_date AS eventDate FROM checkin_locations WHERE is_active = 1 ORDER BY nc_order ASC, id ASC"
   );
   return (rows as any[]).map((r) => ({
     id: String(r.id),
     name: r.name,
-    allowedTiers: String(r.allowedTiers || "").split(",").map((s: string) => s.trim().toLowerCase()).filter(Boolean),
+    allowedTiers: String(r.allowedTiers || "")
+      .split(",")
+      .map((s: string) => s.trim().toUpperCase())
+      .filter(Boolean),
     imageUrl: r.imageUrl || null,
     isActive: r.isActive === 1,
     eventDate: r.eventDate ? r.eventDate.toISOString() : null,
+    location: MINIAPP_CHECKIN_LOCATION_LABEL,
+    desc: r.prerequisite ? `Điểm vào sau khu vực ${r.prerequisite}` : null,
   }));
 }
 

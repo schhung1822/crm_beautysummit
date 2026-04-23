@@ -123,7 +123,9 @@ const BASE_MISSION_POINTS = [
   ["d2-2", 10],
 ] as const;
 
-const PREMIUM_MISSION_POINTS = [
+type MiniAppMissionTier = "GOLD" | "RUBY" | "VIP";
+
+const RUBY_MISSION_POINTS = [
   ["b4", 10],
   ["d1-4", 10],
   ["d2-3", 10],
@@ -156,7 +158,7 @@ const voucherRowCache = new Map<
 
 function addMissionPoints(
   map: Record<string, number>,
-  tier: "STANDARD" | "PREMIUM" | "VIP",
+  tier: MiniAppMissionTier,
   source: readonly (readonly [string, number])[],
 ) {
   source.forEach(([suffix, points]) => {
@@ -164,21 +166,57 @@ function addMissionPoints(
   });
 }
 
+function normalizeMissionTierPrefix(value: unknown): MiniAppMissionTier | null {
+  const normalized = String(value ?? "").trim().toUpperCase();
+
+  if (normalized === "VIP") {
+    return "VIP";
+  }
+
+  if (normalized === "RUBY" || normalized.startsWith("PRE")) {
+    return "RUBY";
+  }
+
+  if (normalized === "GOLD" || normalized.startsWith("STAN")) {
+    return "GOLD";
+  }
+
+  return null;
+}
+
+function normalizeMissionId(value: unknown): string {
+  const raw = String(value ?? "").trim();
+  if (!raw) {
+    return "";
+  }
+
+  const separatorIndex = raw.indexOf("-");
+  if (separatorIndex < 0) {
+    return raw;
+  }
+
+  const prefix = raw.slice(0, separatorIndex);
+  const suffix = raw.slice(separatorIndex + 1);
+  const normalizedTier = normalizeMissionTierPrefix(prefix);
+
+  return normalizedTier ? `${normalizedTier}-${suffix}` : raw;
+}
+
 function buildMissionPointMap(): Record<string, number> {
   const map: Record<string, number> = {};
-  addMissionPoints(map, "STANDARD", BASE_MISSION_POINTS);
-  addMissionPoints(map, "PREMIUM", BASE_MISSION_POINTS);
-  addMissionPoints(map, "PREMIUM", PREMIUM_MISSION_POINTS);
+  addMissionPoints(map, "GOLD", BASE_MISSION_POINTS);
+  addMissionPoints(map, "RUBY", BASE_MISSION_POINTS);
+  addMissionPoints(map, "RUBY", RUBY_MISSION_POINTS);
   addMissionPoints(map, "VIP", BASE_MISSION_POINTS);
-  addMissionPoints(map, "VIP", PREMIUM_MISSION_POINTS);
+  addMissionPoints(map, "VIP", RUBY_MISSION_POINTS);
   addMissionPoints(map, "VIP", VIP_MISSION_POINTS);
   return map;
 }
 
 const MISSION_POINT_MAP = buildMissionPointMap();
 const MISSION_ID_MAP = {
-  STANDARD: Object.keys(MISSION_POINT_MAP).filter((missionId) => missionId.startsWith("STANDARD-")),
-  PREMIUM: Object.keys(MISSION_POINT_MAP).filter((missionId) => missionId.startsWith("PREMIUM-")),
+  GOLD: Object.keys(MISSION_POINT_MAP).filter((missionId) => missionId.startsWith("GOLD-")),
+  RUBY: Object.keys(MISSION_POINT_MAP).filter((missionId) => missionId.startsWith("RUBY-")),
   VIP: Object.keys(MISSION_POINT_MAP).filter((missionId) => missionId.startsWith("VIP-")),
 } as const;
 
@@ -197,6 +235,10 @@ function parseBooleanFlag(value: unknown): boolean {
 
 function uniqueStringArray(values: string[]): string[] {
   return Array.from(new Set(values.map((value) => parseString(value)).filter(Boolean)));
+}
+
+function uniqueMissionIdArray(values: string[]): string[] {
+  return Array.from(new Set(values.map((value) => normalizeMissionId(value)).filter(Boolean)));
 }
 
 function uniqueNumberArray(values: number[]): number[] {
@@ -302,11 +344,11 @@ function mapVoucherRow(row: MiniAppVoucherRow): MiniAppVoucherRecord {
 }
 
 function computeTotalPoints(completedIds: string[]): number {
-  return uniqueStringArray(completedIds).reduce((sum, missionId) => sum + (MISSION_POINT_MAP[missionId] ?? 0), 0);
+  return uniqueMissionIdArray(completedIds).reduce((sum, missionId) => sum + (MISSION_POINT_MAP[missionId] ?? 0), 0);
 }
 
 function hasCompletedAllTierMissions(completedIds: string[]): boolean {
-  const completedSet = new Set(uniqueStringArray(completedIds));
+  const completedSet = new Set(uniqueMissionIdArray(completedIds));
 
   return Object.values(MISSION_ID_MAP).some(
     (requiredMissionIds) =>
@@ -330,7 +372,7 @@ function buildRewardStatePayload(
 }
 
 function mapRewardStateRow(row: MiniAppRewardStateRow): StoredRewardState {
-  const completedIds = parseStringArray(row.completed_mission_ids);
+  const completedIds = uniqueMissionIdArray(parseStringArray(row.completed_mission_ids));
   const claimedFreeVoucherIds = parseStringArray(row.claimed_free_voucher_ids);
   const redeemedVoucherIds = parseStringArray(row.redeemed_voucher_ids);
   const claimedMilestonePcts = parseNumberArray(row.claimed_milestone_pcts);
@@ -373,7 +415,7 @@ function buildStoredStateUpdate(
     >
   >,
 ): StoredRewardState {
-  const completedIds = uniqueStringArray(patch.completedIds ?? current.completedIds);
+  const completedIds = uniqueMissionIdArray(patch.completedIds ?? current.completedIds);
   const claimedFreeVoucherIds = uniqueStringArray(patch.claimedFreeVoucherIds ?? current.claimedFreeVoucherIds);
   const redeemedVoucherIds = uniqueStringArray(patch.redeemedVoucherIds ?? current.redeemedVoucherIds);
   const claimedMilestonePcts = uniqueNumberArray(patch.claimedMilestonePcts ?? current.claimedMilestonePcts);
@@ -845,9 +887,9 @@ export async function loadMiniAppRewards(identity: RewardIdentity): Promise<Mini
 }
 
 export async function completeMiniAppMission(identity: RewardIdentity, missionId: string): Promise<MiniAppRewardState> {
-  const normalizedMissionId = parseString(missionId);
+  const normalizedMissionId = normalizeMissionId(missionId);
   if (!MISSION_POINT_MAP[normalizedMissionId]) {
-    throw new Error("Mission is not supported");
+    throw new Error("Nhiệm vụ không hợp lệ");
   }
 
   const current = await ensureMiniAppRewardState(identity);

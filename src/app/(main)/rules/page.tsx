@@ -145,7 +145,7 @@ export default function Page() {
             <Table
               headers={["Thuộc tính", "Nội dung"]}
               rows={[
-                ["Hạng vé", "Thiết lập giá và tên các hạng vé như: VIP, Standard..."],
+                ["Hạng vé", "Thiết lập giá và tên các hạng vé như: GOLD, RUBY, VIP."],
                 ["Voucher Mệnh giá", "Mã giảm giá với số lượng phát hành giới hạn."],
                 ["Điều kiện áp dụng", "Thời gian hiệu lực, tổng số lượng phát hành."],
               ]}

@@ -4,6 +4,8 @@ import { useState } from "react";
 
 import { BarChart, Bar, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 
+import { DatePicker } from "@/components/ui/date-picker";
+
 const F = "'Be Vietnam Pro', sans-serif";
 const C = {
   navy: "#1E1656",
@@ -29,42 +31,15 @@ const FUNNEL_COLORS = [
   C.gold,
 ];
 
-const HOURLY = [
-  { time: "07:00", checkin: 0, active: 0 }, { time: "08:00", checkin: 845, active: 320 },
-  { time: "09:00", checkin: 2340, active: 1890 }, { time: "10:00", checkin: 1560, active: 3200 },
-  { time: "11:00", checkin: 980, active: 4100 }, { time: "12:00", checkin: 420, active: 3600 },
-  { time: "13:00", checkin: 650, active: 4800 }, { time: "14:00", checkin: 380, active: 5500 },
-  { time: "15:00", checkin: 210, active: 6200 }, { time: "16:00", checkin: 120, active: 5800 },
-  { time: "17:00", checkin: 50, active: 4200 },
+const DEFAULT_HOURLY = [{ time: "00:00", checkin: 0, active: 0 }];
+const DEFAULT_ZONES = [{ name: "Chưa có dữ liệu", count: 0, pct: 0, color: C.gold }];
+const DEFAULT_MISSION_PHASES = [
+  { phase: "Trước SK", total: 0, completed: 0, avg: 0 },
+  { phase: "Ngày 1", total: 0, completed: 0, avg: 0 },
+  { phase: "Ngày 2", total: 0, completed: 0, avg: 0 },
 ];
-const ZONES = [
-  { name: "Cổng vào", count: 8412, pct: 100, color: C.gold },
-  { name: "Coach 1:1", count: 4856, pct: 57.7, color: C.pink },
-  { name: "Hội thảo", count: 2134, pct: 25.4, color: C.purple },
-];
-const MISSION_PHASES = [
-  { phase: "Trước SK", total: 4, completed: 28940, avg: 72 },
-  { phase: "Ngày 1", total: 4, completed: 22360, avg: 56 },
-  { phase: "Ngày 2", total: 4, completed: 18200, avg: 45 },
-];
-const TOP_BRANDS_VOTE = [
-  { name: "Sulwhasoo", votes: 1842, cat: "Sản phẩm" },
-  { name: "SK-II", votes: 1654, cat: "Sản phẩm" },
-  { name: "La Roche-Posay", votes: 1423, cat: "Thương hiệu" },
-  { name: "Estée Lauder", votes: 1298, cat: "Thương hiệu" },
-  { name: "Dermalogica", votes: 1187, cat: "Công nghệ" },
-  { name: "FOREO", votes: 1056, cat: "Máy mỹ phẩm" },
-  { name: "NuFACE", votes: 987, cat: "Máy mỹ phẩm" },
-  { name: "Charlotte Tilbury", votes: 945, cat: "Sản phẩm" },
-  { name: "Dr. Dennis Gross", votes: 876, cat: "Công nghệ" },
-  { name: "Lancôme", votes: 823, cat: "Thương hiệu" },
-];
-const DAILY_REG = [
-  { date: "1/4", reg: 120 }, { date: "8/4", reg: 340 }, { date: "15/4", reg: 890 },
-  { date: "22/4", reg: 1240 }, { date: "1/5", reg: 1680 }, { date: "8/5", reg: 1450 },
-  { date: "15/5", reg: 980 }, { date: "22/5", reg: 1120 }, { date: "1/6", reg: 760 },
-  { date: "8/6", reg: 540 }, { date: "15/6", reg: 890 }, { date: "18/6", reg: 237 },
-];
+const DEFAULT_TOP_VOTES: Array<{ name: string; votes: number; cat: string; logo?: string; productImage?: string }> = [];
+const DEFAULT_DAILY_REG = [{ date: "--/--", reg: 0 }];
 const NOTIFY_STATS = [
   { round: "Lần 1 — Nhắc lịch", sent: 4200, opened: 2940, converted: 680, openRate: 70, cvr: 16.2 },
   { round: "Lần 2 — Early bird", sent: 3520, opened: 2464, converted: 520, openRate: 70, cvr: 14.8 },
@@ -81,8 +56,8 @@ const BRANDS = [
 const getBrandData = (name: string) => {
   const seed = name.split("").reduce((a, c) => a + c.charCodeAt(0), 0);
   const r = (min: number, max: number) => Math.floor(((seed * 9301 + 49297) % 233280) / 233280 * (max - min) + min);
-  const votes = TOP_BRANDS_VOTE.find(b => b.name === name)?.votes ?? r(200, 1200);
-  const rank = TOP_BRANDS_VOTE.findIndex(b => b.name === name) + 1 || r(5, 25);
+  const votes = r(200, 1200);
+  const rank = r(5, 25);
   const voucherIssued = r(300, 800);
   const voucherClaimed = Math.floor(voucherIssued * (r(45, 82) / 100));
   const boothVisit = r(800, 3200);
@@ -92,7 +67,7 @@ const getBrandData = (name: string) => {
     votes, rank, voucherIssued, voucherClaimed,
     claimRate: Math.round(voucherClaimed / voucherIssued * 100),
     boothVisit, profileView, missionComplete,
-    hourly: HOURLY.map(h => ({ ...h, booth: Math.floor(boothVisit / 11 * (0.3 + Math.random() * 1.4)) })),
+    hourly: DEFAULT_HOURLY.map(h => ({ ...h, booth: Math.floor(boothVisit / 11 * (0.3 + Math.random() * 1.4)) })),
     voteTrend: [
       { day: "Trước SK", v: Math.floor(votes * 0.15) },
       { day: "Ngày 1 AM", v: Math.floor(votes * 0.35) },
@@ -139,6 +114,8 @@ const buildFunnelRows = (stats: any) => {
     }));
 };
 
+const isImageUrl = (value?: string): boolean => /^(data:image\/|https?:\/\/|\/)/i.test(String(value ?? "").trim());
+
 export default function DashboardClient({ events }: { events: any }) {
   const [view, setView] = useState("leadership");
   const [selectedBrand, setSelectedBrand] = useState("Sulwhasoo");
@@ -146,6 +123,33 @@ export default function DashboardClient({ events }: { events: any }) {
 
   const EVENT_STATS = events;
   const mappedFunnel = buildFunnelRows(EVENT_STATS);
+  const hourlyStats = Array.isArray(EVENT_STATS.hourlyStats) && EVENT_STATS.hourlyStats.length > 0 ? EVENT_STATS.hourlyStats : DEFAULT_HOURLY;
+  const hourlyDate = String(EVENT_STATS.hourlyDate ?? "");
+  const eventDay1 = String(EVENT_STATS.eventDay1 ?? "");
+  const checkinZones = Array.isArray(EVENT_STATS.checkinZones) && EVENT_STATS.checkinZones.length > 0 ? EVENT_STATS.checkinZones : DEFAULT_ZONES;
+  const missionPhases = Array.isArray(EVENT_STATS.missionPhases) && EVENT_STATS.missionPhases.length > 0 ? EVENT_STATS.missionPhases : DEFAULT_MISSION_PHASES;
+  const topVotes = Array.isArray(EVENT_STATS.topVotes) ? EVENT_STATS.topVotes : DEFAULT_TOP_VOTES;
+  const dailyRegistrations = Array.isArray(EVENT_STATS.dailyRegistrations) && EVENT_STATS.dailyRegistrations.length > 0 ? EVENT_STATS.dailyRegistrations : DEFAULT_DAILY_REG;
+
+  const handleHourlyDateChange = (nextDate: string) => {
+    const params = new URLSearchParams(window.location.search);
+    if (nextDate) {
+      params.set("date", nextDate);
+    } else {
+      params.delete("date");
+    }
+    const query = params.toString();
+    window.location.href = `${window.location.pathname}${query ? `?${query}` : ""}`;
+  };
+  const handleEventDay1Change = async (nextDate: string) => {
+    if (!nextDate) return;
+    await fetch("/api/event-settings", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ eventDay1: nextDate }),
+    });
+    window.location.reload();
+  };
 
   return (
     <div className="pb-10 mx-auto" style={{ background: "transparent", fontFamily: F, maxWidth: 1200 }}>
@@ -172,17 +176,17 @@ export default function DashboardClient({ events }: { events: any }) {
           <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
             {/* Top stats */}
             <div style={{ display: "flex", gap: 12, flexWrap: "wrap", alignItems: "flex-start" }}>
-              <StatCard label="Đăng ký" value={EVENT_STATS.registered} sub="100%" color={C.cyan} />
-              <StatCard label="Đã thanh toán" value={EVENT_STATS.paid} sub={`${(EVENT_STATS.paid/Math.max(1, EVENT_STATS.registered)*100).toFixed(1)}%`} color={C.green} />
-              <StatCard label="Chưa TT" value={EVENT_STATS.unpaid} sub={`${(EVENT_STATS.unpaid/Math.max(1, EVENT_STATS.registered)*100).toFixed(1)}%`} color={C.red} />
-              <StatCard label="Check-in" value={EVENT_STATS.checkedIn} sub={`${(EVENT_STATS.checkedIn/Math.max(1, EVENT_STATS.registered)*100).toFixed(1)}%`} color={C.pink} />
-              <StatCard label="Đổi voucher" value={EVENT_STATS.voucherClaimed} sub={`${(EVENT_STATS.voucherClaimed/Math.max(1, EVENT_STATS.registered)*100).toFixed(1)}%`} color={C.goldLight} />
+              <StatCard label="Đăng ký" value={EVENT_STATS.registered} color={C.cyan} />
+              <StatCard label="Đã thanh toán" value={EVENT_STATS.paid} color={C.green} />
+              <StatCard label="Chưa TT" value={EVENT_STATS.unpaid} color={C.red} />
+              <StatCard label="Check-in" value={EVENT_STATS.checkedIn} color={C.pink} />
+              <StatCard label="Đổi voucher" value={EVENT_STATS.voucherClaimed} color={C.goldLight} />
               <StatCard label="Bình chọn" value={EVENT_STATS.voted} color={C.orange} />
-              <StatCard label="Đủ ĐK VF3" value={EVENT_STATS.vf3Eligible} sub="100% nhiệm vụ" color={C.purple} />
+              <StatCard label="Đủ ĐK VF3" value={EVENT_STATS.vf3Eligible} color={C.purple} />
             </div>
 
             {/* Funnel + Hourly */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-[20px]">
+            <div className="grid grid-cols-1 md:grid-cols-[0.85fr_1.35fr] gap-[20px]">
               <div className="dark:bg-slate-900 bg-slate-50 border border-slate-200 dark:border-slate-800" style={{ borderRadius: 16, padding: 20 }}>
                 <SectionTitle>Funnel chuyển đổi</SectionTitle>
                 <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
@@ -200,10 +204,17 @@ export default function DashboardClient({ events }: { events: any }) {
               </div>
 
               <div className="dark:bg-slate-900 bg-slate-50 border border-slate-200 dark:border-slate-800" style={{ borderRadius: 16, padding: 20 }}>
-                <SectionTitle color={C.cyan}>Check-in & Active theo giờ</SectionTitle>
-                <div className="h-[200px] w-full">
+                <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+                  <SectionTitle color={C.cyan}>Check-in & Active theo giờ</SectionTitle>
+                  <DatePicker
+                    value={hourlyDate}
+                    onChange={handleHourlyDateChange}
+                    className="w-[190px]"
+                  />
+                </div>
+                <div className="h-[220px] w-full">
                   <ResponsiveContainer width="100%" height="100%">
-                    <AreaChart data={HOURLY}>
+                    <AreaChart data={hourlyStats}>
                       <defs>
                         <linearGradient id="gCI" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor={C.gold} stopOpacity={0.3}/><stop offset="100%" stopColor={C.gold} stopOpacity={0}/></linearGradient>
                         <linearGradient id="gAct" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor={C.cyan} stopOpacity={0.3}/><stop offset="100%" stopColor={C.cyan} stopOpacity={0}/></linearGradient>
@@ -224,7 +235,7 @@ export default function DashboardClient({ events }: { events: any }) {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-[20px]">
               <div className="dark:bg-slate-900 bg-slate-50 border border-slate-200 dark:border-slate-800" style={{ borderRadius: 16, padding: 20 }}>
                 <SectionTitle color={C.pink}>Check-in theo khu vực</SectionTitle>
-                {ZONES.map((z, i) => (
+                {checkinZones.map((z: any, i: number) => (
                   <div key={i} style={{ marginBottom: 14 }}>
                     <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
                       <span className="text-foreground" style={{ fontSize: 13, fontWeight: 600 }}>{z.name}</span>
@@ -240,7 +251,7 @@ export default function DashboardClient({ events }: { events: any }) {
 
               <div className="dark:bg-slate-900 bg-slate-50 border border-slate-200 dark:border-slate-800" style={{ borderRadius: 16, padding: 20 }}>
                 <SectionTitle color={C.green}>Nhiệm vụ theo giai đoạn</SectionTitle>
-                {MISSION_PHASES.map((m, i) => (
+                {missionPhases.map((m: any, i: number) => (
                   <div key={i} className="dark:bg-slate-800 bg-slate-100 border border-slate-200 dark:border-slate-700" style={{ marginBottom: 16, padding: 14, borderRadius: 10 }}>
                     <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
                       <span className="text-foreground" style={{ fontSize: 13, fontWeight: 700 }}>{m.phase}</span>
@@ -257,18 +268,23 @@ export default function DashboardClient({ events }: { events: any }) {
               <div className="dark:bg-slate-900 bg-slate-50 border border-slate-200 dark:border-slate-800" style={{ borderRadius: 16, padding: 20 }}>
                 <SectionTitle color={C.purple}>Top 10 bình chọn</SectionTitle>
                 <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-                  {TOP_BRANDS_VOTE.map((b, i) => (
+                  {topVotes.map((b: any, i: number) => {
+                    const imageUrl = b.logo || b.productImage;
+                    return (
                     <div key={i} className="text-foreground" style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 10px", borderRadius: 8, background: i < 3 ? "rgba(255,215,0,0.04)" : "transparent" }}>
                       <div className={i < 3 ? "text-slate-900" : "text-muted-foreground"} style={{ width: 24, height: 24, borderRadius: 6, background: i < 3 ? C.gold : "transparent", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, fontWeight: 800, flexShrink: 0 }}>
                         {i + 1}
                       </div>
+                      {isImageUrl(imageUrl) ? (
+                        <img src={imageUrl} alt={b.name} className="h-8 w-8 rounded-md bg-white object-contain p-1" />
+                      ) : null}
                       <div style={{ flex: 1 }}>
                         <span style={{ fontSize: 12, fontWeight: 600 }}>{b.name}</span>
                         <span className="text-muted-foreground" style={{ fontSize: 10, marginLeft: 8 }}>{b.cat}</span>
                       </div>
                       <span style={{ fontSize: 13, fontWeight: 700, color: i < 3 ? C.goldLight : "inherit" }}>{b.votes.toLocaleString()}</span>
                     </div>
-                  ))}
+                  )})}
                 </div>
               </div>
 
@@ -295,10 +311,13 @@ export default function DashboardClient({ events }: { events: any }) {
 
             {/* Registration trend */}
             <div className="dark:bg-slate-900 bg-slate-50 border border-slate-200 dark:border-slate-800" style={{ borderRadius: 16, padding: 20 }}>
-              <SectionTitle>Lượng đăng ký theo tuần (trước sự kiện)</SectionTitle>
+              <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+                <SectionTitle>Lượng đăng ký 7 ngày trước sự kiện</SectionTitle>
+                <DatePicker value={eventDay1} onChange={handleEventDay1Change} className="w-[190px]" />
+              </div>
               <div className="h-[180px] w-full">
                 <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={DAILY_REG}>
+                  <BarChart data={dailyRegistrations}>
                     <CartesianGrid strokeDasharray="3 3" stroke="rgba(150,150,150,0.1)" />
                     <XAxis dataKey="date" tick={{ fill: "rgba(150,150,150,0.5)", fontSize: 10 }} />
                     <YAxis tick={{ fill: "rgba(150,150,150,0.5)", fontSize: 10 }} />

@@ -19,11 +19,13 @@ interface DatePickerProps {
   id?: string;
   value?: string;
   onChange?: (value: string) => void;
+  onEnter?: (value: string) => void;
+  onSelectDate?: (value: string) => void;
   className?: string;
   placeholder?: string;
 }
 
-export function DatePicker({ id, value, onChange, className, placeholder = "dd/mm/yyyy" }: DatePickerProps) {
+export function DatePicker({ id, value, onChange, onEnter, onSelectDate, className, placeholder = "dd/mm/yyyy" }: DatePickerProps) {
   // Parsing the stored "yyyy-MM-dd" back to Date
   const [date, setDate] = React.useState<Date | undefined>(
     value ? new Date(`${value}T00:00:00`) : undefined
@@ -147,6 +149,42 @@ export function DatePicker({ id, value, onChange, className, placeholder = "dd/m
     }
   };
 
+  const parseInputValue = (): string | null => {
+    if (!inputValue || inputValue.length !== 10) {
+      return null;
+    }
+
+    const parsedDate = parse(inputValue, "dd/MM/yyyy", new Date());
+    if (!isValid(parsedDate) || parsedDate.getFullYear() <= 1000) {
+      return null;
+    }
+
+    if (format(parsedDate, "dd/MM/yyyy") !== inputValue) {
+      return null;
+    }
+
+    const year = parsedDate.getFullYear();
+    const month = String(parsedDate.getMonth() + 1).padStart(2, "0");
+    const dt = String(parsedDate.getDate()).padStart(2, "0");
+    return `${year}-${month}-${dt}`;
+  };
+
+  const handleKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
+    if (event.key !== "Enter") {
+      return;
+    }
+
+    const nextValue = parseInputValue();
+    if (!nextValue) {
+      setError("Ngày không hợp lệ");
+      return;
+    }
+
+    event.preventDefault();
+    setError(null);
+    onEnter?.(nextValue);
+  };
+
   const handleSelect = (day: Date | undefined) => {
     setDate(day);
     if (day) {
@@ -156,7 +194,9 @@ export function DatePicker({ id, value, onChange, className, placeholder = "dd/m
       const dt = String(day.getDate()).padStart(2, "0");
       setInputValue(format(day, "dd/MM/yyyy"));
       setError(null);
-      onChange?.(`${year}-${month}-${dt}`);
+      const nextValue = `${year}-${month}-${dt}`;
+      onChange?.(nextValue);
+      onSelectDate?.(nextValue);
     } else {
       setInputValue("");
       setError(null);
@@ -170,6 +210,7 @@ export function DatePicker({ id, value, onChange, className, placeholder = "dd/m
         <Input
           value={inputValue}
           onChange={handleInputChange}
+          onKeyDown={handleKeyDown}
           onBlur={handleBlur}
           placeholder={placeholder}
           className={cn("flex-1 focus-visible:ring-1", error && "border-destructive focus-visible:ring-destructive")}

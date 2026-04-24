@@ -4,6 +4,7 @@ import { z } from "zod";
 
 import { getCurrentUser } from "@/lib/auth";
 import { getDB } from "@/lib/db";
+import { getEventDay1Date } from "@/lib/event-settings";
 
 const BodySchema = z.object({
   id: z.number().optional(),
@@ -48,6 +49,13 @@ export async function POST(req: NextRequest) {
   try {
     const json = await req.json();
     const body = BodySchema.parse(json);
+    const eventDay1 = await getEventDay1Date();
+    if (body.event_date <= eventDay1) {
+      return NextResponse.json(
+        { error: `Ngày check-in phải sau ngày 1 sự kiện (${eventDay1.split("-").reverse().join("/")})` },
+        { status: 400 },
+      );
+    }
     const db = getDB();
 
     if (body.id) {

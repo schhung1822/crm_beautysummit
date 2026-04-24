@@ -9,6 +9,7 @@ import { DataTable as SharedDataTable } from "@/components/data-table/data-table
 import { toggleFilteredRows, withSelectionColumn } from "@/components/data-table/selection-toggle";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { DatePicker } from "@/components/ui/date-picker";
 import { ExportDialog, type DateRange, type ExportFormat } from "@/components/ui/export-dialog";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -31,9 +32,11 @@ function toVoteRowKey(row: Pick<Academy, "ordercode" | "phone" | "brand_id" | "t
 export function DataTable({
   data: initialData,
   initialVoteOptions,
+  eventDay1,
 }: {
   data: Academy[];
   initialVoteOptions: VoteOptionRecord[];
+  eventDay1: string;
 }) {
   const [data, setData] = React.useState<Academy[]>(() => initialData);
   const [searchTerm, setSearchTerm] = React.useState("");
@@ -41,6 +44,7 @@ export function DataTable({
   const [exportDialogOpen, setExportDialogOpen] = React.useState(false);
   const [isExporting, setIsExporting] = React.useState(false);
   const [isDeleting, setIsDeleting] = React.useState(false);
+  const [pendingEventDay1, setPendingEventDay1] = React.useState(eventDay1);
 
   const brandNames = React.useMemo(() => {
     const names = new Set(data.map((item) => item.brand_name).filter(Boolean));
@@ -227,8 +231,44 @@ export function DataTable({
     [filteredData, selectedBrand],
   );
 
+  const handleEventDay1Change = React.useCallback(async (nextDate: string) => {
+    if (!nextDate) return;
+
+    try {
+      const response = await fetch("/api/event-settings", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ eventDay1: nextDate }),
+      });
+
+      if (!response.ok) {
+        const result = await response.json().catch(() => ({}));
+        throw new Error(result.message ?? "Không thể lưu ngày sự kiện");
+      }
+
+      toast.success("Đã cập nhật ngày 1 sự kiện");
+      window.location.reload();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Không thể lưu ngày sự kiện");
+    }
+  }, []);
+
   return (
-    <div className="flex w-full flex-col gap-6">
+    <div className="flex flex-col gap-6">
+      <div className="flex w-fit items-center gap-3 rounded-lg border bg-card px-4 py-3">
+        <div>
+          <div className="text-sm font-semibold">Ngày 1 sự kiện</div>
+  
+        </div>
+        <DatePicker
+          value={pendingEventDay1}
+          onChange={setPendingEventDay1}
+          onEnter={handleEventDay1Change}
+          onSelectDate={handleEventDay1Change}
+          className="w-[190px]"
+        />
+      </div>
+
       <EventsSummary totalVotes={totalVotes} genderData={genderData} brandRatioData={brandRatioData} leaderboardData={leaderboardData} voteOptions={initialVoteOptions} />
 
       <div className="flex items-center justify-between gap-4">

@@ -8,6 +8,7 @@ import { normalizeMiniAppName, upsertMiniAppUser } from "@/lib/miniapp-users";
 import { toDatabasePhone } from "@/lib/phone";
 import { listVoteCategories } from "@/lib/vote-options";
 import { getDB } from "@/lib/db";
+import { getEventDay1Date } from "@/lib/event-settings";
 import { isDataImageUrl, normalizeStoredImageUrl } from "@/lib/image-storage";
 
 const MINIAPP_CHECKIN_LOCATION_LABEL = "VEC Đông Anh - Cổng chính";
@@ -125,7 +126,7 @@ export async function POST(request: NextRequest) {
       }),
     );
 
-    const [ticketRows, rewards, voteCategories, checkinZones] = await trace.step("load_bundle", () =>
+    const [ticketRows, rewards, voteCategories, checkinZones, eventDay1] = await trace.step("load_bundle", () =>
       Promise.all([
         queryMiniAppTicketRowsByPhone(phone),
         loadMiniAppRewards({
@@ -136,6 +137,7 @@ export async function POST(request: NextRequest) {
         }),
         listVoteCategories(),
         getActiveCheckinLocations(),
+        getEventDay1Date(),
       ]),
     );
 
@@ -153,6 +155,7 @@ export async function POST(request: NextRequest) {
       {
         data: {
           user,
+          eventDay1,
           tickets,
           checkinZones,
           rewards: {

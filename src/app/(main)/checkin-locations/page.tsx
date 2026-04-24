@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/auth";
 import { getDB } from "@/lib/db";
+import { getEventDay1Date } from "@/lib/event-settings";
 import { CheckinLocationManager } from "./_components/checkin-location-manager";
 
 export const metadata = {
@@ -14,12 +15,15 @@ export default async function CheckinLocationsPage() {
   }
 
   const db = getDB();
-  const [rows] = await db.query(
-    "SELECT id, name, allowed_tiers, image_url, prerequisite, nc_order, is_active, DATE_FORMAT(event_date, '%Y-%m-%d') as event_date FROM checkin_locations ORDER BY nc_order ASC, id ASC"
-  ) as any[];
+  const [rows, eventDay1] = await Promise.all([
+    db.query(
+      "SELECT id, name, allowed_tiers, image_url, prerequisite, nc_order, is_active, DATE_FORMAT(event_date, '%Y-%m-%d') as event_date FROM checkin_locations ORDER BY nc_order ASC, id ASC"
+    ) as any,
+    getEventDay1Date(),
+  ]);
 
   // Convert buffer mapping out of mysql
-  const safeRows = rows.map((r: any) => ({
+  const safeRows = rows[0].map((r: any) => ({
     ...r,
     is_active: r.is_active instanceof Buffer ? r.is_active[0] : (r.is_active ?? 1)
   }));
@@ -32,7 +36,7 @@ export default async function CheckinLocationsPage() {
           Quản lý các điểm tiếp đón và phân quyền hạng vé
         </p>
       </div>
-      <CheckinLocationManager initialData={safeRows} />
+      <CheckinLocationManager initialData={safeRows} eventDay1={eventDay1} />
     </div>
   );
 }

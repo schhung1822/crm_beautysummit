@@ -93,10 +93,7 @@ function maskPhoneString(phoneValue: string | null | undefined): string {
 }
 
 function buildGuest(ticket: TicketOrderRow, zone: StaffCheckinZone): StaffCheckinGuest {
-  const checkedZoneArray = String(ticket.checked_zones ?? "")
-    .split(",")
-    .map((value) => value.trim())
-    .filter(Boolean);
+  const checkedZoneArray = getCheckedZoneIds(ticket);
   const hasCheckedInCurrentZone = checkedZoneArray.includes(String(zone.id));
 
   return {
@@ -109,6 +106,32 @@ function buildGuest(ticket: TicketOrderRow, zone: StaffCheckinZone): StaffChecki
     zoneName: zone.name,
     checkedIn: hasCheckedInCurrentZone,
     checkinTime: toIsoString(ticket.latest_checkin_time ?? ticket.checkin_time),
+  };
+}
+
+function getCheckedZoneIds(ticket: Pick<TicketOrderRow, "checked_zones">): string[] {
+  return String(ticket.checked_zones ?? "")
+    .split(",")
+    .map((value) => value.trim())
+    .filter(Boolean);
+}
+
+function findMissingPrerequisite(ticket: TicketOrderRow, zone: StaffCheckinZone, zones: StaffCheckinZone[]) {
+  const prerequisiteId = String(zone.prerequisite ?? "").trim();
+  if (!prerequisiteId) {
+    return null;
+  }
+
+  const checkedZoneIds = getCheckedZoneIds(ticket);
+  if (checkedZoneIds.includes(prerequisiteId)) {
+    return null;
+  }
+
+  return zones.find((item) => String(item.id) === prerequisiteId) ?? {
+    id: prerequisiteId,
+    name: prerequisiteId,
+    color: zone.color,
+    tiers: zone.tiers,
   };
 }
 
@@ -241,8 +264,20 @@ async function loadSnapshot() {
       l.checkin_time
     FROM checkin_log l
     LEFT JOIN orders o ON l.order_id = o.id
+    WHERE l.id IN (
+      SELECT id
+      FROM (
+        SELECT
+          recent.id,
+          ROW_NUMBER() OVER (
+            PARTITION BY recent.zone_id
+            ORDER BY recent.checkin_time DESC, recent.id DESC
+          ) AS row_num
+        FROM checkin_log recent
+      ) ranked
+      WHERE ranked.row_num <= 20
+    )
     ORDER BY l.checkin_time DESC, l.id DESC
-    LIMIT 20
     `,
   );
 
@@ -303,7 +338,7 @@ async function loadSnapshot() {
   }));
 
   const [zonesRows] = await db.query(
-    "SELECT id, name, allowed_tiers, event_date FROM checkin_locations WHERE is_active = 1 ORDER BY nc_order ASC, id ASC"
+    "SELECT id, name, allowed_tiers, prerequisite, event_date FROM checkin_locations WHERE is_active = 1 ORDER BY nc_order ASC, id ASC"
   ) as any[];
 
   const colors = ["#C41E7F", "#8B5CF6", "#0EA5E9", "#F59E0B", "#10B981", "#EF4444"];
@@ -312,6 +347,7 @@ async function loadSnapshot() {
     name: r.name,
     color: colors[i % colors.length] as string,
     tiers: String(r.allowed_tiers || "").split(",").map(t => t.trim()) as StaffCheckinTier[],
+    prerequisite: r.prerequisite ? String(r.prerequisite) : null,
     eventDate: r.event_date ? toIsoString(r.event_date) : null,
   }));
 
@@ -393,6 +429,21 @@ export async function POST(request: NextRequest) {
           data: {
             status: "denied",
             message: `Hạng ${guest.tier} không có quyền vào ${zone.name}`,
+            guest,
+            ...currentSnapshot,
+          },
+        },
+        { status: 200 },
+      );
+    }
+
+    const missingPrerequisite = findMissingPrerequisite(ticket, zone, currentSnapshot.zones);
+    if (missingPrerequisite) {
+      return json(
+        {
+          data: {
+            status: "denied",
+            message: `Khách cần check-in ${missingPrerequisite.name} trước khi vào ${zone.name}`,
             guest,
             ...currentSnapshot,
           },

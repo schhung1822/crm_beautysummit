@@ -52,6 +52,7 @@ export function buildPhoneVariants(value: unknown): string[] {
 
   if (databasePhone) {
     variants.add(databasePhone);
+    variants.add(`+${databasePhone}`); // Ensure +84 case is matched
   }
 
   if (displayPhone) {

@@ -197,7 +197,7 @@ export function TableCellViewer({
                     id="customer-gender"
                     value={form.gender}
                     onChange={handleChange("gender")}
-                    className="border-input bg-background ring-offset-background focus-visible:ring-ring h-10 rounded-lg border px-3 text-sm outline-none focus-visible:ring-2 focus-visible:ring-offset-2"
+                    className="border-input w-full min-w-0 bg-background ring-offset-background focus-visible:ring-ring h-10 rounded-lg border px-3 text-sm outline-none focus-visible:ring-2 focus-visible:ring-offset-2"
                   >
                     <option value="">Chưa chọn</option>
                     <option value="m">Nam</option>

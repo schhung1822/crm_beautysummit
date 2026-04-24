@@ -7,6 +7,7 @@ export type StaffCheckinZone = {
   name: string;
   color: string;
   tiers: StaffCheckinTier[];
+  prerequisite?: string | null;
   eventDate?: string | null;
 };
 

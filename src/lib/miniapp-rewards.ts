@@ -120,7 +120,6 @@ const BASE_MISSION_POINTS = [
   ["d1-2", 15],
   ["d1-3", 10],
   ["d1-vote", 15],
-  ["d2-1", 15],
   ["d2-2", 10],
 ] as const;
 
@@ -246,7 +245,7 @@ function uniqueNumberArray(values: number[]): number[] {
   return Array.from(new Set(values.filter((value) => Number.isFinite(value))));
 }
 
-function parseStringArray(raw: string | null): string[] {
+export function parseStringArray(raw: string | null): string[] {
   if (!raw) {
     return [];
   }
@@ -348,7 +347,7 @@ function computeTotalPoints(completedIds: string[]): number {
   return uniqueMissionIdArray(completedIds).reduce((sum, missionId) => sum + (MISSION_POINT_MAP[missionId] ?? 0), 0);
 }
 
-function hasCompletedAllTierMissions(completedIds: string[]): boolean {
+export function hasCompletedAllTierMissions(completedIds: string[]): boolean {
   const completedSet = new Set(uniqueMissionIdArray(completedIds));
 
   return Object.values(MISSION_ID_MAP).some(

@@ -232,6 +232,7 @@ export default function StaffCheckinClient() {
   const lastScanRef = React.useRef<{ value: string; at: number } | null>(null);
 
   const zone = zones.find((item) => item.id === activeZone) || zones[0];
+  const visibleHistory = history.filter((item) => String(item.zoneId) === String(zone?.id ?? ""));
   const busy = submitting || imageScanning;
 
   const loadSnapshot = React.useCallback(async () => {
@@ -460,8 +461,13 @@ export default function StaffCheckinClient() {
                 key={item.id}
                 type="button"
                 onClick={() => {
+                  if (item.id === activeZone) {
+                    return;
+                  }
+
                   setActiveZone(item.id);
                   setResult(null);
+                  void loadSnapshot();
                 }}
                 className={cn(
                   "shrink-0 w-[110px] sm:w-[140px] rounded-[24px] border bg-[#15151f] px-1 py-3 text-left transition-all sm:px-4 sm:py-5",
@@ -727,18 +733,18 @@ export default function StaffCheckinClient() {
         <div className="rounded-[22px] border border-white/8 bg-white/[0.03]">
           <div className="flex items-center justify-between border-b border-white/8 px-5 py-4">
             <div className="text-[12px] font-bold text-white sm:text-[15px]">Lịch sử check-in</div>
-            <div className="text-sm text-white/45">{loadingSnapshot ? "Đang tải..." : `${history.length} lượt`}</div>
+            <div className="text-sm text-white/45">{loadingSnapshot ? "Đang tải..." : `${visibleHistory.length} lượt`}</div>
           </div>
 
           <div className="px-4 py-4">
-            {history.length === 0 ? (
+            {visibleHistory.length === 0 ? (
               <div className="flex flex-col items-center gap-3 py-10 text-center text-white/38">
                 <QrCode className="h-8 w-8 opacity-35" />
                 <div>Chưa có check-in nào</div>
               </div>
             ) : (
               <div className="flex max-h-[360px] flex-col gap-3 overflow-y-auto pr-1">
-                {history.map((item) => (
+                {visibleHistory.map((item) => (
                   <div
                     key={item.id}
                     className="flex items-start justify-between gap-3 rounded-[18px] border border-white/8 bg-white/[0.03] px-4 py-4"

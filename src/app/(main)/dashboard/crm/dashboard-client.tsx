@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+
 import { BarChart, Bar, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 
 const F = "'Be Vietnam Pro', sans-serif";
@@ -16,6 +17,17 @@ const C = {
   red: "#EF4444",
   orange: "#F97316",
 };
+
+const FUNNEL_COLORS = [
+  C.green,
+  C.pink,
+  C.goldLight,
+  C.cyan,
+  C.purple,
+  C.orange,
+  C.red,
+  C.gold,
+];
 
 const HOURLY = [
   { time: "07:00", checkin: 0, active: 0 }, { time: "08:00", checkin: 845, active: 320 },
@@ -69,7 +81,7 @@ const BRANDS = [
 const getBrandData = (name: string) => {
   const seed = name.split("").reduce((a, c) => a + c.charCodeAt(0), 0);
   const r = (min: number, max: number) => Math.floor(((seed * 9301 + 49297) % 233280) / 233280 * (max - min) + min);
-  const votes = TOP_BRANDS_VOTE.find(b => b.name === name)?.votes || r(200, 1200);
+  const votes = TOP_BRANDS_VOTE.find(b => b.name === name)?.votes ?? r(200, 1200);
   const rank = TOP_BRANDS_VOTE.findIndex(b => b.name === name) + 1 || r(5, 25);
   const voucherIssued = r(300, 800);
   const voucherClaimed = Math.floor(voucherIssued * (r(45, 82) / 100));
@@ -106,21 +118,34 @@ const SectionTitle = ({ children, color = C.goldLight }: any) => (
   </div>
 );
 
+const buildFunnelRows = (stats: any) => {
+  const totalOrders = Math.max(stats.totalOrders ?? 0, 1);
+
+  return [
+    { stage: "Nguồn Fb", value: stats.sourceFb ?? 0 },
+    { stage: "Nguồn Zalo", value: stats.sourceZalo ?? 0 },
+    { stage: "Nguồn Website", value: stats.sourceWeb ?? 0 },
+    { stage: "Check-in", value: stats.checkedIn ?? 0 },
+    { stage: "Làm nhiệm vụ", value: stats.missionActive ?? 0 },
+    { stage: "Đổi voucher", value: stats.voucherClaimed ?? 0 },
+    { stage: "100% nhiệm vụ", value: stats.vf3Eligible ?? 0 },
+    { stage: "Bình chọn", value: stats.voted ?? 0 },
+  ]
+    .sort((left, right) => right.value - left.value)
+    .map((item, index) => ({
+      ...item,
+      color: FUNNEL_COLORS[index % FUNNEL_COLORS.length],
+      pct: Math.round((item.value / totalOrders) * 100),
+    }));
+};
+
 export default function DashboardClient({ events }: { events: any }) {
   const [view, setView] = useState("leadership");
   const [selectedBrand, setSelectedBrand] = useState("Sulwhasoo");
   const bd = getBrandData(selectedBrand);
 
   const EVENT_STATS = events;
-  
-  const mappedFunnel = [
-    { stage: "Đăng ký", value: EVENT_STATS.registered, pct: 100 },
-    { stage: "Tạo QR", value: EVENT_STATS.qrCreated, pct: Math.round((EVENT_STATS.qrCreated / Math.max(1, EVENT_STATS.registered))*100) },
-    { stage: "Check-in", value: EVENT_STATS.checkedIn, pct: Math.round((EVENT_STATS.checkedIn / Math.max(1, EVENT_STATS.registered))*100) },
-    { stage: "Làm NV", value: EVENT_STATS.missionActive, pct: Math.round((EVENT_STATS.missionActive / Math.max(1, EVENT_STATS.registered))*100) },
-    { stage: "Đổi voucher", value: EVENT_STATS.voucherClaimed, pct: Math.round((EVENT_STATS.voucherClaimed / Math.max(1, EVENT_STATS.registered))*100) },
-    { stage: "100% NV", value: EVENT_STATS.vf3Eligible, pct: Math.round((EVENT_STATS.vf3Eligible / Math.max(1, EVENT_STATS.registered))*100) },
-  ];
+  const mappedFunnel = buildFunnelRows(EVENT_STATS);
 
   return (
     <div className="pb-10 mx-auto" style={{ background: "transparent", fontFamily: F, maxWidth: 1200 }}>
@@ -146,11 +171,13 @@ export default function DashboardClient({ events }: { events: any }) {
         {view === "leadership" && (
           <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
             {/* Top stats */}
-            <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
+            <div style={{ display: "flex", gap: 12, flexWrap: "wrap", alignItems: "flex-start" }}>
               <StatCard label="Đăng ký" value={EVENT_STATS.registered} sub="100%" color={C.cyan} />
-              <StatCard label="Tạo QR" value={EVENT_STATS.qrCreated} sub={`${(EVENT_STATS.qrCreated/Math.max(1, EVENT_STATS.registered)*100).toFixed(1)}%`} color={C.goldLight} />
-              <StatCard label="Check-in" value={EVENT_STATS.checkedIn} sub={`${(EVENT_STATS.checkedIn/Math.max(1, EVENT_STATS.registered)*100).toFixed(1)}%`} color={C.green} />
-              <StatCard label="Đổi voucher" value={EVENT_STATS.voucherClaimed} sub={`${(EVENT_STATS.voucherClaimed/Math.max(1, EVENT_STATS.registered)*100).toFixed(1)}%`} color={C.pink} />
+              <StatCard label="Đã thanh toán" value={EVENT_STATS.paid} sub={`${(EVENT_STATS.paid/Math.max(1, EVENT_STATS.registered)*100).toFixed(1)}%`} color={C.green} />
+              <StatCard label="Chưa TT" value={EVENT_STATS.unpaid} sub={`${(EVENT_STATS.unpaid/Math.max(1, EVENT_STATS.registered)*100).toFixed(1)}%`} color={C.red} />
+              <StatCard label="Check-in" value={EVENT_STATS.checkedIn} sub={`${(EVENT_STATS.checkedIn/Math.max(1, EVENT_STATS.registered)*100).toFixed(1)}%`} color={C.pink} />
+              <StatCard label="Đổi voucher" value={EVENT_STATS.voucherClaimed} sub={`${(EVENT_STATS.voucherClaimed/Math.max(1, EVENT_STATS.registered)*100).toFixed(1)}%`} color={C.goldLight} />
+              <StatCard label="Bình chọn" value={EVENT_STATS.voted} color={C.orange} />
               <StatCard label="Đủ ĐK VF3" value={EVENT_STATS.vf3Eligible} sub="100% nhiệm vụ" color={C.purple} />
             </div>
 
@@ -163,10 +190,10 @@ export default function DashboardClient({ events }: { events: any }) {
                     <div key={i} style={{ display: "flex", alignItems: "center", gap: 10 }}>
                       <div className="text-muted-foreground" style={{ width: 80, fontSize: 11, textAlign: "right", flexShrink: 0 }}>{f.stage}</div>
                       <div className="dark:bg-slate-800 bg-slate-200" style={{ flex: 1, height: 24, borderRadius: 6, overflow: "hidden", position: "relative" }}>
-                        <div style={{ height: "100%", width: `${f.pct}%`, background: `linear-gradient(90deg, ${C.gold}, ${i > 3 ? C.pink : C.goldLight})`, borderRadius: 6, transition: "width 1s ease" }} />
+                        <div style={{ height: "100%", width: `${f.pct}%`, background: f.color, borderRadius: 6, transition: "width 1s ease" }} />
                         <span style={{ position: "absolute", right: 8, top: 4, fontSize: 10, fontWeight: 700, color: "#fff" }}>{f.value.toLocaleString()}</span>
                       </div>
-                      <div style={{ width: 40, fontSize: 11, fontWeight: 700, color: C.goldLight }}>{f.pct}%</div>
+                      <div style={{ width: 40, fontSize: 11, fontWeight: 700, color: f.color }}>{f.pct}%</div>
                     </div>
                   ))}
                 </div>

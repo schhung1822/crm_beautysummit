@@ -123,6 +123,7 @@ model orders {
   utm_source     String?   @db.Text
   utm_medium     String?   @db.Text
   utm_campaign   String?   @db.Text
+  order_id       String?   @db.Text
 
   @@index([nc_order], map: "order_order_idx")
   @@index([ordercode(length: 64)], map: "orders_ordercode_idx")
@@ -192,9 +193,16 @@ model ticket {
   money_sale String?   @db.Text
   time_start DateTime? @db.DateTime(0)
   time_end   DateTime? @db.DateTime(0)
+  img        String?   @db.Text
 
   @@index([nc_order], map: "ticket_order_idx")
   @@index([ticket_id(length: 64)], map: "ticket_ticket_id_idx")
+}
+
+model app_settings {
+  setting_key   String    @id @db.VarChar(100)
+  setting_value String?   @db.Text
+  updated_at    DateTime? @default(now()) @updatedAt @db.DateTime(0)
 }
 
 model token {
@@ -312,13 +320,13 @@ model miniapp_voucher {
 }
 
 model checkin {
-  id Int @id @default(autoincrement()) @db.UnsignedInt
-  order_id Int? @db.UnsignedInt
-  ordercode String? @db.VarChar(64)
-  zone_id String? @db.VarChar(64)
-  zone_name String? @db.VarChar(255)
+  id           Int       @id @default(autoincrement()) @db.UnsignedInt
+  order_id     Int?      @db.UnsignedInt
+  ordercode    String?   @db.VarChar(64)
+  zone_id      String?   @db.VarChar(64)
+  zone_name    String?   @db.VarChar(255)
   checkin_time DateTime? @db.DateTime(0)
-  created_by String? @db.VarChar(255)
+  created_by   String?   @db.VarChar(255)
 
   @@index([ordercode])
   @@index([zone_id])
@@ -351,4 +359,3 @@ model checkin_locations {
   is_active     Int?      @default(1) @db.TinyInt
   event_date    DateTime? @db.Date
 }
-

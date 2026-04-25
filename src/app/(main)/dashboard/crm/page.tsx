@@ -1,11 +1,19 @@
 import { getEventDay1Date } from "@/lib/event-settings";
-import { hasCompletedAllTierMissions, parseStringArray } from "@/lib/miniapp-rewards";
+import {
+  getMiniAppMissionIdsByTier,
+  getMiniAppMissionPhaseKey,
+  hasCompletedAllTierMissions,
+  normalizeMissionId,
+  parseStringArray,
+  type MiniAppMissionTier,
+} from "@/lib/miniapp-rewards";
+import { toDatabasePhone } from "@/lib/phone";
 import { prisma } from "@/lib/prisma";
 
 import DashboardClient from "./dashboard-client";
 
 type HourlyCountRow = { hour: number | string | null; count: bigint | number | string | null };
-type CheckinZoneRow = { name: string | null; count: bigint | number | string | null };
+type CheckinZoneRow = { id: bigint | number | string | null; name: string | null; count: bigint | number | string | null };
 type VoteRankRow = {
   brandId: string | null;
   name: string | null;
@@ -16,6 +24,14 @@ type VoteRankRow = {
   votes: bigint | number | string | null;
 };
 type DailyRegistrationRow = { date: Date | string | null; count: bigint | number | string | null };
+type NotifyEffectRow = {
+  round: bigint | number | string | null;
+  sent: bigint | number | string | null;
+  converted: bigint | number | string | null;
+};
+type TicketTierRow = { phone: string | null; class: string | null };
+type PaymentByTierRow = { tier: string | null; status: string | null; count: bigint | number | string | null };
+type LabelCountRow = { label: string | null; count: bigint | number | string | null };
 type DashboardSearchParams = Promise<Record<string, string | string[] | undefined>>;
 
 function formatDateInputValue(value: Date) {
@@ -71,7 +87,8 @@ function buildCheckinZones(rows: CheckinZoneRow[]) {
   return rows.map((row, index) => {
     const count = Number(row.count ?? 0);
     return {
-      name: String(row.name || "Không rõ"),
+      id: String(row.id ?? index),
+      name: String(row.name ?? "Không rõ"),
       count,
       pct: total > 0 ? Math.round((count / total) * 1000) / 10 : 0,
       color: colors[index % colors.length],
@@ -79,48 +96,104 @@ function buildCheckinZones(rows: CheckinZoneRow[]) {
   });
 }
 
-function getMissionPhase(missionId: string) {
-  const suffix = missionId.split("-").slice(1).join("-");
-  if (suffix.startsWith("b")) return "before";
-  if (suffix.startsWith("d1")) return "day1";
-  if (suffix.startsWith("d2")) return "day2";
+const MISSION_TIER_WEIGHT: Record<MiniAppMissionTier, number> = { GOLD: 1, RUBY: 2, VIP: 3 };
+
+function normalizeMissionTier(value: unknown): MiniAppMissionTier | null {
+  const normalized = String(value ?? "").trim().toUpperCase();
+  if (normalized.includes("VIP")) return "VIP";
+  if (normalized.includes("RUBY") || normalized.includes("PRE")) return "RUBY";
+  if (normalized.includes("GOLD") || normalized.includes("STAN")) return "GOLD";
   return null;
 }
 
-function buildMissionPhases(rewards: Array<{ completed_mission_ids: string | null }>) {
+function inferMissionTier(completedIds: string[]): MiniAppMissionTier {
+  return completedIds.reduce<MiniAppMissionTier>((bestTier, missionId) => {
+    const tier = normalizeMissionTier(missionId.split("-")[0]);
+    if (!tier) return bestTier;
+    return MISSION_TIER_WEIGHT[tier] > MISSION_TIER_WEIGHT[bestTier] ? tier : bestTier;
+  }, "GOLD");
+}
+
+function buildTierByPhone(rows: TicketTierRow[]) {
+  const tierByPhone = new Map<string, MiniAppMissionTier>();
+
+  rows.forEach((row) => {
+    const phone = toDatabasePhone(row.phone);
+    const tier = normalizeMissionTier(row.class);
+    if (!phone || !tier) return;
+
+    const currentTier = tierByPhone.get(phone);
+    if (!currentTier || MISSION_TIER_WEIGHT[tier] > MISSION_TIER_WEIGHT[currentTier]) {
+      tierByPhone.set(phone, tier);
+    }
+  });
+
+  return tierByPhone;
+}
+
+function getMissionSuffix(missionId: string) {
+  return missionId.split("-").slice(1).join("-");
+}
+
+function getMissionPhase(missionId: string) {
+  return getMiniAppMissionPhaseKey(missionId);
+}
+
+function buildMissionPhases(
+  rewards: Array<{ phone: string | null; completed_mission_ids: string | null }>,
+  ticketTierRows: TicketTierRow[],
+  customerCount: number,
+) {
   const rows = [
     { key: "before", phase: "Trước SK", total: 0, completed: 0 },
     { key: "day1", phase: "Ngày 1", total: 0, completed: 0 },
     { key: "day2", phase: "Ngày 2", total: 0, completed: 0 },
   ];
   const rowMap = new Map(rows.map((row) => [row.key, row]));
+  const missionIdsByTier = getMiniAppMissionIdsByTier();
+  const allMissionIds = Object.values(missionIdsByTier).flat();
+  const tierByPhone = buildTierByPhone(ticketTierRows);
+
+  rows.forEach((row) => {
+    row.total = new Set(
+      allMissionIds
+        .filter((missionId) => getMissionPhase(missionId) === row.key)
+        .map(getMissionSuffix),
+    ).size;
+  });
 
   rewards.forEach((reward) => {
-    const seenPhases = new Set<string>();
-    parseStringArray(reward.completed_mission_ids).forEach((missionId) => {
-      const phase = getMissionPhase(missionId);
-      if (!phase) return;
-      rowMap.get(phase)!.completed += 1;
-      seenPhases.add(phase);
-    });
-    seenPhases.forEach((phase) => {
-      rowMap.get(phase)!.total += 1;
+    const completedIds = parseStringArray(reward.completed_mission_ids);
+    const completedSet = new Set(completedIds.map(normalizeMissionId).filter(Boolean));
+    const phone = toDatabasePhone(reward.phone);
+    const tier = (phone ? tierByPhone.get(phone) : null) ?? inferMissionTier(completedIds);
+
+    rows.forEach((row) => {
+      const phaseMissionIds = missionIdsByTier[tier].filter((missionId) => getMissionPhase(missionId) === row.key);
+      if (phaseMissionIds.length === 0) return;
+      if (phaseMissionIds.every((missionId) => completedSet.has(missionId))) {
+        rowMap.get(row.key)!.completed += 1;
+      }
     });
   });
 
-  return rows.map(({ key: _key, ...row }) => ({
-    ...row,
-    avg: row.total > 0 ? Math.round(row.completed / row.total) : 0,
-  }));
+  return rows.map(({ key: _key, ...row }) => {
+    const possible = customerCount;
+    return {
+      ...row,
+      possible,
+      avg: possible > 0 ? Math.round((row.completed / possible) * 1000) / 10 : 0,
+    };
+  });
 }
 
 function buildTopVotes(rows: VoteRankRow[]) {
   return rows.map((row) => ({
     id: String(row.brandId ?? ""),
-    name: String(row.product || row.name || "Không rõ"),
-    cat: String(row.category || ""),
-    logo: String(row.logo || ""),
-    productImage: String(row.productImage || ""),
+    name: String(row.product ?? row.name ?? "Không rõ"),
+    cat: String(row.category ?? ""),
+    logo: String(row.logo ?? ""),
+    productImage: String(row.productImage ?? ""),
     votes: Number(row.votes ?? 0),
   }));
 }
@@ -147,6 +220,56 @@ function buildDailyRegistration(rows: DailyRegistrationRow[], eventDay1: string)
   });
 }
 
+function buildPaymentByTier(rows: PaymentByTierRow[]) {
+  const tiers = ["VIP", "GOLD", "RUBY"] as const;
+  const map = new Map(tiers.map((tier) => [tier, { tier, new: 0, paydone: 0 }]));
+
+  rows.forEach((row) => {
+    const tier = String(row.tier ?? "").trim().toUpperCase();
+    if (!map.has(tier as typeof tiers[number])) return;
+    const status = String(row.status ?? "").toLowerCase() === "paydone" ? "paydone" : "new";
+    map.get(tier as typeof tiers[number])![status] += Number(row.count ?? 0);
+  });
+
+  return tiers.map((tier) => map.get(tier)!);
+}
+
+function buildLabelStats(rows: LabelCountRow[], limit: number) {
+  return rows
+    .map((row) => {
+      const raw = String(row.label ?? "").trim();
+      return {
+        label: raw || "(trống)",
+        count: Number(row.count ?? 0),
+      };
+    })
+    .filter((row) => row.count > 0)
+    .sort((a, b) => b.count - a.count)
+    .slice(0, limit);
+}
+
+function buildNotifyStats(rows: NotifyEffectRow[]) {
+  const labels = [
+    "Lần 1 - Nhắc lịch",
+    "Lần 2 - Early bird",
+    "Lần 3 - Countdown",
+    "Lần 4 - Cuối cùng",
+  ];
+  const rowByRound = new Map(rows.map((row) => [Number(row.round ?? 0), row]));
+
+  return labels.map((round, index) => {
+    const row = rowByRound.get(index);
+    const sent = Number(row?.sent ?? 0);
+    const converted = Number(row?.converted ?? 0);
+    return {
+      round,
+      sent,
+      converted,
+      cvr: sent > 0 ? Math.round((converted / sent) * 1000) / 10 : 0,
+    };
+  });
+}
+
 export default async function DashboardPage({ searchParams }: { searchParams: DashboardSearchParams }) {
   const params = await searchParams;
   const eventDay1 = await getEventDay1Date();
@@ -162,22 +285,32 @@ export default async function DashboardPage({ searchParams }: { searchParams: Da
     paidCount,
     unpaidCount,
     orderSources,
+    customerCount,
     votedRecords,
     rewards,
+    ticketTierRows,
     grandPrizeVouchers,
     activeUserRows,
     checkinRows,
     checkinZoneRows,
     topVoteRows,
     dailyRegistrationRows,
+    notifyEffectRows,
+    paymentByTierRows,
+    careerStatsRows,
+    hopeStatsRows,
   ] = await Promise.all([
     prisma.orders.count({ where: { is_checkin: 1 } }),
     prisma.orders.count({ where: { status: 'paydone' } }),
     prisma.orders.count({ where: { NOT: { status: 'paydone' } } }),
     prisma.orders.findMany({ select: { source: true } }),
+    prisma.customer.count(),
     prisma.voted.groupBy({ by: ['phone'] }),
     prisma.miniapp_user_reward_state.findMany({
-      select: { completed_mission_ids: true, redeemed_voucher_ids: true }
+      select: { phone: true, completed_mission_ids: true, redeemed_voucher_ids: true }
+    }),
+    prisma.orders.findMany({
+      select: { phone: true, class: true },
     }),
     prisma.miniapp_voucher.findMany({
       where: { is_grand: 1 },
@@ -200,25 +333,30 @@ export default async function DashboardPage({ searchParams }: { searchParams: Da
       ORDER BY hour ASC
     `,
     prisma.$queryRaw<CheckinZoneRow[]>`
-      SELECT COALESCE(zone_name, zone_id, 'Không rõ') AS name, COUNT(*) AS count
-      FROM checkin_log
-      GROUP BY COALESCE(zone_name, zone_id, 'Không rõ')
-      ORDER BY count DESC
+      SELECT
+        cl.id AS id,
+        cl.name AS name,
+        COUNT(logs.id) AS count
+      FROM checkin_locations cl
+      LEFT JOIN checkin_log logs
+        ON logs.zone_id COLLATE utf8mb4_unicode_ci = CAST(cl.id AS CHAR) COLLATE utf8mb4_unicode_ci
+      GROUP BY cl.id, cl.name, cl.nc_order
+      ORDER BY cl.nc_order ASC, cl.id ASC
     `,
     prisma.$queryRaw<VoteRankRow[]>`
       SELECT
-        v.brand_id AS brandId,
-        COALESCE(b.product, b.brand_name, v.brand_id) AS name,
+        b.brand_id AS brandId,
+        COALESCE(b.product, b.brand_name, b.brand_id) AS name,
         b.product AS product,
         b.category AS category,
         b.logo_url AS logo,
         b.link AS productImage,
-        COUNT(*) AS votes
-      FROM voted v
-      LEFT JOIN brand b ON b.brand_id = v.brand_id
-      WHERE COALESCE(TRIM(v.brand_id), '') <> ''
-      GROUP BY v.brand_id, b.product, b.brand_name, b.category, b.logo_url, b.link
-      ORDER BY votes DESC, name ASC
+        COUNT(v.id) AS votes
+      FROM brand b
+      LEFT JOIN voted v ON v.brand_id COLLATE utf8mb4_unicode_ci = b.brand_id COLLATE utf8mb4_unicode_ci
+      WHERE COALESCE(TRIM(b.brand_id), '') <> ''
+      GROUP BY b.id, b.brand_id, b.product, b.brand_name, b.category, b.logo_url, b.link, b.nc_order
+      ORDER BY votes DESC, name ASC, b.nc_order ASC, b.id ASC
       LIMIT 10
     `,
     prisma.$queryRaw<DailyRegistrationRow[]>`
@@ -228,6 +366,51 @@ export default async function DashboardPage({ searchParams }: { searchParams: Da
         AND create_time < ${registrationEnd}
       GROUP BY DATE(create_time)
       ORDER BY date ASC
+    `,
+    prisma.$queryRaw<NotifyEffectRow[]>`
+      SELECT 0 AS round, COUNT(*) AS sent,
+        SUM(CASE WHEN status = 'paydone' THEN 1 ELSE 0 END) AS converted
+      FROM orders
+      UNION ALL
+      SELECT 1 AS round, COUNT(*) AS sent,
+        SUM(CASE WHEN status = 'paydone' THEN 1 ELSE 0 END) AS converted
+      FROM orders WHERE COALESCE(send_noti, 0) >= 1
+      UNION ALL
+      SELECT 2 AS round, COUNT(*) AS sent,
+        SUM(CASE WHEN status = 'paydone' THEN 1 ELSE 0 END) AS converted
+      FROM orders WHERE COALESCE(send_noti, 0) >= 2
+      UNION ALL
+      SELECT 3 AS round, COUNT(*) AS sent,
+        SUM(CASE WHEN status = 'paydone' THEN 1 ELSE 0 END) AS converted
+      FROM orders WHERE COALESCE(send_noti, 0) >= 3
+      ORDER BY round ASC
+    `,
+    prisma.$queryRaw<PaymentByTierRow[]>`
+      SELECT
+        UPPER(TRIM(class)) AS tier,
+        CASE WHEN LOWER(TRIM(status)) = 'paydone' THEN 'paydone' ELSE 'new' END AS status,
+        COUNT(*) AS count
+      FROM orders
+      WHERE UPPER(TRIM(class)) IN ('VIP', 'GOLD', 'RUBY')
+      GROUP BY tier, status
+    `,
+    prisma.$queryRaw<LabelCountRow[]>`
+      SELECT
+        COALESCE(NULLIF(TRIM(career), ''), '(trống)') AS label,
+        COUNT(*) AS count
+      FROM orders
+      GROUP BY label
+      ORDER BY count DESC
+      LIMIT 12
+    `,
+    prisma.$queryRaw<LabelCountRow[]>`
+      SELECT
+        COALESCE(NULLIF(TRIM(hope), ''), '(trống)') AS label,
+        COUNT(*) AS count
+      FROM orders
+      GROUP BY label
+      ORDER BY count DESC
+      LIMIT 12
     `,
   ]);
 
@@ -285,9 +468,13 @@ export default async function DashboardPage({ searchParams }: { searchParams: Da
     hourlyStats: buildHourlyStats(activeUserRows, checkinRows, selectedDate),
     hourlyDate: selectedDateKey,
     checkinZones: buildCheckinZones(checkinZoneRows),
-    missionPhases: buildMissionPhases(rewards),
+    missionPhases: buildMissionPhases(rewards, ticketTierRows, customerCount),
     topVotes: buildTopVotes(topVoteRows),
     dailyRegistrations: buildDailyRegistration(dailyRegistrationRows, eventDay1),
+    notifyStats: buildNotifyStats(notifyEffectRows),
+    paymentByTier: buildPaymentByTier(paymentByTierRows),
+    careerStats: buildLabelStats(careerStatsRows, 10),
+    hopeStats: buildLabelStats(hopeStatsRows, 10),
     eventDay1,
   };
 

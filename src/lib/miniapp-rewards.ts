@@ -123,7 +123,7 @@ const BASE_MISSION_POINTS = [
   ["d2-2", 10],
 ] as const;
 
-type MiniAppMissionTier = "GOLD" | "RUBY" | "VIP";
+export type MiniAppMissionTier = "GOLD" | "RUBY" | "VIP";
 
 const RUBY_MISSION_POINTS = [
   ["b4", 10],
@@ -184,7 +184,7 @@ function normalizeMissionTierPrefix(value: unknown): MiniAppMissionTier | null {
   return null;
 }
 
-function normalizeMissionId(value: unknown): string {
+export function normalizeMissionId(value: unknown): string {
   const raw = String(value ?? "").trim();
   if (!raw) {
     return "";
@@ -219,6 +219,24 @@ const MISSION_ID_MAP = {
   RUBY: Object.keys(MISSION_POINT_MAP).filter((missionId) => missionId.startsWith("RUBY-")),
   VIP: Object.keys(MISSION_POINT_MAP).filter((missionId) => missionId.startsWith("VIP-")),
 } as const;
+
+export function getMiniAppMissionIdsByTier(): Record<MiniAppMissionTier, string[]> {
+  return {
+    GOLD: [...MISSION_ID_MAP.GOLD],
+    RUBY: [...MISSION_ID_MAP.RUBY],
+    VIP: [...MISSION_ID_MAP.VIP],
+  };
+}
+
+export function getMiniAppMissionPhaseKey(missionId: string): "before" | "day1" | "day2" | null {
+  const normalizedMissionId = normalizeMissionId(missionId);
+  const suffix = normalizedMissionId.split("-").slice(1).join("-");
+
+  if (suffix.startsWith("b")) return "before";
+  if (suffix.startsWith("d1")) return "day1";
+  if (suffix.startsWith("d2")) return "day2";
+  return null;
+}
 
 function parseString(value: unknown): string {
   return String(value ?? "").trim();

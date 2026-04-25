@@ -2,11 +2,11 @@
 
 import { useState } from "react";
 
-import { BarChart, Bar, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
+import { Crown, Medal } from "lucide-react";
+import { BarChart, Bar, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
 
 import { DatePicker } from "@/components/ui/date-picker";
 
-const F = "'Be Vietnam Pro', sans-serif";
 const C = {
   navy: "#1E1656",
   dark: "var(--background)",
@@ -18,6 +18,54 @@ const C = {
   green: "#22C55E",
   red: "#EF4444",
   orange: "#F97316",
+};
+
+const panelClass = "rounded-2xl border border-slate-200 bg-slate-50 p-5 dark:border-slate-800 dark:bg-slate-900";
+const metricClass = "font-['Playfair_Display'] text-[28px] font-extrabold leading-none";
+const chartTick = { fill: "rgba(150,150,150,0.5)", fontSize: 10 };
+const subtleGrid = "rgba(150,150,150,0.1)";
+
+const textColorClass: Record<string, string> = {
+  [C.pink]: "text-[#F0588C]",
+  [C.gold]: "text-[#B8860B]",
+  [C.goldLight]: "text-[#FFD700]",
+  [C.cyan]: "text-[#5BC8D8]",
+  [C.purple]: "text-[#9B7DB8]",
+  [C.green]: "text-[#22C55E]",
+  [C.red]: "text-[#EF4444]",
+  [C.orange]: "text-[#F97316]",
+};
+
+const bgColorClass: Record<string, string> = {
+  [C.pink]: "bg-[#F0588C]",
+  [C.gold]: "bg-[#B8860B]",
+  [C.goldLight]: "bg-[#FFD700]",
+  [C.cyan]: "bg-[#5BC8D8]",
+  [C.purple]: "bg-[#9B7DB8]",
+  [C.green]: "bg-[#22C55E]",
+  [C.red]: "bg-[#EF4444]",
+  [C.orange]: "bg-[#F97316]",
+  "#6366F1": "bg-[#6366F1]",
+  "#10B981": "bg-[#10B981]",
+  "#F59E0B": "bg-[#F59E0B]",
+};
+
+const getTextColor = (color?: string) => textColorClass[color ?? ""] ?? "text-inherit";
+const getBgColor = (color?: string) => bgColorClass[color ?? ""] ?? "bg-slate-500";
+const getPctWidthClass = (pct: number) => {
+  if (pct >= 95) return "w-full";
+  if (pct >= 90) return "w-[90%]";
+  if (pct >= 80) return "w-4/5";
+  if (pct >= 75) return "w-3/4";
+  if (pct >= 66) return "w-2/3";
+  if (pct >= 60) return "w-3/5";
+  if (pct >= 50) return "w-1/2";
+  if (pct >= 40) return "w-2/5";
+  if (pct >= 33) return "w-1/3";
+  if (pct >= 25) return "w-1/4";
+  if (pct >= 20) return "w-1/5";
+  if (pct > 0) return "w-[12%]";
+  return "w-0";
 };
 
 const FUNNEL_COLORS = [
@@ -40,12 +88,20 @@ const DEFAULT_MISSION_PHASES = [
 ];
 const DEFAULT_TOP_VOTES: Array<{ name: string; votes: number; cat: string; logo?: string; productImage?: string }> = [];
 const DEFAULT_DAILY_REG = [{ date: "--/--", reg: 0 }];
-const NOTIFY_STATS = [
-  { round: "Lần 1 — Nhắc lịch", sent: 4200, opened: 2940, converted: 680, openRate: 70, cvr: 16.2 },
-  { round: "Lần 2 — Early bird", sent: 3520, opened: 2464, converted: 520, openRate: 70, cvr: 14.8 },
-  { round: "Lần 3 — Countdown", sent: 3000, opened: 2250, converted: 430, openRate: 75, cvr: 14.3 },
-  { round: "Lần 4 — Last call", sent: 2570, opened: 2056, converted: 380, openRate: 80, cvr: 14.8 },
+const DEFAULT_NOTIFY_STATS = [
+  { round: "Lần 1 - Nhắc lịch", sent: 0, converted: 0, cvr: 0 },
+  { round: "Lần 2 - Early bird", sent: 0, converted: 0, cvr: 0 },
+  { round: "Lần 3 - Countdown", sent: 0, converted: 0, cvr: 0 },
+  { round: "Lần 4 - Cuối cùng", sent: 0, converted: 0, cvr: 0 },
 ];
+const DEFAULT_PAYMENT_BY_TIER = [
+  { tier: "VIP", new: 0, paydone: 0 },
+  { tier: "GOLD", new: 0, paydone: 0 },
+  { tier: "RUBY", new: 0, paydone: 0 },
+];
+const DEFAULT_LABEL_STATS: Array<{ label: string; count: number }> = [{ label: "Chưa có dữ liệu", count: 0 }];
+
+const truncateLabel = (value: string, max = 32) => (value.length > max ? `${value.slice(0, max - 1)}…` : value);
 
 const BRANDS = [
   "Sulwhasoo", "SK-II", "La Roche-Posay", "Estée Lauder", "Dermalogica",
@@ -79,16 +135,16 @@ const getBrandData = (name: string) => {
 };
 
 const StatCard = ({ label, value, sub, color = C.goldLight }: any) => (
-  <div className="dark:bg-slate-900 bg-slate-50 border border-slate-200 dark:border-slate-800" style={{ borderRadius: 16, padding: "20px 18px", flex: 1, minWidth: 140 }}>
-    <div className="text-[11px] text-muted-foreground font-medium mb-[6px]" style={{ fontFamily: F }}>{label}</div>
-    <div style={{ fontSize: 28, fontWeight: 800, color, fontFamily: "'Playfair Display', serif", lineHeight: 1 }}>{typeof value === "number" ? value.toLocaleString() : value}</div>
-    {sub && <div className="text-[10px] text-muted-foreground mt-1" style={{ fontFamily: F }}>{sub}</div>}
+  <div className={`${panelClass} min-w-[140px] flex-1 px-[18px] py-5`}>
+    <div className="mb-[6px] text-[11px] font-medium text-muted-foreground">{label}</div>
+    <div className={`${metricClass} ${getTextColor(color)}`}>{typeof value === "number" ? value.toLocaleString() : value}</div>
+    {sub && <div className="mt-1 text-[10px] text-muted-foreground">{sub}</div>}
   </div>
 );
 
 const SectionTitle = ({ children, color = C.goldLight }: any) => (
-  <div className="text-foreground" style={{ fontSize: 16, fontWeight: 700, fontFamily: F, marginBottom: 16, display: "flex", alignItems: "center", gap: 8 }}>
-    <div style={{ width: 4, height: 20, borderRadius: 2, background: color }} />
+  <div className="mb-4 flex items-center gap-2 text-base font-bold text-foreground">
+    <div className={`h-5 w-1 rounded-[2px] ${getBgColor(color)}`} />
     {children}
   </div>
 );
@@ -110,11 +166,47 @@ const buildFunnelRows = (stats: any) => {
     .map((item, index) => ({
       ...item,
       color: FUNNEL_COLORS[index % FUNNEL_COLORS.length],
+      colorClass: getBgColor(FUNNEL_COLORS[index % FUNNEL_COLORS.length]),
+      textClass: getTextColor(FUNNEL_COLORS[index % FUNNEL_COLORS.length]),
       pct: Math.round((item.value / totalOrders) * 100),
     }));
 };
 
-const isImageUrl = (value?: string): boolean => /^(data:image\/|https?:\/\/|\/)/i.test(String(value ?? "").trim());
+const buildConversionFunnelRows = (stats: any) => {
+  const totalOrders = Number(stats.totalOrders ?? stats.registered ?? 0);
+  const paid = Number(stats.paid ?? 0);
+  const checkedIn = Number(stats.checkedIn ?? 0);
+
+  return [
+    { stage: "Tổng đơn", value: totalOrders, pct: 100, colorClass: "bg-[#6366F1]", shapeClass: "h-[86px] w-[96%] min-w-60" },
+    { stage: "Đã thanh toán", value: paid, pct: totalOrders > 0 ? Math.round((paid / totalOrders) * 1000) / 10 : 0, colorClass: "bg-[#10B981]", shapeClass: "h-[86px] w-[96%] min-w-60 [clip-path:polygon(0_0,100%_0,78%_100%,22%_100%)]" },
+    { stage: "Đã check-in", value: checkedIn, pct: paid > 0 ? Math.round((checkedIn / paid) * 1000) / 10 : 0, colorClass: "bg-[#F59E0B]", shapeClass: "h-[84px] w-[54%] min-w-36 [clip-path:polygon(0_0,100%_0,72%_100%,28%_100%)]" },
+  ];
+};
+
+const isImageUrl = (value?: string): boolean => /^(data:image\/|https?:\/\/|\/?(avatars|images|public)\/|\/)/i.test(String(value ?? "").trim());
+
+const getVoteImageUrl = (value?: string) => {
+  const trimmed = String(value ?? "").trim();
+  if (!trimmed || !isImageUrl(trimmed)) return "";
+  if (/^(https?:\/\/|data:image\/|\/)/i.test(trimmed)) return trimmed;
+  return `/${trimmed}`;
+};
+
+const buildVoteFallback = (value: string) =>
+  value
+    .trim()
+    .split(/\s+/)
+    .slice(0, 2)
+    .map((part) => part.charAt(0).toUpperCase())
+    .join("");
+
+const buildTopVoteRows = (rows: any[]) => {
+  const safeRows = Array.isArray(rows) ? rows : [];
+  return Array.from({ length: 10 }, (_, index) => {
+    return safeRows[index] ?? { name: "Chưa có dữ liệu", votes: 0, cat: "", logo: "", productImage: "", empty: true };
+  });
+};
 
 export default function DashboardClient({ events }: { events: any }) {
   const [view, setView] = useState("leadership");
@@ -123,13 +215,18 @@ export default function DashboardClient({ events }: { events: any }) {
 
   const EVENT_STATS = events;
   const mappedFunnel = buildFunnelRows(EVENT_STATS);
+  const conversionFunnel = buildConversionFunnelRows(EVENT_STATS);
   const hourlyStats = Array.isArray(EVENT_STATS.hourlyStats) && EVENT_STATS.hourlyStats.length > 0 ? EVENT_STATS.hourlyStats : DEFAULT_HOURLY;
   const hourlyDate = String(EVENT_STATS.hourlyDate ?? "");
   const eventDay1 = String(EVENT_STATS.eventDay1 ?? "");
   const checkinZones = Array.isArray(EVENT_STATS.checkinZones) && EVENT_STATS.checkinZones.length > 0 ? EVENT_STATS.checkinZones : DEFAULT_ZONES;
   const missionPhases = Array.isArray(EVENT_STATS.missionPhases) && EVENT_STATS.missionPhases.length > 0 ? EVENT_STATS.missionPhases : DEFAULT_MISSION_PHASES;
-  const topVotes = Array.isArray(EVENT_STATS.topVotes) ? EVENT_STATS.topVotes : DEFAULT_TOP_VOTES;
+  const topVotes = buildTopVoteRows(Array.isArray(EVENT_STATS.topVotes) ? EVENT_STATS.topVotes : DEFAULT_TOP_VOTES);
   const dailyRegistrations = Array.isArray(EVENT_STATS.dailyRegistrations) && EVENT_STATS.dailyRegistrations.length > 0 ? EVENT_STATS.dailyRegistrations : DEFAULT_DAILY_REG;
+  const notifyStats = Array.isArray(EVENT_STATS.notifyStats) && EVENT_STATS.notifyStats.length > 0 ? EVENT_STATS.notifyStats : DEFAULT_NOTIFY_STATS;
+  const paymentByTier = Array.isArray(EVENT_STATS.paymentByTier) && EVENT_STATS.paymentByTier.length > 0 ? EVENT_STATS.paymentByTier : DEFAULT_PAYMENT_BY_TIER;
+  const careerStats = Array.isArray(EVENT_STATS.careerStats) && EVENT_STATS.careerStats.length > 0 ? EVENT_STATS.careerStats : DEFAULT_LABEL_STATS;
+  const hopeStats = Array.isArray(EVENT_STATS.hopeStats) && EVENT_STATS.hopeStats.length > 0 ? EVENT_STATS.hopeStats : DEFAULT_LABEL_STATS;
 
   const handleHourlyDateChange = (nextDate: string) => {
     const params = new URLSearchParams(window.location.search);
@@ -152,30 +249,28 @@ export default function DashboardClient({ events }: { events: any }) {
   };
 
   return (
-    <div className="pb-10 mx-auto" style={{ background: "transparent", fontFamily: F, maxWidth: 1200 }}>
+    <div className="mx-auto max-w-[1200px] bg-transparent pb-10">
       {/* HEADER */}
-      <div className="border-b border-slate-200 dark:border-slate-800" style={{ padding: "12px 0px 20px 0px", display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 12 }}>
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 px-0 pb-5 pt-3 dark:border-slate-800">
         <div>
-          <div style={{ fontSize: 10, letterSpacing: 4, color: C.gold, fontWeight: 700, marginBottom: 4 }}>BEAUTYVERSE</div>
-          <div className="text-foreground" style={{ fontSize: 20, fontWeight: 800, fontFamily: "'Playfair Display', serif" }}>Dashboard</div>
+          <div className="mb-1 text-[10px] font-bold tracking-[4px] text-[#B8860B]">BEAUTYVERSE</div>
+          <div className="font-['Playfair_Display'] text-xl font-extrabold text-foreground">Dashboard</div>
         </div>
-        <div style={{ display: "flex", gap: 6 }}>
+        <div className="flex gap-1.5">
           {[
             { key: "leadership", label: "📊 Ban Lãnh Đạo" },
             { key: "brand", label: "🏢 Nhãn Hàng" },
           ].map(t => (
-            <button key={t.key} onClick={() => setView(t.key)} className={`transition-colors font-medium text-[13px] px-5 py-2.5 rounded-lg ${view === t.key ? "bg-amber-500 text-black font-bold" : "bg-slate-100 dark:bg-slate-800 text-muted-foreground"}`} style={{
-              border: "none", cursor: "pointer", fontFamily: F,
-            }}>{t.label}</button>
+            <button key={t.key} onClick={() => setView(t.key)} className={`cursor-pointer rounded-lg border-0 px-5 py-2.5 text-[13px] font-medium transition-colors ${view === t.key ? "bg-amber-500 font-bold text-black" : "bg-slate-100 text-muted-foreground dark:bg-slate-800"}`}>{t.label}</button>
           ))}
         </div>
       </div>
 
-      <div style={{ paddingTop: "24px" }}>
+      <div className="pt-6">
         {view === "leadership" && (
-          <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
+          <div className="flex flex-col gap-6">
             {/* Top stats */}
-            <div style={{ display: "flex", gap: 12, flexWrap: "wrap", alignItems: "flex-start" }}>
+            <div className="flex flex-wrap items-start gap-3">
               <StatCard label="Đăng ký" value={EVENT_STATS.registered} color={C.cyan} />
               <StatCard label="Đã thanh toán" value={EVENT_STATS.paid} color={C.green} />
               <StatCard label="Chưa TT" value={EVENT_STATS.unpaid} color={C.red} />
@@ -187,23 +282,23 @@ export default function DashboardClient({ events }: { events: any }) {
 
             {/* Funnel + Hourly */}
             <div className="grid grid-cols-1 md:grid-cols-[0.85fr_1.35fr] gap-[20px]">
-              <div className="dark:bg-slate-900 bg-slate-50 border border-slate-200 dark:border-slate-800" style={{ borderRadius: 16, padding: 20 }}>
+              <div className={panelClass}>
                 <SectionTitle>Funnel chuyển đổi</SectionTitle>
-                <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                <div className="flex flex-col gap-2">
                   {mappedFunnel.map((f, i) => (
-                    <div key={i} style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                      <div className="text-muted-foreground" style={{ width: 80, fontSize: 11, textAlign: "right", flexShrink: 0 }}>{f.stage}</div>
-                      <div className="dark:bg-slate-800 bg-slate-200" style={{ flex: 1, height: 24, borderRadius: 6, overflow: "hidden", position: "relative" }}>
-                        <div style={{ height: "100%", width: `${f.pct}%`, background: f.color, borderRadius: 6, transition: "width 1s ease" }} />
-                        <span style={{ position: "absolute", right: 8, top: 4, fontSize: 10, fontWeight: 700, color: "#fff" }}>{f.value.toLocaleString()}</span>
+                    <div key={i} className="flex items-center gap-2.5">
+                      <div className="w-20 shrink-0 text-right text-[11px] text-muted-foreground">{f.stage}</div>
+                      <div className="relative h-6 flex-1 overflow-hidden rounded-md bg-slate-200 dark:bg-slate-800">
+                        <div className={`h-full rounded-md transition-[width] duration-1000 ${f.colorClass} ${getPctWidthClass(f.pct)}`} />
+                        <span className="absolute right-2 top-1 text-[10px] font-bold text-white">{f.value.toLocaleString()}</span>
                       </div>
-                      <div style={{ width: 40, fontSize: 11, fontWeight: 700, color: f.color }}>{f.pct}%</div>
+                      <div className={`w-10 text-[11px] font-bold ${f.textClass}`}>{f.pct}%</div>
                     </div>
                   ))}
                 </div>
               </div>
 
-              <div className="dark:bg-slate-900 bg-slate-50 border border-slate-200 dark:border-slate-800" style={{ borderRadius: 16, padding: 20 }}>
+              <div className={panelClass}>
                 <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
                   <SectionTitle color={C.cyan}>Check-in & Active theo giờ</SectionTitle>
                   <DatePicker
@@ -219,10 +314,10 @@ export default function DashboardClient({ events }: { events: any }) {
                         <linearGradient id="gCI" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor={C.gold} stopOpacity={0.3}/><stop offset="100%" stopColor={C.gold} stopOpacity={0}/></linearGradient>
                         <linearGradient id="gAct" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor={C.cyan} stopOpacity={0.3}/><stop offset="100%" stopColor={C.cyan} stopOpacity={0}/></linearGradient>
                       </defs>
-                      <CartesianGrid strokeDasharray="3 3" stroke="rgba(150,150,150,0.1)" />
-                      <XAxis dataKey="time" tick={{ fill: "rgba(150,150,150,0.5)", fontSize: 10 }} />
-                      <YAxis tick={{ fill: "rgba(150,150,150,0.5)", fontSize: 10 }} />
-                      <Tooltip contentStyle={{ background: "#222", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 8, fontSize: 12, color: "#fff" }} />
+                      <CartesianGrid strokeDasharray="3 3" stroke={subtleGrid} />
+                      <XAxis dataKey="time" tick={chartTick} />
+                      <YAxis tick={chartTick} />
+                      <Tooltip />
                       <Area type="monotone" dataKey="checkin" stroke={C.gold} fill="url(#gCI)" name="Check-in" />
                       <Area type="monotone" dataKey="active" stroke={C.cyan} fill="url(#gAct)" name="Active user" />
                     </AreaChart>
@@ -232,32 +327,49 @@ export default function DashboardClient({ events }: { events: any }) {
             </div>
 
             {/* Zone + Missions */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-[20px]">
-              <div className="dark:bg-slate-900 bg-slate-50 border border-slate-200 dark:border-slate-800" style={{ borderRadius: 16, padding: 20 }}>
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-[20px]">
+              <div className={panelClass}>
                 <SectionTitle color={C.pink}>Check-in theo khu vực</SectionTitle>
-                {checkinZones.map((z: any, i: number) => (
-                  <div key={i} style={{ marginBottom: 14 }}>
-                    <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
-                      <span className="text-foreground" style={{ fontSize: 13, fontWeight: 600 }}>{z.name}</span>
-                      <span style={{ fontSize: 13, fontWeight: 700, color: z.color }}>{z.count.toLocaleString()}</span>
+                <div className="max-h-[300px] overflow-y-auto pr-1.5">
+                  {checkinZones.map((z: any, i: number) => (
+                    <div key={z.id ?? i} className="mb-3.5">
+                      <div className="mb-1 flex justify-between">
+                        <span className="text-[13px] font-semibold text-foreground">{z.name}</span>
+                        <span className={`text-[13px] font-bold ${getTextColor(z.color)}`}>{z.count.toLocaleString()}</span>
+                      </div>
+                      <div className="h-2 overflow-hidden rounded bg-slate-200 dark:bg-slate-800">
+                        <div className={`h-full rounded ${getBgColor(z.color)} ${getPctWidthClass(z.pct)}`} />
+                      </div>
+                      <div className="mt-0.5 text-[10px] text-muted-foreground">{z.pct}% tổng check-in</div>
                     </div>
-                    <div className="dark:bg-slate-800 bg-slate-200" style={{ height: 8, borderRadius: 4, overflow: "hidden" }}>
-                      <div style={{ height: "100%", width: `${z.pct}%`, background: z.color, borderRadius: 4 }} />
-                    </div>
-                    <div className="text-muted-foreground" style={{ fontSize: 10, marginTop: 2 }}>{z.pct}% tổng check-in</div>
-                  </div>
-                ))}
+                  ))}
+                </div>
               </div>
 
-              <div className="dark:bg-slate-900 bg-slate-50 border border-slate-200 dark:border-slate-800" style={{ borderRadius: 16, padding: 20 }}>
+              <div className={panelClass}>
+                <SectionTitle>Phễu chuyển đổi</SectionTitle>
+                <div className="flex flex-col items-center gap-0.5 px-1 pb-3">
+                  {conversionFunnel.map((f, i) => (
+                    <div key={f.stage} className={`flex h-fit py-2 flex-col items-center justify-center text-center text-white ${f.colorClass} ${f.shapeClass}`}>
+                      <div className="text-base font-bold">{f.stage}</div>
+                      <div className="mt-0.5 text-[12px]">{f.value.toLocaleString()} - {f.pct}%</div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div className={panelClass}>
                 <SectionTitle color={C.green}>Nhiệm vụ theo giai đoạn</SectionTitle>
                 {missionPhases.map((m: any, i: number) => (
-                  <div key={i} className="dark:bg-slate-800 bg-slate-100 border border-slate-200 dark:border-slate-700" style={{ marginBottom: 16, padding: 14, borderRadius: 10 }}>
-                    <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
-                      <span className="text-foreground" style={{ fontSize: 13, fontWeight: 700 }}>{m.phase}</span>
-                      <span style={{ fontSize: 12, color: C.green, fontWeight: 700 }}>{m.avg}% trung bình</span>
+                  <div key={i} className="mb-4 rounded-[10px] border border-slate-200 bg-slate-100 p-3.5 dark:border-slate-700 dark:bg-slate-800">
+                    <div className="mb-1 flex justify-between">
+                      <span className="text-[13px] font-bold text-foreground">{m.phase}</span>
+                      <span className="text-xs font-bold text-[#22C55E]">{m.avg}% trung bình</span>
                     </div>
-                    <div className="text-muted-foreground" style={{ fontSize: 11 }}>{m.total} nhiệm vụ · {m.completed.toLocaleString()} lượt hoàn thành</div>
+                    <div className="text-[11px] text-muted-foreground">
+                      {m.total} nhiệm vụ · {m.completed.toLocaleString()}
+                      {Number(m.possible ?? 0) > 0 ? `/${Number(m.possible).toLocaleString()}` : ""} lượt hoàn thành
+                    </div>
                   </div>
                 ))}
               </div>
@@ -265,52 +377,147 @@ export default function DashboardClient({ events }: { events: any }) {
 
             {/* Top brands + Notify */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-[20px]">
-              <div className="dark:bg-slate-900 bg-slate-50 border border-slate-200 dark:border-slate-800" style={{ borderRadius: 16, padding: 20 }}>
+              <div className={panelClass}>
                 <SectionTitle color={C.purple}>Top 10 bình chọn</SectionTitle>
-                <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-                  {topVotes.map((b: any, i: number) => {
-                    const imageUrl = b.logo || b.productImage;
-                    return (
-                    <div key={i} className="text-foreground" style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 10px", borderRadius: 8, background: i < 3 ? "rgba(255,215,0,0.04)" : "transparent" }}>
-                      <div className={i < 3 ? "text-slate-900" : "text-muted-foreground"} style={{ width: 24, height: 24, borderRadius: 6, background: i < 3 ? C.gold : "transparent", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, fontWeight: 800, flexShrink: 0 }}>
-                        {i + 1}
-                      </div>
-                      {isImageUrl(imageUrl) ? (
-                        <img src={imageUrl} alt={b.name} className="h-8 w-8 rounded-md bg-white object-contain p-1" />
-                      ) : null}
-                      <div style={{ flex: 1 }}>
-                        <span style={{ fontSize: 12, fontWeight: 600 }}>{b.name}</span>
-                        <span className="text-muted-foreground" style={{ fontSize: 10, marginLeft: 8 }}>{b.cat}</span>
-                      </div>
-                      <span style={{ fontSize: 13, fontWeight: 700, color: i < 3 ? C.goldLight : "inherit" }}>{b.votes.toLocaleString()}</span>
-                    </div>
-                  )})}
+                <div className="flex max-h-[360px] flex-col gap-2 overflow-y-auto pr-1.5">
+                  {(() => {
+                    const maxVotes = Math.max(1, ...topVotes.map((row: any) => Number(row.votes ?? 0)));
+                    const podium = [
+                      {
+                        row: "bg-gradient-to-r from-amber-50 via-yellow-50/40 to-transparent dark:from-amber-950/40 dark:via-amber-950/10 dark:to-transparent",
+                        border: "border-amber-300/70 dark:border-amber-700/50",
+                        badge: "bg-gradient-to-br from-[#FFD700] to-[#B8860B] shadow-[0_4px_14px_rgba(255,215,0,0.45)]",
+                        bar: "bg-gradient-to-r from-[#FFD700] to-[#B8860B]",
+                        accent: "text-[#B8860B] dark:text-amber-400",
+                        Icon: Crown,
+                      },
+                      {
+                        row: "bg-gradient-to-r from-slate-100 via-slate-50/40 to-transparent dark:from-slate-700/40 dark:via-slate-800/10 dark:to-transparent",
+                        border: "border-slate-300/80 dark:border-slate-600/50",
+                        badge: "bg-gradient-to-br from-slate-300 to-slate-500 shadow-[0_4px_14px_rgba(148,163,184,0.4)]",
+                        bar: "bg-gradient-to-r from-slate-300 to-slate-500",
+                        accent: "text-slate-600 dark:text-slate-300",
+                        Icon: Medal,
+                      },
+                      {
+                        row: "bg-gradient-to-r from-orange-50 via-amber-50/40 to-transparent dark:from-orange-950/40 dark:via-amber-950/10 dark:to-transparent",
+                        border: "border-orange-300/70 dark:border-orange-800/50",
+                        badge: "bg-gradient-to-br from-[#d97706] to-[#7c2d12] shadow-[0_4px_14px_rgba(217,119,6,0.4)]",
+                        bar: "bg-gradient-to-r from-[#d97706] to-[#7c2d12]",
+                        accent: "text-orange-700 dark:text-orange-400",
+                        Icon: Medal,
+                      },
+                    ];
+
+                    return topVotes.map((b: any, i: number) => {
+                      const title = b.name || "Chưa có dữ liệu";
+                      const imageUrl = getVoteImageUrl(b.logo || b.productImage);
+                      const isEmpty = Boolean(b.empty);
+                      const votes = Number(b.votes ?? 0);
+                      const pct = Math.round((votes / maxVotes) * 100);
+                      const isPodium = i < 3 && !isEmpty;
+                      const style = isPodium ? podium[i] : null;
+                      const PodiumIcon = style?.Icon;
+
+                      return (
+                        <div
+                          key={i}
+                          className={`group relative flex shrink-0 items-center gap-3 overflow-hidden rounded-xl border px-3 py-2.5 transition-all hover:-translate-y-px hover:shadow-md ${
+                            isPodium
+                              ? `${style!.row} ${style!.border}`
+                              : "border-slate-200 bg-white hover:border-[#9B7DB8]/50 dark:border-slate-800 dark:bg-slate-950/40"
+                          } ${isEmpty ? "opacity-50" : ""}`}
+                        >
+                          <div
+                            className={`relative flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-[13px] font-black tabular-nums ${
+                              isPodium
+                                ? `${style!.badge} text-white`
+                                : "bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400"
+                            }`}
+                          >
+                            {isPodium && PodiumIcon ? (
+                              <>
+                                <PodiumIcon className="absolute -top-2 left-1/2 size-3.5 -translate-x-1/2 fill-white text-white drop-shadow" />
+                                {i + 1}
+                              </>
+                            ) : (
+                              i + 1
+                            )}
+                          </div>
+
+                          {imageUrl ? (
+                            <img
+                              src={imageUrl}
+                              alt={title}
+                              className={`h-11 w-11 shrink-0 rounded-xl bg-white object-cover ring-1 ${
+                                isPodium ? "ring-white/80 shadow-md" : "ring-slate-200 dark:ring-slate-700"
+                              }`}
+                            />
+                          ) : (
+                            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-[#9B7DB8] to-[#F0588C] text-[13px] font-black text-white ring-1 ring-white/80 shadow-md">
+                              {buildVoteFallback(title) || "VT"}
+                            </div>
+                          )}
+
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-center gap-2">
+                              <div className={`truncate text-[13.5px] font-bold ${isPodium ? "text-foreground" : "text-foreground"}`}>
+                                {title}
+                              </div>
+                              {b.cat ? (
+                                <span className="hidden shrink-0 rounded-full bg-[#9B7DB8]/10 px-2 py-0.5 text-[10px] font-semibold text-[#9B7DB8] sm:inline-block">
+                                  {b.cat}
+                                </span>
+                              ) : null}
+                            </div>
+                            <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-slate-200/70 dark:bg-slate-800/70">
+                              <div
+                                className={`h-full rounded-full ${
+                                  isPodium ? style!.bar : "bg-gradient-to-r from-[#9B7DB8] to-[#F0588C]"
+                                } ${getPctWidthClass(pct)}`}
+                              />
+                            </div>
+                          </div>
+
+                          <div className="flex shrink-0 flex-col items-end leading-none">
+                            <span
+                              className={`font-['Playfair_Display'] text-[18px] font-extrabold tabular-nums ${
+                                isPodium ? style!.accent : "text-foreground"
+                              }`}
+                            >
+                              {votes.toLocaleString()}
+                            </span>
+                            <span className="mt-0.5 text-[9px] font-semibold uppercase tracking-[0.1em] text-muted-foreground">
+                              vote
+                            </span>
+                          </div>
+                        </div>
+                      );
+                    });
+                  })()}
                 </div>
               </div>
 
-              <div className="dark:bg-slate-900 bg-slate-50 border border-slate-200 dark:border-slate-800" style={{ borderRadius: 16, padding: 20 }}>
+              <div className={panelClass}>
                 <SectionTitle color={C.orange}>Hiệu quả Notify (trước SK)</SectionTitle>
-                <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                  {NOTIFY_STATS.map((n, i) => (
-                    <div key={i} className="dark:bg-slate-800 bg-slate-100 border border-slate-200 dark:border-slate-700" style={{ padding: 12, borderRadius: 10 }}>
-                      <div className="text-foreground" style={{ fontSize: 12, fontWeight: 600, marginBottom: 6 }}>{n.round}</div>
-                      <div style={{ display: "flex", gap: 12 }}>
-                        <div><span className="text-muted-foreground" style={{ fontSize: 10 }}>Gửi </span><span style={{ fontSize: 13, fontWeight: 700, color: C.cyan }}>{n.sent.toLocaleString()}</span></div>
-                        <div><span className="text-muted-foreground" style={{ fontSize: 10 }}>Mở </span><span style={{ fontSize: 13, fontWeight: 700, color: C.goldLight }}>{n.openRate}%</span></div>
-                        <div><span className="text-muted-foreground" style={{ fontSize: 10 }}>Convert </span><span style={{ fontSize: 13, fontWeight: 700, color: C.green }}>{n.converted}</span></div>
-                        <div><span className="text-muted-foreground" style={{ fontSize: 10 }}>CVR </span><span style={{ fontSize: 13, fontWeight: 700, color: C.pink }}>{n.cvr}%</span></div>
+                <div className="flex flex-col gap-2">
+                  {notifyStats.map((n: any, i: number) => (
+                    <div key={i} className="rounded-[10px] border border-slate-200 bg-slate-100 p-3 dark:border-slate-700 dark:bg-slate-800">
+                      <div className="mb-1.5 text-xs font-semibold text-foreground">{n.round}</div>
+                      <div className="grid grid-cols-3 gap-3">
+                        <div><span className="text-[10px] text-muted-foreground">Gửi </span><span className="text-[13px] font-bold text-[#5BC8D8]">{Number(n.sent ?? 0).toLocaleString()}</span></div>
+                        <div><span className="text-[10px] text-muted-foreground">Convert </span><span className="text-[13px] font-bold text-[#22C55E]">{Number(n.converted ?? 0).toLocaleString()}</span></div>
+                        <div><span className="text-[10px] text-muted-foreground">CVR </span><span className="text-[13px] font-bold text-[#F0588C]">{Number(n.cvr ?? 0)}%</span></div>
                       </div>
                     </div>
                   ))}
                 </div>
-                <div className="bg-green-50 dark:bg-green-950/20 border-green-200 dark:border-green-900/30" style={{ marginTop: 12, padding: 10, borderRadius: 8, border: "1px solid" }}>
-                  <span style={{ fontSize: 12, fontWeight: 700, color: C.green }}>Tổng convert từ 4 lần notify: {NOTIFY_STATS.reduce((a, n) => a + n.converted, 0).toLocaleString()} đăng ký</span>
-                </div>
+                <div className="mt-3 rounded-lg border border-green-200 bg-green-50 p-2.5 dark:border-green-900/30 dark:bg-green-950/20"><span className="text-xs font-bold text-[#22C55E]">Tổng convert từ 4 lần notify: {notifyStats.reduce((a: number, n: any) => a + Number(n.converted ?? 0), 0).toLocaleString()} đăng ký</span></div>
               </div>
             </div>
 
             {/* Registration trend */}
-            <div className="dark:bg-slate-900 bg-slate-50 border border-slate-200 dark:border-slate-800" style={{ borderRadius: 16, padding: 20 }}>
+            <div className={panelClass}>
               <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
                 <SectionTitle>Lượng đăng ký 7 ngày trước sự kiện</SectionTitle>
                 <DatePicker value={eventDay1} onChange={handleEventDay1Change} className="w-[190px]" />
@@ -318,41 +525,101 @@ export default function DashboardClient({ events }: { events: any }) {
               <div className="h-[180px] w-full">
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={dailyRegistrations}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="rgba(150,150,150,0.1)" />
-                    <XAxis dataKey="date" tick={{ fill: "rgba(150,150,150,0.5)", fontSize: 10 }} />
-                    <YAxis tick={{ fill: "rgba(150,150,150,0.5)", fontSize: 10 }} />
-                    <Tooltip contentStyle={{ background: "#222", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 8, fontSize: 12, color: "#fff" }} />
+                    <CartesianGrid strokeDasharray="3 3" stroke={subtleGrid} />
+                    <XAxis dataKey="date" tick={chartTick} />
+                    <YAxis tick={chartTick} />
+                    <Tooltip />
                     <Bar dataKey="reg" fill={C.gold} radius={[4, 4, 0, 0]} name="Đăng ký" />
                   </BarChart>
                 </ResponsiveContainer>
+              </div>
+            </div>
+
+            {/* Payment status by ticket tier */}
+            <div className={panelClass}>
+              <SectionTitle color={C.green}>Trạng thái thanh toán theo hạng vé</SectionTitle>
+              <div className="h-[320px] w-full">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={paymentByTier} margin={{ top: 8, right: 16, bottom: 4, left: 0 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke={subtleGrid} />
+                    <XAxis dataKey="tier" tick={{ fill: "rgba(150,150,150,0.85)", fontSize: 14, fontWeight: 600 }} />
+                    <YAxis tick={{ fill: "rgba(150,150,150,0.85)", fontSize: 13 }} label={{ value: "Số đơn", angle: -90, position: "insideLeft", style: { fill: "rgba(150,150,150,0.85)", fontSize: 12 } }} />
+                    <Tooltip contentStyle={{ fontSize: 13 }} />
+                    <Legend wrapperStyle={{ fontSize: 13, paddingTop: 8 }} />
+                    <Bar dataKey="new" stackId="a" fill={C.cyan} name="Chưa TT" />
+                    <Bar dataKey="paydone" stackId="a" fill={C.green} name="Đã TT" radius={[4, 4, 0, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+
+            {/* Career + Hope */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-[20px]">
+              <div className={panelClass}>
+                <SectionTitle color={C.purple}>Chân dung khách (career)</SectionTitle>
+                <div className="h-[400px] w-full">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={careerStats} layout="vertical" margin={{ top: 4, right: 24, bottom: 4, left: 8 }}>
+                      <CartesianGrid strokeDasharray="3 3" stroke={subtleGrid} />
+                      <XAxis type="number" tick={{ fill: "rgba(150,150,150,0.85)", fontSize: 12 }} />
+                      <YAxis
+                        dataKey="label"
+                        type="category"
+                        tick={{ fill: "rgba(150,150,150,0.95)", fontSize: 13, fontWeight: 500 }}
+                        width={250}
+                        interval={0}
+                        tickFormatter={(value: string) => truncateLabel(value, 38)}
+                      />
+                      <Tooltip contentStyle={{ fontSize: 13 }} />
+                      <Bar dataKey="count" fill={C.purple} radius={[0, 4, 4, 0]} name="Số lượng" />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
+
+              <div className={panelClass}>
+                <SectionTitle color={C.cyan}>Mục đích tham dự (hope)</SectionTitle>
+                <div className="h-[400px] w-full">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={hopeStats} layout="vertical" margin={{ top: 4, right: 24, bottom: 4, left: 8 }}>
+                      <CartesianGrid strokeDasharray="3 3" stroke={subtleGrid} />
+                      <XAxis type="number" tick={{ fill: "rgba(150,150,150,0.85)", fontSize: 12 }} />
+                      <YAxis
+                        dataKey="label"
+                        type="category"
+                        tick={{ fill: "rgba(150,150,150,0.95)", fontSize: 13, fontWeight: 500 }}
+                        width={250}
+                        interval={0}
+                        tickFormatter={(value: string) => truncateLabel(value, 38)}
+                      />
+                      <Tooltip contentStyle={{ fontSize: 13 }} />
+                      <Bar dataKey="count" fill={C.cyan} radius={[0, 4, 4, 0]} name="Số lượng" />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
               </div>
             </div>
           </div>
         )}
 
         {view === "brand" && (
-          <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
-            <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
-              <span className="text-muted-foreground" style={{ fontSize: 12, fontWeight: 500 }}>Chọn nhãn hàng:</span>
+          <div className="flex flex-col gap-6">
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="text-xs font-medium text-muted-foreground">Chọn nhãn hàng:</span>
               {BRANDS.map(b => (
-                <button key={b} onClick={() => setSelectedBrand(b)} className="transition-colors" style={{
-                  padding: "6px 14px", borderRadius: 8, border: "none", cursor: "pointer", fontFamily: F,
-                  fontSize: 11, fontWeight: selectedBrand === b ? 700 : 400,
-                  background: selectedBrand === b ? C.pink : "rgba(150,150,150,0.1)",
-                  color: selectedBrand === b ? "#fff" : "inherit",
-                }}>{b}</button>
+                <button key={b} onClick={() => setSelectedBrand(b)} className={`cursor-pointer rounded-lg border-0 px-3.5 py-1.5 text-[11px] transition-colors ${selectedBrand === b ? "bg-[#F0588C] font-bold text-white" : "bg-muted/40 font-normal text-inherit"}`}>{b}</button>
               ))}
             </div>
 
-            <div style={{ background: `linear-gradient(135deg, ${C.pink}15, ${C.purple}10)`, borderRadius: 20, padding: 24, border: `1px solid ${C.pink}30` }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 16, marginBottom: 16 }}>
-                <div style={{ width: 56, height: 56, borderRadius: 16, background: `linear-gradient(135deg, ${C.pink}30, ${C.purple}20)`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 22, fontWeight: 900, color: C.pink, fontFamily: F }}>{selectedBrand.substring(0, 2)}</div>
+            <div className="rounded-[20px] border border-[#F0588C]/30 bg-[linear-gradient(135deg,#F0588C15,#9B7DB810)] p-6">
+              <div className="mb-4 flex items-center gap-4">
+                <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-[linear-gradient(135deg,#F0588C30,#9B7DB820)] text-[22px] font-black text-[#F0588C]">{selectedBrand.substring(0, 2)}</div>
                 <div>
-                  <div className="text-foreground" style={{ fontSize: 22, fontWeight: 800, fontFamily: "'Playfair Display', serif" }}>{selectedBrand}</div>
-                  <div className="text-muted-foreground" style={{ fontSize: 12 }}>Báo cáo ROI — Beautyverse</div>
+                  <div className="font-['Playfair_Display'] text-[22px] font-extrabold text-foreground">{selectedBrand}</div>
+                  <div className="text-xs text-muted-foreground">Báo cáo ROI — Beautyverse</div>
                 </div>
               </div>
-              <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
+              <div className="flex flex-wrap gap-3">
                 <StatCard label="Lượt vote" value={bd.votes} sub={`Rank #${bd.rank}`} color={C.pink} />
                 <StatCard label="Profile views" value={bd.profileView} color={C.cyan} />
                 <StatCard label="Booth traffic" value={bd.boothVisit} sub="lượt ghé" color={C.green} />
@@ -362,22 +629,22 @@ export default function DashboardClient({ events }: { events: any }) {
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-[20px]">
-              <div className="dark:bg-slate-900 bg-slate-50 border border-slate-200 dark:border-slate-800" style={{ borderRadius: 16, padding: 20 }}>
+              <div className={panelClass}>
                 <SectionTitle color={C.pink}>Lượt vote theo thời gian</SectionTitle>
                 <div className="h-[200px] w-full">
                   <ResponsiveContainer width="100%" height="100%">
                     <BarChart data={bd.voteTrend}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="rgba(150,150,150,0.1)" />
-                      <XAxis dataKey="day" tick={{ fill: "rgba(150,150,150,0.5)", fontSize: 10 }} />
-                      <YAxis tick={{ fill: "rgba(150,150,150,0.5)", fontSize: 10 }} />
-                      <Tooltip contentStyle={{ background: "#222", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 8, fontSize: 12, color: "#fff" }} />
+                      <CartesianGrid strokeDasharray="3 3" stroke={subtleGrid} />
+                      <XAxis dataKey="day" tick={chartTick} />
+                      <YAxis tick={chartTick} />
+                      <Tooltip />
                       <Bar dataKey="v" fill={C.pink} radius={[4, 4, 0, 0]} name="Votes" />
                     </BarChart>
                   </ResponsiveContainer>
                 </div>
               </div>
 
-              <div className="dark:bg-slate-900 bg-slate-50 border border-slate-200 dark:border-slate-800" style={{ borderRadius: 16, padding: 20 }}>
+              <div className={panelClass}>
                 <SectionTitle color={C.green}>Booth traffic theo giờ</SectionTitle>
                 <div className="h-[200px] w-full">
                   <ResponsiveContainer width="100%" height="100%">
@@ -385,10 +652,10 @@ export default function DashboardClient({ events }: { events: any }) {
                       <defs>
                         <linearGradient id="gBooth" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor={C.green} stopOpacity={0.3}/><stop offset="100%" stopColor={C.green} stopOpacity={0}/></linearGradient>
                       </defs>
-                      <CartesianGrid strokeDasharray="3 3" stroke="rgba(150,150,150,0.1)" />
-                      <XAxis dataKey="time" tick={{ fill: "rgba(150,150,150,0.5)", fontSize: 10 }} />
-                      <YAxis tick={{ fill: "rgba(150,150,150,0.5)", fontSize: 10 }} />
-                      <Tooltip contentStyle={{ background: "#222", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 8, fontSize: 12, color: "#fff" }} />
+                      <CartesianGrid strokeDasharray="3 3" stroke={subtleGrid} />
+                      <XAxis dataKey="time" tick={chartTick} />
+                      <YAxis tick={chartTick} />
+                      <Tooltip />
                       <Area type="monotone" dataKey="booth" stroke={C.green} fill="url(#gBooth)" name="Lượt ghé booth" />
                     </AreaChart>
                   </ResponsiveContainer>
@@ -396,27 +663,27 @@ export default function DashboardClient({ events }: { events: any }) {
               </div>
             </div>
 
-            <div className="dark:bg-slate-900 bg-slate-50 border border-slate-200 dark:border-slate-800" style={{ borderRadius: 16, padding: 20 }}>
+            <div className={panelClass}>
               <SectionTitle color={C.goldLight}>Hiệu quả Voucher</SectionTitle>
               <div className="grid grid-cols-3 gap-[16px]">
-                <div className="dark:bg-slate-800 bg-slate-100 border border-slate-200 dark:border-slate-700" style={{ padding: 16, borderRadius: 12, textAlign: "center" }}>
-                  <div style={{ fontSize: 28, fontWeight: 800, color: C.goldLight, fontFamily: "'Playfair Display', serif" }}>{bd.voucherIssued}</div>
-                  <div className="text-muted-foreground" style={{ fontSize: 11 }}>Voucher phát ra</div>
+                <div className="rounded-xl border border-slate-200 bg-slate-100 p-4 text-center dark:border-slate-700 dark:bg-slate-800">
+                  <div className={`${metricClass} text-[#FFD700]`}>{bd.voucherIssued}</div>
+                  <div className="text-[11px] text-muted-foreground">Voucher phát ra</div>
                 </div>
-                <div className="dark:bg-slate-800 bg-slate-100 border border-slate-200 dark:border-slate-700" style={{ padding: 16, borderRadius: 12, textAlign: "center" }}>
-                  <div style={{ fontSize: 28, fontWeight: 800, color: C.green, fontFamily: "'Playfair Display', serif" }}>{bd.voucherClaimed}</div>
-                  <div className="text-muted-foreground" style={{ fontSize: 11 }}>Đã được claim</div>
+                <div className="rounded-xl border border-slate-200 bg-slate-100 p-4 text-center dark:border-slate-700 dark:bg-slate-800">
+                  <div className={`${metricClass} text-[#22C55E]`}>{bd.voucherClaimed}</div>
+                  <div className="text-[11px] text-muted-foreground">Đã được claim</div>
                 </div>
-                <div className="dark:bg-slate-800 bg-slate-100 border border-slate-200 dark:border-slate-700" style={{ padding: 16, borderRadius: 12, textAlign: "center" }}>
-                  <div style={{ fontSize: 28, fontWeight: 800, color: C.pink, fontFamily: "'Playfair Display', serif" }}>{bd.claimRate}%</div>
-                  <div className="text-muted-foreground" style={{ fontSize: 11 }}>Tỉ lệ claim</div>
+                <div className="rounded-xl border border-slate-200 bg-slate-100 p-4 text-center dark:border-slate-700 dark:bg-slate-800">
+                  <div className={`${metricClass} text-[#F0588C]`}>{bd.claimRate}%</div>
+                  <div className="text-[11px] text-muted-foreground">Tỉ lệ claim</div>
                 </div>
               </div>
             </div>
 
-            <div style={{ background: `linear-gradient(135deg, ${C.gold}10, ${C.pink}08)`, borderRadius: 16, padding: 20, border: `1px solid ${C.gold}25` }}>
-              <div style={{ fontSize: 14, fontWeight: 700, color: C.goldLight, marginBottom: 12 }}>📋 Tóm tắt ROI cho {selectedBrand}</div>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-[12px] text-muted-foreground" style={{ fontSize: 13, lineHeight: 1.8 }}>
+            <div className="rounded-2xl border border-[#B8860B]/25 bg-[linear-gradient(135deg,#B8860B10,#F0588C08)] p-5">
+              <div className="mb-3 text-sm font-bold text-[#FFD700]">📋 Tóm tắt ROI cho {selectedBrand}</div>
+              <div className="grid grid-cols-1 gap-3 text-[13px] leading-[1.8] text-muted-foreground md:grid-cols-2">
                 <div>
                   <div>✓ <strong className="text-foreground">{bd.profileView.toLocaleString()}</strong> lượt xem thương hiệu</div>
                   <div>✓ <strong className="text-foreground">{bd.votes.toLocaleString()}</strong> lượt bình chọn (Top #{bd.rank})</div>

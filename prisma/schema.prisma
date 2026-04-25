@@ -205,6 +205,37 @@ model app_settings {
   updated_at    DateTime? @default(now()) @updatedAt @db.DateTime(0)
 }
 
+model voucher {
+  id         Int             @id @default(autoincrement()) @db.UnsignedInt
+  created_at DateTime?       @db.Timestamp(0)
+  updated_at DateTime?       @db.Timestamp(0)
+  created_by String?         @db.VarChar(255)
+  updated_by String?         @db.VarChar(255)
+  nc_order   Decimal?        @db.Decimal(10, 2)
+  voucher    String?         @db.Text
+  classy     voucher_classy?
+  money      BigInt?
+  rate       BigInt?
+  number     BigInt?
+  class      voucher_class?
+  from_date  DateTime?       @db.DateTime(0)
+  to_date    DateTime?       @db.DateTime(0)
+
+  @@index([nc_order], map: "voucher_order_idx")
+}
+
+enum voucher_classy {
+  monet
+  rate
+  money
+}
+
+enum voucher_class {
+  STANDARD
+  GOLD
+  RUBY
+}
+
 model token {
   id                Int       @id @default(autoincrement()) @db.UnsignedInt
   created_at        DateTime? @db.Timestamp(0)

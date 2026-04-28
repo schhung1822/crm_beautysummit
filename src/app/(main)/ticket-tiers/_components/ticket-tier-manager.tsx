@@ -39,7 +39,7 @@ async function updateTicketTierRequest(form: TicketTierForm) {
   });
   const result = (await response.json().catch(() => ({}))) as { data?: TicketTierRecord; message?: string };
   if (!response.ok || !result.data) {
-    throw new Error(result.message ?? "Khong the luu hạng vé");
+    throw new Error(result.message ?? "Không thể lưu hạng vé");
   }
 
   return result.data;
@@ -109,14 +109,11 @@ export default function TicketTierManager({ initialData }: TicketTierManagerProp
   return (
     <>
       <div className="flex flex-col gap-6">
-        <div className="rounded-3xl border border-slate-200 dark:border-slate-800 bg-gradient-to-br from-white via-slate-50 to-sky-50/60 dark:from-slate-800 dark:via-slate-800/80 dark:to-slate-800/50 p-5 shadow-sm">
+        <div className="bg-card text-card-foreground rounded-xl border p-5 shadow-sm">
           <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
             <div className="max-w-2xl">
-              <div className="text-muted-foreground text-[20px] font-semibold tracking-[0.2em] uppercase">
-                Quản lý hạng vé
-              </div>
-              <h2 className="mt-1 text-2xl font-semibold text-slate-950 dark:text-slate-50">Bảng giá vé và lịch khuyến mãi</h2>
-              
+              <div className="text-muted-foreground text-sm font-medium">Quản lý hạng vé</div>
+              <h2 className="text-foreground mt-1 text-2xl font-semibold">Bảng giá vé và lịch khuyến mãi</h2>
             </div>
 
             <div className="relative w-full max-w-sm">
@@ -124,8 +121,8 @@ export default function TicketTierManager({ initialData }: TicketTierManagerProp
               <Input
                 value={search}
                 onChange={(event) => setSearch(event.target.value)}
-                placeholder="Tim theo ma hoac ten hạng vé..."
-                className="h-10 rounded-xl border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-800 pl-10 shadow-sm"
+                placeholder="Tìm theo mã hoặc tên hạng vé..."
+                className="bg-background h-10 rounded-lg pl-10 shadow-sm"
               />
             </div>
           </div>
@@ -150,7 +147,7 @@ export default function TicketTierManager({ initialData }: TicketTierManagerProp
         </div>
 
         {filteredData.length === 0 ? (
-          <div className="rounded-2xl border border-dashed border-slate-300 bg-white px-6 py-12 text-center text-sm text-slate-500">
+          <div className="bg-card text-muted-foreground rounded-xl border border-dashed px-6 py-12 text-center text-sm">
             Không tìm thấy hạng vé phù hợp.
           </div>
         ) : (

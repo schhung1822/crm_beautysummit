@@ -1,7 +1,7 @@
 /* eslint-disable max-lines */
 "use client";
 
-import * as React from "react"; 
+import * as React from "react";
 
 import { useRouter } from "next/navigation";
 
@@ -35,8 +35,8 @@ import {
 } from "./add-ticket-drawer.utils";
 
 const ticketTypeOptions = [
-  { label: "Ve mua", value: "paid" },
-  { label: "Ve tang", value: "gift" },
+  { label: "Vé mua", value: "paid" },
+  { label: "Vé tặng", value: "gift" },
 ] as const;
 
 const genderOptions = [
@@ -84,7 +84,7 @@ export function AddTicketDrawer() {
         const response = await fetch("/api/ticket-tiers");
         const result = (await response.json().catch(() => ({}))) as { data?: TicketTierOption[]; message?: string };
         if (!response.ok) {
-          throw new Error(result.message ?? "Khong the tai hạng vé");
+          throw new Error(result.message ?? "Không thể tải hạng vé");
         }
 
         if (cancelled) {
@@ -105,7 +105,7 @@ export function AddTicketDrawer() {
         }
       } catch (error) {
         if (!cancelled) {
-          toast.error(error instanceof Error ? error.message : "Khong the tai hạng vé");
+          toast.error(error instanceof Error ? error.message : "Không thể tải hạng vé");
         }
       }
     }
@@ -234,21 +234,21 @@ export function AddTicketDrawer() {
           <DrawerTitle>Thêm vé</DrawerTitle>
         </DrawerHeader>
 
-        <form onSubmit={handleSubmit} className="nice-scroll flex-1 overflow-y-auto px-4 pb-4">
-          <div className="grid gap-4 py-1">
+        <form onSubmit={handleSubmit} className="nice-scroll flex-1 overflow-y-auto px-4 pt-3 pb-4">
+          <div className="grid gap-4">
             <section className="bg-card/60 space-y-3 rounded-xl border p-3">
               <h4 className="text-sm font-semibold">Thông tin khách hàng</h4>
 
               <div className="grid gap-2">
-                <Label htmlFor="name">Ho ten</Label>
-                <Input id="name" placeholder="Nhap ho ten" value={form.name} onChange={handleInputChange("name")} />
+                <Label htmlFor="name">Họ tên</Label>
+                <Input id="name" placeholder="Nhập họ tên" value={form.name} onChange={handleInputChange("name")} />
               </div>
 
               <div className="grid gap-2">
-                <Label htmlFor="phone">Dien thoai</Label>
+                <Label htmlFor="phone">Điện thoại</Label>
                 <Input
                   id="phone"
-                  placeholder="Nhap so dien thoai"
+                  placeholder="Nhập số điện thoại"
                   value={form.phone}
                   onChange={handleInputChange("phone")}
                 />
@@ -259,7 +259,7 @@ export function AddTicketDrawer() {
                 <Input
                   id="email"
                   type="email"
-                  placeholder="Nhap email"
+                  placeholder="Nhập email"
                   value={form.email}
                   onChange={handleInputChange("email")}
                 />
@@ -274,7 +274,7 @@ export function AddTicketDrawer() {
                   <Label htmlFor="class">Hạng vé</Label>
                   <Select value={form.class} onValueChange={handleTicketClassChange}>
                     <SelectTrigger id="class">
-                      <SelectValue placeholder="Chon hạng vé" />
+                      <SelectValue placeholder="Chọn hạng vé" />
                     </SelectTrigger>
                     <SelectContent>
                       {ticketTiers.length > 0 ? (

@@ -13,7 +13,11 @@ import { prisma } from "@/lib/prisma";
 import DashboardClient from "./dashboard-client";
 
 type HourlyCountRow = { hour: number | string | null; count: bigint | number | string | null };
-type CheckinZoneRow = { id: bigint | number | string | null; name: string | null; count: bigint | number | string | null };
+type CheckinZoneRow = {
+  id: bigint | number | string | null;
+  name: string | null;
+  count: bigint | number | string | null;
+};
 type VoteRankRow = {
   brandId: string | null;
   name: string | null;
@@ -23,6 +27,31 @@ type VoteRankRow = {
   productImage: string | null;
   votes: bigint | number | string | null;
 };
+type BrandSourceRow = {
+  rowId: bigint | number | string | null;
+  brandId: string | null;
+  brandName: string | null;
+  product: string | null;
+  category: string | null;
+  logo: string | null;
+  productImage: string | null;
+};
+type BrandVoteEventRow = {
+  brandId: string | null;
+  phone: string | null;
+  timeVote: Date | string | null;
+};
+type BrandVoucherRow = {
+  voucherId: string | null;
+  brand: string | null;
+  isActive: bigint | number | string | null;
+};
+type BrandCheckinRow = {
+  zoneId: string | null;
+  zoneName: string | null;
+  checkinTime: Date | string | null;
+};
+type BrandFallbackRow = { name: string | null };
 type DailyRegistrationRow = { date: Date | string | null; count: bigint | number | string | null };
 type NotifyEffectRow = {
   round: bigint | number | string | null;
@@ -30,9 +59,19 @@ type NotifyEffectRow = {
   converted: bigint | number | string | null;
 };
 type TicketTierRow = { phone: string | null; class: string | null };
+type RewardDashboardRow = {
+  zid?: string | null;
+  phone: string | null;
+  completed_mission_ids: string | null;
+  claimed_free_voucher_ids?: string | null;
+  redeemed_voucher_ids: string | null;
+  votes_json?: string | null;
+};
 type PaymentByTierRow = { tier: string | null; status: string | null; count: bigint | number | string | null };
 type LabelCountRow = { label: string | null; count: bigint | number | string | null };
 type DashboardSearchParams = Promise<Record<string, string | string[] | undefined>>;
+
+export const dynamic = "force-dynamic";
 
 function formatDateInputValue(value: Date) {
   const year = value.getFullYear();
@@ -99,7 +138,9 @@ function buildCheckinZones(rows: CheckinZoneRow[]) {
 const MISSION_TIER_WEIGHT: Record<MiniAppMissionTier, number> = { GOLD: 1, RUBY: 2, VIP: 3 };
 
 function normalizeMissionTier(value: unknown): MiniAppMissionTier | null {
-  const normalized = String(value ?? "").trim().toUpperCase();
+  const normalized = String(value ?? "")
+    .trim()
+    .toUpperCase();
   if (normalized.includes("VIP")) return "VIP";
   if (normalized.includes("RUBY") || normalized.includes("PRE")) return "RUBY";
   if (normalized.includes("GOLD") || normalized.includes("STAN")) return "GOLD";
@@ -156,9 +197,7 @@ function buildMissionPhases(
 
   rows.forEach((row) => {
     row.total = new Set(
-      allMissionIds
-        .filter((missionId) => getMissionPhase(missionId) === row.key)
-        .map(getMissionSuffix),
+      allMissionIds.filter((missionId) => getMissionPhase(missionId) === row.key).map(getMissionSuffix),
     ).size;
   });
 
@@ -225,10 +264,12 @@ function buildPaymentByTier(rows: PaymentByTierRow[]) {
   const map = new Map(tiers.map((tier) => [tier, { tier, new: 0, paydone: 0 }]));
 
   rows.forEach((row) => {
-    const tier = String(row.tier ?? "").trim().toUpperCase();
-    if (!map.has(tier as typeof tiers[number])) return;
+    const tier = String(row.tier ?? "")
+      .trim()
+      .toUpperCase();
+    if (!map.has(tier as (typeof tiers)[number])) return;
     const status = String(row.status ?? "").toLowerCase() === "paydone" ? "paydone" : "new";
-    map.get(tier as typeof tiers[number])![status] += Number(row.count ?? 0);
+    map.get(tier as (typeof tiers)[number])![status] += Number(row.count ?? 0);
   });
 
   return tiers.map((tier) => map.get(tier)!);
@@ -249,12 +290,7 @@ function buildLabelStats(rows: LabelCountRow[], limit: number) {
 }
 
 function buildNotifyStats(rows: NotifyEffectRow[]) {
-  const labels = [
-    "Lần 1 - Nhắc lịch",
-    "Lần 2 - Early bird",
-    "Lần 3 - Countdown",
-    "Lần 4 - Cuối cùng",
-  ];
+  const labels = ["Lần 1 - Nhắc lịch", "Lần 2 - Early bird", "Lần 3 - Countdown", "Lần 4 - Cuối cùng"];
   const rowByRound = new Map(rows.map((row) => [Number(row.round ?? 0), row]));
 
   return labels.map((round, index) => {
@@ -268,6 +304,230 @@ function buildNotifyStats(rows: NotifyEffectRow[]) {
       cvr: sent > 0 ? Math.round((converted / sent) * 1000) / 10 : 0,
     };
   });
+}
+
+function parseVotesObject(raw: string | null | undefined): Record<string, string> {
+  if (!raw) return {};
+
+  try {
+    const parsed = JSON.parse(raw) as unknown;
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return {};
+
+    return Object.entries(parsed).reduce<Record<string, string>>((accumulator, [key, value]) => {
+      const normalizedKey = String(key ?? "").trim();
+      const normalizedValue = String(value ?? "").trim();
+      if (normalizedKey && normalizedValue) {
+        accumulator[normalizedKey] = normalizedValue;
+      }
+      return accumulator;
+    }, {});
+  } catch {
+    return {};
+  }
+}
+
+function normalizeLookup(value: unknown) {
+  return String(value ?? "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim();
+}
+
+function uniqueStrings(values: Array<string | null | undefined>) {
+  return Array.from(new Set(values.map((value) => String(value ?? "").trim()).filter(Boolean)));
+}
+
+function getBrandName(row: Pick<BrandSourceRow, "product" | "brandName" | "brandId">) {
+  return String(row.product ?? row.brandName ?? row.brandId ?? "Khong ro").trim() || "Khong ro";
+}
+
+function buildBrandTerms(row: Pick<BrandSourceRow, "brandId" | "brandName" | "product">) {
+  return uniqueStrings([row.brandId, row.product, row.brandName]).map(normalizeLookup).filter(Boolean);
+}
+
+function matchesTerms(value: unknown, terms: string[]) {
+  const normalizedValue = normalizeLookup(value);
+  if (!normalizedValue) return false;
+
+  return terms.some(
+    (term) =>
+      term === normalizedValue ||
+      (term.length >= 3 && normalizedValue.includes(term)) ||
+      (normalizedValue.length >= 3 && term.includes(normalizedValue)),
+  );
+}
+
+function hasVoteMission(completedMissionIds: string[]) {
+  return completedMissionIds.map(normalizeMissionId).some((missionId) => missionId.endsWith("-d1-vote"));
+}
+
+function getVoteTrendBucket(timeVote: Date | string | null, eventDay1: string) {
+  if (!timeVote) return "Khong ro";
+
+  const value = timeVote instanceof Date ? timeVote : new Date(String(timeVote));
+  if (Number.isNaN(value.getTime())) return "Khong ro";
+
+  const day1 = parseDateKey(eventDay1);
+  const day2 = new Date(day1);
+  day2.setDate(day2.getDate() + 1);
+  const day3 = new Date(day2);
+  day3.setDate(day3.getDate() + 1);
+
+  if (value < day1) return "Truoc SK";
+  if (value < day2) return value.getHours() < 12 ? "Ngay 1 AM" : "Ngay 1 PM";
+  if (value < day3) return value.getHours() < 12 ? "Ngay 2 AM" : "Ngay 2 PM";
+  return "Sau SK";
+}
+
+function buildVoteTrend(rows: BrandVoteEventRow[], eventDay1: string) {
+  const labels = ["Truoc SK", "Ngay 1 AM", "Ngay 1 PM", "Ngay 2 AM", "Ngay 2 PM", "Sau SK"];
+  const countByBucket = new Map(labels.map((label) => [label, 0]));
+
+  rows.forEach((row) => {
+    const bucket = getVoteTrendBucket(row.timeVote, eventDay1);
+    countByBucket.set(bucket, (countByBucket.get(bucket) ?? 0) + 1);
+  });
+
+  return labels.map((day) => ({ day, v: countByBucket.get(day) ?? 0 }));
+}
+
+function buildHourlyBoothTraffic(rows: BrandCheckinRow[]) {
+  const countByHour = new Map<number, number>();
+  rows.forEach((row) => {
+    if (!row.checkinTime) return;
+    const value = row.checkinTime instanceof Date ? row.checkinTime : new Date(String(row.checkinTime));
+    if (Number.isNaN(value.getTime())) return;
+    const hour = value.getHours();
+    countByHour.set(hour, (countByHour.get(hour) ?? 0) + 1);
+  });
+
+  return Array.from({ length: 24 }, (_, hour) => ({
+    time: `${String(hour).padStart(2, "0")}:00`,
+    booth: countByHour.get(hour) ?? 0,
+  }));
+}
+
+function buildBrandDashboards({
+  brandRows,
+  voteRows,
+  voucherRows,
+  rewardRows,
+  checkinRows,
+  boothRows,
+  customerCount,
+  eventDay1,
+}: {
+  brandRows: BrandSourceRow[];
+  voteRows: BrandVoteEventRow[];
+  voucherRows: BrandVoucherRow[];
+  rewardRows: RewardDashboardRow[];
+  checkinRows: BrandCheckinRow[];
+  boothRows: BrandFallbackRow[];
+  customerCount: number;
+  eventDay1: string;
+}) {
+  const sourceRows: BrandSourceRow[] = [...brandRows];
+  const existingNames = new Set(sourceRows.flatMap((row) => buildBrandTerms(row)));
+
+  [...voucherRows.map((row) => row.brand), ...boothRows.map((row) => row.name)].forEach((name) => {
+    const normalizedName = normalizeLookup(name);
+    if (!normalizedName || existingNames.has(normalizedName)) return;
+    existingNames.add(normalizedName);
+    sourceRows.push({
+      rowId: `fallback-${normalizedName}`,
+      brandId: null,
+      brandName: String(name ?? "").trim(),
+      product: String(name ?? "").trim(),
+      category: "",
+      logo: "",
+      productImage: "",
+    });
+  });
+
+  const dashboards = sourceRows.map((brand) => {
+    const id = String(brand.brandId ?? brand.rowId ?? getBrandName(brand)).trim();
+    const name = getBrandName(brand);
+    const terms = buildBrandTerms(brand);
+    const brandId = String(brand.brandId ?? "").trim();
+    const brandVoteRows = brandId
+      ? voteRows.filter((row) => String(row.brandId ?? "").trim() === brandId)
+      : voteRows.filter((row) => matchesTerms(row.brandId, terms));
+    const brandCheckinRows = checkinRows.filter(
+      (row) => String(row.zoneId ?? "").trim() === brandId || matchesTerms(row.zoneName, terms),
+    );
+    const activeVoucherRows = voucherRows.filter(
+      (row) => Number(row.isActive ?? 1) !== 0 && matchesTerms(row.brand, terms),
+    );
+    const activeVoucherIds = new Set(
+      activeVoucherRows.map((row) => String(row.voucherId ?? "").trim()).filter(Boolean),
+    );
+    const selectedUsers = new Set<string>();
+    const voucherClaimUsers = new Set<string>();
+
+    brandVoteRows.forEach((row) => {
+      const phone = toDatabasePhone(row.phone) ?? String(row.phone ?? "").trim();
+      if (phone) selectedUsers.add(`vote:${phone}`);
+    });
+
+    let voucherClaimed = 0;
+    let missionComplete = 0;
+
+    rewardRows.forEach((row, index) => {
+      const userKey = toDatabasePhone(row.phone) ?? String(row.zid ?? index);
+      const votes = parseVotesObject(row.votes_json);
+      const votedForBrand = Object.values(votes).some(
+        (value) => String(value).trim() === brandId || matchesTerms(value, terms),
+      );
+
+      if (votedForBrand) {
+        selectedUsers.add(`reward:${userKey}`);
+      }
+
+      const claimedIds = [
+        ...parseStringArray(row.claimed_free_voucher_ids ?? null),
+        ...parseStringArray(row.redeemed_voucher_ids),
+      ];
+      const claimedBrandVoucherCount = claimedIds.filter((voucherId) => activeVoucherIds.has(voucherId)).length;
+      if (claimedBrandVoucherCount > 0) {
+        voucherClaimed += claimedBrandVoucherCount;
+        voucherClaimUsers.add(`voucher:${userKey}`);
+      }
+
+      const completedIds = parseStringArray(row.completed_mission_ids);
+      if (votedForBrand && hasVoteMission(completedIds)) {
+        missionComplete += 1;
+      }
+    });
+
+    const voucherIssued =
+      activeVoucherRows.length > 0 ? Math.max(activeVoucherRows.length * customerCount, voucherClaimed) : 0;
+    const profileView = new Set([...selectedUsers, ...voucherClaimUsers]).size;
+
+    return {
+      id,
+      name,
+      brandId,
+      category: String(brand.category ?? ""),
+      logo: String(brand.logo ?? ""),
+      productImage: String(brand.productImage ?? ""),
+      votes: brandVoteRows.length,
+      rank: 0,
+      profileView,
+      boothVisit: brandCheckinRows.length,
+      voucherIssued,
+      voucherClaimed,
+      claimRate: voucherIssued > 0 ? Math.round((voucherClaimed / voucherIssued) * 1000) / 10 : 0,
+      missionComplete,
+      hourly: buildHourlyBoothTraffic(brandCheckinRows),
+      voteTrend: buildVoteTrend(brandVoteRows, eventDay1),
+    };
+  });
+
+  return dashboards
+    .sort((left, right) => right.votes - left.votes || left.name.localeCompare(right.name))
+    .map((item, index) => ({ ...item, rank: index + 1 }));
 }
 
 export default async function DashboardPage({ searchParams }: { searchParams: DashboardSearchParams }) {
@@ -294,6 +554,11 @@ export default async function DashboardPage({ searchParams }: { searchParams: Da
     checkinRows,
     checkinZoneRows,
     topVoteRows,
+    brandRows,
+    brandVoteRows,
+    brandVoucherRows,
+    brandCheckinRows,
+    brandFallbackRows,
     dailyRegistrationRows,
     notifyEffectRows,
     paymentByTierRows,
@@ -301,13 +566,20 @@ export default async function DashboardPage({ searchParams }: { searchParams: Da
     hopeStatsRows,
   ] = await Promise.all([
     prisma.orders.count({ where: { is_checkin: 1 } }),
-    prisma.orders.count({ where: { status: 'paydone' } }),
-    prisma.orders.count({ where: { NOT: { status: 'paydone' } } }),
+    prisma.orders.count({ where: { status: "paydone" } }),
+    prisma.orders.count({ where: { NOT: { status: "paydone" } } }),
     prisma.orders.findMany({ select: { source: true } }),
     prisma.customer.count(),
-    prisma.voted.groupBy({ by: ['phone'] }),
+    prisma.voted.groupBy({ by: ["phone"] }),
     prisma.miniapp_user_reward_state.findMany({
-      select: { phone: true, completed_mission_ids: true, redeemed_voucher_ids: true }
+      select: {
+        zid: true,
+        phone: true,
+        completed_mission_ids: true,
+        claimed_free_voucher_ids: true,
+        redeemed_voucher_ids: true,
+        votes_json: true,
+      },
     }),
     prisma.orders.findMany({
       select: { phone: true, class: true },
@@ -358,6 +630,49 @@ export default async function DashboardPage({ searchParams }: { searchParams: Da
       GROUP BY b.id, b.brand_id, b.product, b.brand_name, b.category, b.logo_url, b.link, b.nc_order
       ORDER BY votes DESC, name ASC, b.nc_order ASC, b.id ASC
       LIMIT 10
+    `,
+    prisma.$queryRaw<BrandSourceRow[]>`
+      SELECT
+        b.id AS rowId,
+        b.brand_id AS brandId,
+        b.brand_name AS brandName,
+        b.product AS product,
+        b.category AS category,
+        b.logo_url AS logo,
+        b.link AS productImage
+      FROM brand b
+      WHERE COALESCE(TRIM(b.brand_id), '') <> ''
+      ORDER BY b.nc_order ASC, b.id ASC
+    `,
+    prisma.$queryRaw<BrandVoteEventRow[]>`
+      SELECT
+        brand_id AS brandId,
+        phone AS phone,
+        time_vote AS timeVote
+      FROM voted
+      WHERE COALESCE(TRIM(brand_id), '') <> ''
+    `,
+    prisma.$queryRaw<BrandVoucherRow[]>`
+      SELECT
+        voucher_id AS voucherId,
+        brand AS brand,
+        is_active AS isActive
+      FROM miniapp_voucher
+      WHERE COALESCE(TRIM(brand), '') <> ''
+    `,
+    prisma.$queryRaw<BrandCheckinRow[]>`
+      SELECT
+        zone_id AS zoneId,
+        zone_name AS zoneName,
+        checkin_time AS checkinTime
+      FROM checkin_log
+      WHERE checkin_time IS NOT NULL
+    `,
+    prisma.$queryRaw<BrandFallbackRow[]>`
+      SELECT name
+      FROM booth
+      WHERE COALESCE(TRIM(name), '') <> ''
+      ORDER BY nc_order ASC, id ASC
     `,
     prisma.$queryRaw<DailyRegistrationRow[]>`
       SELECT DATE(create_time) AS date, COUNT(*) AS count
@@ -419,10 +734,10 @@ export default async function DashboardPage({ searchParams }: { searchParams: Da
   let sourceWebCount = 0;
 
   for (const order of orderSources) {
-    const source = (order.source ?? '').toLowerCase();
-    if (source.includes('fbclid')) {
+    const source = (order.source ?? "").toLowerCase();
+    if (source.includes("fbclid")) {
       sourceFbCount++;
-    } else if (source.includes('zarsrc')) {
+    } else if (source.includes("zarsrc")) {
       sourceZaloCount++;
     } else {
       sourceWebCount++;
@@ -475,6 +790,16 @@ export default async function DashboardPage({ searchParams }: { searchParams: Da
     paymentByTier: buildPaymentByTier(paymentByTierRows),
     careerStats: buildLabelStats(careerStatsRows, 10),
     hopeStats: buildLabelStats(hopeStatsRows, 10),
+    brandDashboards: buildBrandDashboards({
+      brandRows,
+      voteRows: brandVoteRows,
+      voucherRows: brandVoucherRows,
+      rewardRows: rewards,
+      checkinRows: brandCheckinRows,
+      boothRows: brandFallbackRows,
+      customerCount,
+      eventDay1,
+    }),
     eventDay1,
   };
 

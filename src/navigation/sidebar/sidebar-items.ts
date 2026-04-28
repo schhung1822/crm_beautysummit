@@ -1,16 +1,12 @@
 ﻿import {
-  Banknote,
-  Bell,
   Calendar1Icon,
   ChartBar,
-  Gauge,
   Gift,
   LayoutDashboard,
   MapPin,
   PackageIcon,
   Scale,
   ShoppingBagIcon,
-  SquareArrowUpRight,
   Ticket,
   type LucideIcon,
   User,
@@ -50,31 +46,36 @@ export const sidebarItems: NavGroup[] = [
     items: [
       { title: "Tổng quan", url: "/dashboard/default", icon: LayoutDashboard },
       { title: "CRM", url: "/dashboard/crm", icon: ChartBar },
-
     ],
   },
   {
     id: 2,
-    label: "Quản lý",
+    label: "Quản lý bán vé",
     items: [
       { title: "Đơn hàng", url: "/orders", icon: ShoppingBagIcon },
-      { title: "Sản phẩm bình chọn", url: "/vote-options", icon: PackageIcon },
-      { title: "Bình chọn", url: "/votes", icon: Calendar1Icon },
-      { title: "Voucher", url: "/vouchers", icon: Gift },
       { title: "Hạng vé", url: "/ticket-tiers", icon: Ticket },
       { title: "Khách hàng", url: "/customers", icon: Users },
-      { title: "Địa điểm Check-in", url: "/checkin-locations", icon: MapPin },
-      { title: "Tài khoản", url: "/users", icon: UserCog },
-      { title: "Zalo OA", url: "/zalo-oa", icon: User, comingSoon: true },
+      { title: "Voucher", url: "/voucher", icon: Gift },
     ],
   },
   {
     id: 3,
+    label: "Quản lý miniapp",
+    items: [
+      { title: "Sản phẩm bình chọn", url: "/vote-options", icon: PackageIcon },
+      { title: "Bình chọn", url: "/votes", icon: Calendar1Icon },
+      { title: "Voucher", url: "/vouchers", icon: Gift },
+      { title: "Địa điểm Check-in", url: "/checkin-locations", icon: MapPin },
+      { title: "Zalo OA", url: "/zalo-oa", icon: User, comingSoon: true },
+    ],
+  },
+  {
+    id: 4,
     label: "Khác",
     items: [
+      { title: "Tài khoản", url: "/users", icon: UserCog },
       { title: "Hồ sơ", url: "/account", icon: UserCog },
       { title: "Quy tắc", url: "/rules", icon: Scale },
     ],
   },
 ];
-

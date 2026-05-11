@@ -1,0 +1,20 @@
+CREATE TABLE IF NOT EXISTS `khaosat` (
+  `id` INT UNSIGNED NOT NULL AUTO_INCREMENT,
+  `created_at` TIMESTAMP NULL DEFAULT NULL,
+  `updated_at` TIMESTAMP NULL DEFAULT NULL,
+  `created_by` VARCHAR(255) NULL,
+  `updated_by` VARCHAR(255) NULL,
+  `nc_order` DECIMAL(10,2) NULL,
+  `zid` VARCHAR(255) NOT NULL,
+  `phone` TEXT NULL,
+  `name` TEXT NULL,
+  `avatar` TEXT NULL,
+  `mission_id` VARCHAR(64) NOT NULL,
+  `cam_nhan` LONGTEXT NOT NULL,
+  `create_time` DATETIME NULL DEFAULT CURRENT_TIMESTAMP,
+  `update_time` DATETIME NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `khaosat_zid_mission_unique` (`zid`, `mission_id`),
+  KEY `khaosat_phone_idx` (`phone`(32)),
+  KEY `khaosat_mission_idx` (`mission_id`)
+) DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

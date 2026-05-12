@@ -1,3 +1,4 @@
+/* eslint-disable max-lines */
 import { getEventDay1Date } from "@/lib/event-settings";
 import {
   getMiniAppMissionIdsByTier,
@@ -46,12 +47,6 @@ type BrandVoucherRow = {
   brand: string | null;
   isActive: bigint | number | string | null;
 };
-type BrandCheckinRow = {
-  zoneId: string | null;
-  zoneName: string | null;
-  checkinTime: Date | string | null;
-};
-type BrandFallbackRow = { name: string | null };
 type DailyRegistrationRow = { date: Date | string | null; count: bigint | number | string | null };
 type NotifyEffectRow = {
   round: bigint | number | string | null;
@@ -393,29 +388,11 @@ function buildVoteTrend(rows: BrandVoteEventRow[], eventDay1: string) {
   return labels.map((day) => ({ day, v: countByBucket.get(day) ?? 0 }));
 }
 
-function buildHourlyBoothTraffic(rows: BrandCheckinRow[]) {
-  const countByHour = new Map<number, number>();
-  rows.forEach((row) => {
-    if (!row.checkinTime) return;
-    const value = row.checkinTime instanceof Date ? row.checkinTime : new Date(String(row.checkinTime));
-    if (Number.isNaN(value.getTime())) return;
-    const hour = value.getHours();
-    countByHour.set(hour, (countByHour.get(hour) ?? 0) + 1);
-  });
-
-  return Array.from({ length: 24 }, (_, hour) => ({
-    time: `${String(hour).padStart(2, "0")}:00`,
-    booth: countByHour.get(hour) ?? 0,
-  }));
-}
-
 function buildBrandDashboards({
   brandRows,
   voteRows,
   voucherRows,
   rewardRows,
-  checkinRows,
-  boothRows,
   customerCount,
   eventDay1,
 }: {
@@ -423,15 +400,13 @@ function buildBrandDashboards({
   voteRows: BrandVoteEventRow[];
   voucherRows: BrandVoucherRow[];
   rewardRows: RewardDashboardRow[];
-  checkinRows: BrandCheckinRow[];
-  boothRows: BrandFallbackRow[];
   customerCount: number;
   eventDay1: string;
 }) {
   const sourceRows: BrandSourceRow[] = [...brandRows];
   const existingNames = new Set(sourceRows.flatMap((row) => buildBrandTerms(row)));
 
-  [...voucherRows.map((row) => row.brand), ...boothRows.map((row) => row.name)].forEach((name) => {
+  voucherRows.map((row) => row.brand).forEach((name) => {
     const normalizedName = normalizeLookup(name);
     if (!normalizedName || existingNames.has(normalizedName)) return;
     existingNames.add(normalizedName);
@@ -454,9 +429,6 @@ function buildBrandDashboards({
     const brandVoteRows = brandId
       ? voteRows.filter((row) => String(row.brandId ?? "").trim() === brandId)
       : voteRows.filter((row) => matchesTerms(row.brandId, terms));
-    const brandCheckinRows = checkinRows.filter(
-      (row) => String(row.zoneId ?? "").trim() === brandId || matchesTerms(row.zoneName, terms),
-    );
     const activeVoucherRows = voucherRows.filter(
       (row) => Number(row.isActive ?? 1) !== 0 && matchesTerms(row.brand, terms),
     );
@@ -515,12 +487,10 @@ function buildBrandDashboards({
       votes: brandVoteRows.length,
       rank: 0,
       profileView,
-      boothVisit: brandCheckinRows.length,
       voucherIssued,
       voucherClaimed,
       claimRate: voucherIssued > 0 ? Math.round((voucherClaimed / voucherIssued) * 1000) / 10 : 0,
       missionComplete,
-      hourly: buildHourlyBoothTraffic(brandCheckinRows),
       voteTrend: buildVoteTrend(brandVoteRows, eventDay1),
     };
   });
@@ -557,8 +527,6 @@ export default async function DashboardPage({ searchParams }: { searchParams: Da
     brandRows,
     brandVoteRows,
     brandVoucherRows,
-    brandCheckinRows,
-    brandFallbackRows,
     dailyRegistrationRows,
     notifyEffectRows,
     paymentByTierRows,
@@ -659,20 +627,6 @@ export default async function DashboardPage({ searchParams }: { searchParams: Da
         is_active AS isActive
       FROM miniapp_voucher
       WHERE COALESCE(TRIM(brand), '') <> ''
-    `,
-    prisma.$queryRaw<BrandCheckinRow[]>`
-      SELECT
-        zone_id AS zoneId,
-        zone_name AS zoneName,
-        checkin_time AS checkinTime
-      FROM checkin_log
-      WHERE checkin_time IS NOT NULL
-    `,
-    prisma.$queryRaw<BrandFallbackRow[]>`
-      SELECT name
-      FROM booth
-      WHERE COALESCE(TRIM(name), '') <> ''
-      ORDER BY nc_order ASC, id ASC
     `,
     prisma.$queryRaw<DailyRegistrationRow[]>`
       SELECT DATE(create_time) AS date, COUNT(*) AS count
@@ -795,8 +749,6 @@ export default async function DashboardPage({ searchParams }: { searchParams: Da
       voteRows: brandVoteRows,
       voucherRows: brandVoucherRows,
       rewardRows: rewards,
-      checkinRows: brandCheckinRows,
-      boothRows: brandFallbackRows,
       customerCount,
       eventDay1,
     }),

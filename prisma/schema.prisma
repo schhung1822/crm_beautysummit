@@ -165,21 +165,6 @@ model categories {
   @@index([nc_order], map: "categories_order_idx")
 }
 
-model booth {
-  id          Int       @id @default(autoincrement()) @db.UnsignedInt
-  created_at  DateTime? @db.Timestamp(0)
-  updated_at  DateTime? @db.Timestamp(0)
-  created_by  String?   @db.VarChar(255)
-  updated_by  String?   @db.VarChar(255)
-  nc_order    Decimal?  @db.Decimal(10, 2)
-  create_time DateTime? @db.DateTime(0)
-  name        String?   @db.Text
-  phone       String?   @db.Text
-  email       String?   @db.Text
-
-  @@index([nc_order], map: "booth_order_idx")
-}
-
 model ticket {
   id         Int       @id @default(autoincrement()) @db.UnsignedInt
   created_at DateTime? @db.Timestamp(0)

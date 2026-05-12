@@ -1,9 +1,11 @@
+/* eslint-disable complexity, max-lines, @typescript-eslint/prefer-nullish-coalescing */
 "use client";
 
 import { useEffect, useState } from "react";
 
-import { BarChart3, Building2, Crown, Medal } from "lucide-react";
 import { useRouter } from "next/navigation";
+
+import { BarChart3, Building2, Crown, Medal } from "lucide-react";
 import {
   BarChart,
   Bar,
@@ -124,12 +126,10 @@ type BrandDashboard = {
   votes: number;
   rank: number;
   profileView: number;
-  boothVisit: number;
   voucherIssued: number;
   voucherClaimed: number;
   claimRate: number;
   missionComplete: number;
-  hourly: Array<{ time: string; booth: number }>;
   voteTrend: Array<{ day: string; v: number }>;
 };
 
@@ -139,12 +139,10 @@ const EMPTY_BRAND_DASHBOARD: BrandDashboard = {
   votes: 0,
   rank: 0,
   profileView: 0,
-  boothVisit: 0,
   voucherIssued: 0,
   voucherClaimed: 0,
   claimRate: 0,
   missionComplete: 0,
-  hourly: Array.from({ length: 24 }, (_, hour) => ({ time: `${String(hour).padStart(2, "0")}:00`, booth: 0 })),
   voteTrend: [
     { day: "Trước SK", v: 0 },
     { day: "Ngày 1 AM", v: 0 },
@@ -770,7 +768,6 @@ export default function DashboardClient({ events }: { events: any }) {
               <div className="flex flex-wrap gap-3">
                 <StatCard label="Lượt vote" value={bd.votes} sub={`Rank #${bd.rank}`} color={C.pink} />
                 <StatCard label="Người tương tác" value={bd.profileView} color={C.cyan} />
-                <StatCard label="Booth traffic" value={bd.boothVisit} sub="lượt ghé" color={C.green} />
                 <StatCard
                   label="Voucher claimed"
                   value={bd.voucherClaimed}
@@ -781,7 +778,7 @@ export default function DashboardClient({ events }: { events: any }) {
               </div>
             </div>
 
-            <div className="grid grid-cols-1 gap-[20px] md:grid-cols-2">
+            <div className="grid grid-cols-1 gap-[20px]">
               <div className={panelClass}>
                 <SectionTitle color={C.pink}>Lượt vote theo thời gian</SectionTitle>
                 <div className="h-[200px] w-full">
@@ -793,33 +790,6 @@ export default function DashboardClient({ events }: { events: any }) {
                       <Tooltip contentStyle={chartTooltipStyle} labelStyle={chartTooltipLabelStyle} />
                       <Bar dataKey="v" fill={C.pink} radius={[4, 4, 0, 0]} name="Votes" />
                     </BarChart>
-                  </ResponsiveContainer>
-                </div>
-              </div>
-
-              <div className={panelClass}>
-                <SectionTitle color={C.green}>Booth traffic theo giờ</SectionTitle>
-                <div className="h-[200px] w-full">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <AreaChart data={bd.hourly}>
-                      <defs>
-                        <linearGradient id="gBooth" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="0%" stopColor={C.green} stopOpacity={0.3} />
-                          <stop offset="100%" stopColor={C.green} stopOpacity={0} />
-                        </linearGradient>
-                      </defs>
-                      <CartesianGrid strokeDasharray="3 3" stroke={subtleGrid} />
-                      <XAxis dataKey="time" tick={chartTick} />
-                      <YAxis tick={chartTick} />
-                      <Tooltip contentStyle={chartTooltipStyle} labelStyle={chartTooltipLabelStyle} />
-                      <Area
-                        type="monotone"
-                        dataKey="booth"
-                        stroke={C.green}
-                        fill="url(#gBooth)"
-                        name="Lượt ghé booth"
-                      />
-                    </AreaChart>
                   </ResponsiveContainer>
                 </div>
               </div>
@@ -854,10 +824,6 @@ export default function DashboardClient({ events }: { events: any }) {
                     ✓ <strong className="text-foreground">{bd.votes.toLocaleString()}</strong> lượt bình chọn (Top #
                     {bd.rank})
                   </div>
-                  <div>
-                    ✓ <strong className="text-foreground">{bd.boothVisit.toLocaleString()}</strong> lượt ghé booth thực
-                    tế
-                  </div>
                 </div>
                 <div>
                   <div>
@@ -868,7 +834,6 @@ export default function DashboardClient({ events }: { events: any }) {
                     ✓ <strong className="text-foreground">{bd.missionComplete.toLocaleString()}</strong> nhiệm vụ brand
                     hoàn thành
                   </div>
-                  <div>✓ Data khách ghé booth → remarketing</div>
                 </div>
               </div>
             </div>

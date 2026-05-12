@@ -25,9 +25,19 @@ type OrderRow = RowDataPacket & {
   create_time: Date | string | null;
   gender: string | null;
   career: string | null;
+  hope: string | null;
+  send_noti: number | string | null;
+  voucher: string | null;
+  utm_source: string | null;
+  utm_medium: string | null;
+  utm_campaign: string | null;
+  step_mail: number | string | null;
+  step_zbs: number | string | null;
   is_checkin: number | string | null;
   number_checkin: number | string | null;
   checkin_time: Date | string | null;
+    order_id: string | null;
+
 };
 
 function parseString(value: unknown): string {
@@ -61,10 +71,20 @@ function mapRowToChannel(row: OrderRow): Channel {
     create_time: parseDate(row.create_time),
     gender: parseString(row.gender),
     career: parseString(row.career),
+    hope: parseString(row.hope),
+    send_noti: parseNumber(row.send_noti),
+    voucher: parseString(row.voucher),
+    utm_source: parseString(row.utm_source),
+    utm_medium: parseString(row.utm_medium),
+    utm_campaign: parseString(row.utm_campaign),
+    step_mail: parseNumber(row.step_mail),
+    step_zbs: parseNumber(row.step_zbs),
     is_checkin: isCheckin,
     number_checkin: parseNumber(row.number_checkin),
     status_checkin: buildCheckinStatusLabel(isCheckin),
     checkin_time: parseDate(row.checkin_time),
+    order_id: parseString(row.order_id),
+
   });
 }
 
@@ -102,9 +122,18 @@ export async function getChannels(options?: GetChannelsOptions): Promise<Channel
       create_time,
       COALESCE(gender, '') AS gender,
       COALESCE(career, '') AS career,
+      COALESCE(hope, '') AS hope,
+      COALESCE(send_noti, 0) AS send_noti,
+      COALESCE(voucher, '') AS voucher,
+      COALESCE(utm_source, '') AS utm_source,
+      COALESCE(utm_medium, '') AS utm_medium,
+      COALESCE(utm_campaign, '') AS utm_campaign,
+      COALESCE(step_mail, 0) AS step_mail,
+      COALESCE(step_zbs, 0) AS step_zbs,
       COALESCE(is_checkin, 0) AS is_checkin,
       COALESCE(number_checkin, 0) AS number_checkin,
-      checkin_time
+      checkin_time,
+      COALESCE(order_id, '') AS order_id
     FROM orders
     ${whereSql}
     ORDER BY create_time DESC

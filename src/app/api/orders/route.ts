@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 
 import type { ResultSetHeader, RowDataPacket } from "mysql2";
 
+import { getCurrentUser } from "@/lib/auth";
 import { getDB } from "@/lib/db";
 import { normalizePhoneDigits, toDatabasePhone } from "@/lib/phone";
 import { buildCheckinStatusLabel, normalizeCheckinFlag } from "@/lib/ticket-orders";
@@ -48,6 +49,11 @@ type CustomerLookupRow = RowDataPacket & {
   create_time: Date | null;
 };
 
+const ADMIN_ORDER_ID_PREFIX = "AD";
+const ADMIN_ORDER_ID_DIGITS = 7;
+const UPDATE_PAYMENT_WEBHOOK_URL = "https://nextg.nextgency.vn/webhook/update-payment";
+const WEBHOOK_TIME_ZONE = "Asia/Bangkok";
+
 function toNullableString(value: unknown) {
   const normalized = typeof value === "string" ? value.trim() : value == null ? "" : String(value).trim();
   return normalized.length > 0 ? normalized : null;
@@ -85,6 +91,14 @@ function generateTicketCode() {
   return `DH${Date.now().toString(36).toUpperCase().slice(0, 2)}${Math.random().toString(36).slice(2, 7).toUpperCase()}`;
 }
 
+function generateAdminOrderId() {
+  const randomDigits = Math.floor(Math.random() * 10 ** ADMIN_ORDER_ID_DIGITS)
+    .toString()
+    .padStart(ADMIN_ORDER_ID_DIGITS, "0");
+
+  return `${ADMIN_ORDER_ID_PREFIX}${randomDigits}`;
+}
+
 function buildCustomerId(phone: string | null, provided?: string | null) {
   if (provided) {
     return provided;
@@ -92,6 +106,47 @@ function buildCustomerId(phone: string | null, provided?: string | null) {
 
   const digits = normalizePhoneDigits(phone);
   return digits ? `KH${digits}` : null;
+}
+
+function getTicketCreatorAccountName(user: Awaited<ReturnType<typeof getCurrentUser>>) {
+  const username = toNullableString(user?.username);
+  const name = toNullableString(user?.name);
+  const email = toNullableString(user?.email);
+
+  return username ?? name ?? email;
+}
+
+function buildAdminUtmSource(currentValue: string | null, creatorAccountName: string | null) {
+  if (!creatorAccountName) {
+    return currentValue;
+  }
+
+  if (!currentValue) {
+    return creatorAccountName;
+  }
+
+  return currentValue === creatorAccountName ? currentValue : `${currentValue} | ${creatorAccountName}`;
+}
+
+function formatWebhookTransactionDate(value: Date) {
+  const parts = new Intl.DateTimeFormat("en-GB", {
+    timeZone: WEBHOOK_TIME_ZONE,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  }).formatToParts(value);
+
+  const lookup = new Map(parts.map((part) => [part.type, part.value]));
+  const year = lookup.get("year") ?? "0000";
+  const month = lookup.get("month") ?? "00";
+  const day = lookup.get("day") ?? "00";
+  const hour = lookup.get("hour") ?? "00";
+  const minute = lookup.get("minute") ?? "00";
+
+  return `${year}/${month}/${day} ${hour}:${minute}`;
 }
 
 function normalizeOrderPayload(body: Record<string, unknown>): NormalizedOrderPayload {
@@ -155,6 +210,21 @@ async function orderCodeExists(orderCode: string, excludeOrderCode?: string | nu
   return rows.length > 0;
 }
 
+async function orderIdExists(orderId: string) {
+  const db = getDB();
+  const [rows] = await db.query<ExistsRow[]>(
+    `
+    SELECT 1 AS is_exists
+    FROM orders
+    WHERE order_id = ?
+    LIMIT 1
+    `,
+    [orderId],
+  );
+
+  return rows.length > 0;
+}
+
 async function ensureUniqueOrderCode(preferred?: string | null, excludeOrderCode?: string | null) {
   if (preferred && preferred === excludeOrderCode) {
     return preferred;
@@ -176,6 +246,18 @@ async function ensureUniqueOrderCode(preferred?: string | null, excludeOrderCode
   }
 
   throw new Error("Unable to generate a unique ticket code");
+}
+
+async function ensureUniqueAdminOrderId() {
+  for (let index = 0; index < 20; index += 1) {
+    const orderId = generateAdminOrderId();
+    const orderIdTaken = await orderIdExists(orderId);
+    if (!orderIdTaken) {
+      return orderId;
+    }
+  }
+
+  throw new Error("Unable to generate a unique admin order id");
 }
 
 async function findExistingCustomer(customerId: string | null, phone: string | null) {
@@ -278,7 +360,7 @@ async function syncCustomerFromOrder(payload: NormalizedOrderPayload) {
   );
 }
 
-async function insertTicketOrder(orderCode: string, payload: NormalizedOrderPayload) {
+async function insertTicketOrder(orderCode: string, orderId: string, payload: NormalizedOrderPayload) {
   const db = getDB();
 
   await db.query(
@@ -286,6 +368,7 @@ async function insertTicketOrder(orderCode: string, payload: NormalizedOrderPayl
     INSERT INTO orders
       (
         ordercode,
+        order_id,
         create_time,
         name,
         phone,
@@ -314,10 +397,11 @@ async function insertTicketOrder(orderCode: string, payload: NormalizedOrderPayl
         created_at,
         updated_at
       )
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `,
     [
       orderCode,
+      orderId,
       payload.create_time,
       payload.name,
       payload.phone,
@@ -347,6 +431,38 @@ async function insertTicketOrder(orderCode: string, payload: NormalizedOrderPayl
       payload.update_time,
     ],
   );
+}
+
+async function notifyPaymentUpdateWebhook(payload: { orderId: string; createTime: Date; totalPayment: number }) {
+  try {
+    const response = await fetch(UPDATE_PAYMENT_WEBHOOK_URL, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        code: payload.orderId,
+        transactionDate: formatWebhookTransactionDate(payload.createTime),
+        transferAmount: payload.totalPayment,
+      }),
+      signal: AbortSignal.timeout(10_000),
+    });
+
+    if (!response.ok) {
+      const responseBody = await response.text().catch(() => "");
+      console.error("Update payment webhook returned non-OK response", {
+        status: response.status,
+        statusText: response.statusText,
+        body: responseBody,
+        orderId: payload.orderId,
+      });
+    }
+  } catch (error) {
+    console.error("Failed to notify update payment webhook", {
+      orderId: payload.orderId,
+      error: toErrorMessage(error),
+    });
+  }
 }
 
 async function updateTicketOrder(originalOrderCode: string, payload: NormalizedOrderPayload) {
@@ -442,20 +558,32 @@ function toErrorMessage(error: unknown) {
 export async function POST(req: Request) {
   try {
     const body = (await req.json()) as Record<string, unknown>;
+    const currentUser = await getCurrentUser();
     const payload = normalizeOrderPayload(body);
     const quantityRaw = Number(body.quantity ?? 1);
     const quantity = Number.isFinite(quantityRaw) && quantityRaw > 0 ? Math.floor(quantityRaw) : 1;
+    const orderId = await ensureUniqueAdminOrderId();
+    const creatorAccountName = getTicketCreatorAccountName(currentUser);
+    const preparedPayload: NormalizedOrderPayload = {
+      ...payload,
+      utm_source: buildAdminUtmSource(payload.utm_source, creatorAccountName),
+    };
     const orderCodes: string[] = [];
 
     for (let index = 0; index < quantity; index += 1) {
       const orderCode = await ensureUniqueOrderCode(payload.ordercode);
       orderCodes.push(orderCode);
-      await insertTicketOrder(orderCode, payload);
+      await insertTicketOrder(orderCode, orderId, preparedPayload);
     }
 
-    await syncCustomerFromOrder(payload);
+    await syncCustomerFromOrder(preparedPayload);
+    await notifyPaymentUpdateWebhook({
+      orderId,
+      createTime: preparedPayload.create_time,
+      totalPayment: Math.max(0, Math.round(preparedPayload.money_VAT)) * quantity,
+    });
 
-    return NextResponse.json({ ok: true, orderCodes });
+    return NextResponse.json({ ok: true, orderCodes, orderId });
   } catch (error) {
     return NextResponse.json({ error: toErrorMessage(error) }, { status: 500 });
   }

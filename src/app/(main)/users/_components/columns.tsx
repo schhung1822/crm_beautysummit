@@ -32,7 +32,7 @@ export const dashboardColumns = (
 ): ColumnDef<AccountUser>[] => [
   {
     accessorKey: "name",
-    header: ({ column }) => <DataTableColumnHeader column={column} title="Ho ten" />,
+    header: ({ column }) => <DataTableColumnHeader column={column} title="Họ tên" />,
     cell: ({ row }) => (
       <div className="max-w-[240px] truncate">
         <TableCellViewer item={row.original} onUpdated={onRowUpdated} />
@@ -54,13 +54,13 @@ export const dashboardColumns = (
   },
   {
     accessorKey: "phone",
-    header: ({ column }) => <DataTableColumnHeader column={column} title="Dien thoai" />,
+    header: ({ column }) => <DataTableColumnHeader column={column} title="Điện thoại" />,
     cell: ({ row }) => <span className="block max-w-[160px] truncate font-mono">{row.original.phone || "--"}</span>,
     enableSorting: false,
   },
   {
     accessorKey: "role",
-    header: ({ column }) => <DataTableColumnHeader column={column} title="Vai tro" />,
+    header: ({ column }) => <DataTableColumnHeader column={column} title="Vai trò" />,
     cell: ({ row }) => (
       <Badge variant="outline" className={`rounded-full px-2.5 py-0.5 text-xs ${getRoleBadgeClass(row.original.role)}`}>
         {row.original.role || "--"}
@@ -70,7 +70,7 @@ export const dashboardColumns = (
   },
   {
     accessorKey: "status",
-    header: ({ column }) => <DataTableColumnHeader column={column} title="Trang thai" />,
+    header: ({ column }) => <DataTableColumnHeader column={column} title="Trạng thái" />,
     cell: ({ row }) => (
       <Badge
         variant="outline"
@@ -83,7 +83,7 @@ export const dashboardColumns = (
   },
   {
     accessorKey: "last_login",
-    header: ({ column }) => <DataTableColumnHeader column={column} title="Dang nhap cuoi" />,
+    header: ({ column }) => <DataTableColumnHeader column={column} title="Đăng nhập cuối" />,
     cell: ({ row }) => (
       <span className="block max-w-[190px] truncate text-sm">{formatDate(row.original.last_login)}</span>
     ),
@@ -91,7 +91,7 @@ export const dashboardColumns = (
   },
   {
     accessorKey: "create_time",
-    header: ({ column }) => <DataTableColumnHeader column={column} title="Ngay tao" />,
+    header: ({ column }) => <DataTableColumnHeader column={column} title="Ngày tạo" />,
     cell: ({ row }) => (
       <span className="block max-w-[190px] truncate text-sm">{formatDate(row.original.create_time)}</span>
     ),

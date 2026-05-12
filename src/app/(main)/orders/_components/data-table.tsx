@@ -68,7 +68,21 @@ function OrdersDataTable({ data: initialData = [] }: { data?: Channel[] }) {
   const filteredData = React.useMemo(
     () =>
       data.filter((item) =>
-        matchesSearchTerm(searchTerm, [item.ordercode, item.name, item.phone, item.email, item.class]),
+        matchesSearchTerm(searchTerm, [
+          item.ordercode,
+          item.name,
+          item.phone,
+          item.email,
+          item.class,
+          item.hope,
+          item.voucher,
+          item.utm_source,
+          item.utm_medium,
+          item.utm_campaign,
+          String(item.send_noti),
+          String(item.step_mail),
+          String(item.step_zbs),
+        ]),
       ),
     [data, searchTerm],
   );
@@ -76,6 +90,7 @@ function OrdersDataTable({ data: initialData = [] }: { data?: Channel[] }) {
   const table = useDataTableInstance({
     data: filteredData,
     columns,
+    defaultPageSize: 20,
     getRowId: (row) => toOrderRowKey(row),
   });
   const selectedItems = table.getSelectedRowModel().rows.map((row) => row.original);
@@ -128,7 +143,7 @@ function OrdersDataTable({ data: initialData = [] }: { data?: Channel[] }) {
           format,
           data: dataToExport,
           headers: {
-            ordercode: "Mã đơn",
+            ordercode: "Mã vé",
             name: "Họ tên",
             phone: "Số điện thoại",
             email: "Email",
@@ -140,6 +155,14 @@ function OrdersDataTable({ data: initialData = [] }: { data?: Channel[] }) {
             create_time: "Ngày tạo",
             gender: "Giới tính",
             career: "Nghề nghiệp",
+            hope: "Mong đợi về Beauty Summit",
+            send_noti: "Mail remind",
+            voucher: "Voucher",
+            utm_source: "UTM Source",
+            utm_medium: "UTM Medium",
+            utm_campaign: "UTM Campaign",
+            step_mail: "Step mail",
+            step_zbs: "Step ZBS",
             status_checkin: "Trạng thái check-in",
             checkin_time: "Ngày check-in",
           },
@@ -159,8 +182,8 @@ function OrdersDataTable({ data: initialData = [] }: { data?: Channel[] }) {
   );
 
   return (
-    <div className="flex w-full flex-col gap-6">
-      <div className="flex items-center justify-between gap-4">
+    <div className="flex h-full min-h-0 w-full min-w-0 max-w-full flex-1 basis-0 flex-col gap-4 overflow-hidden">
+      <div className="flex shrink-0 flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
         <div className="relative max-w-sm flex-1">
           <Search className="text-muted-foreground absolute top-1/2 left-3 size-4 -translate-y-1/2" />
           <Input
@@ -171,7 +194,7 @@ function OrdersDataTable({ data: initialData = [] }: { data?: Channel[] }) {
           />
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <Button size="sm" variant="outline" onClick={() => toggleFilteredRows(table, true)}>
             Chọn tất cả
           </Button>
@@ -196,8 +219,15 @@ function OrdersDataTable({ data: initialData = [] }: { data?: Channel[] }) {
         </div>
       </div>
 
-      <div className="nice-scroll overflow-x-auto rounded-lg">
-        <SharedDataTable table={table} columns={columns} />
+      <div className="min-h-0 min-w-0 max-w-full flex-1 basis-0 overflow-hidden">
+        <SharedDataTable
+          table={table}
+          columns={columns}
+          stickyFooter
+          className="h-full min-h-0 min-w-0 max-w-full flex-1 basis-0 overflow-hidden nice-scroll"
+          viewportClassName="min-h-0 min-w-0 max-w-full flex-1 basis-0 overflow-hidden"
+          footerClassName="shrink-0 rounded-xl"
+        />
       </div>
 
       <ExportDialog

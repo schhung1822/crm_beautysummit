@@ -51,8 +51,10 @@ export function LoginForm() {
           password: data.password,
         }),
       });
-
-      const result = await response.json();
+      const contentType = response.headers.get("content-type") ?? "";
+      const result = contentType.includes("application/json")
+        ? await response.json()
+        : { message: "Server login API returned an unexpected response." };
 
       if (response.ok) {
         toast.success("Login successful!", {

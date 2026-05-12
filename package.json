@@ -3,6 +3,7 @@
   "version": "2.0.0",
   "private": true,
   "scripts": {
+    "predev": "node scripts/prisma-generate.js",
     "dev": "next dev",
     "dev:swc": "next dev --no-turbo",
     "build": "next build --webpack",
@@ -11,7 +12,9 @@
     "lint": "eslint",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
+    "postinstall": "node scripts/prisma-generate.js",
     "prepare": "husky",
+    "prisma:generate": "node scripts/prisma-generate.js",
     "generate:presets": "ts-node -P tsconfig.scripts.json src/scripts/generate-theme-presets.ts",
     "seed:mock": "ts-node -P tsconfig.scripts.json prisma/reset-core-mock-data.ts",
     "seed:reset-core": "ts-node -P tsconfig.scripts.json prisma/reset-core-mock-data.ts"

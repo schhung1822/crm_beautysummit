@@ -1,3 +1,4 @@
+/* eslint-disable max-lines */
 import { ColumnDef } from "@tanstack/react-table";
 
 import { DataTableColumnHeader } from "@/components/data-table/data-table-column-header";
@@ -79,6 +80,11 @@ function getPaymentStatusBadgeClass(status: string) {
   return matched?.className ?? "bg-muted/20 text-muted-foreground";
 }
 
+function getDisplayValue(value?: string | number | null) {
+  const normalized = String(value ?? "").trim();
+  return normalized || "—";
+}
+
 // ---- Columns factory ----
 export const dashboardColumns = (onRowUpdated?: OnRowUpdated, onDeleteRow?: OnDeleteRow): ColumnDef<Channel>[] => [
   {
@@ -112,7 +118,7 @@ export const dashboardColumns = (onRowUpdated?: OnRowUpdated, onDeleteRow?: OnDe
   // Mã đơn (đặt lên cột đầu)
   {
     accessorKey: "ordercode",
-    header: ({ column }) => <DataTableColumnHeader column={column} title="Mã đơn" />,
+    header: ({ column }) => <DataTableColumnHeader column={column} title="Mã vé" />,
     cell: ({ row }) => <TableCellViewer item={row.original} onRowUpdated={onRowUpdated} />,
     enableSorting: false,
     size: 120,
@@ -171,25 +177,25 @@ export const dashboardColumns = (onRowUpdated?: OnRowUpdated, onDeleteRow?: OnDe
   },
 
   {
-    accessorKey: "money",
-    header: ({ column }) => <DataTableColumnHeader className="w-full text-right" column={column} title="Thành tiền" />,
+    accessorKey: "hope",
+    header: ({ column }) => <DataTableColumnHeader column={column} title="Mong đợi" />,
     cell: ({ row }) => (
-      <div className="text-right tabular-nums">{(row.original.money || 0).toLocaleString("en-GB")}</div>
+      <span className="block max-w-[220px] truncate" title={row.original.hope || undefined}>
+        {getDisplayValue(row.original.hope)}
+      </span>
     ),
     enableSorting: false,
-    size: 110,
+    size: 180,
   },
 
   {
-    accessorKey: "money_VAT",
-    header: ({ column }) => (
-      <DataTableColumnHeader className="w-full text-right" column={column} title="Thành tiền (VAT)" />
-    ),
+    accessorKey: "money",
+    header: ({ column }) => <DataTableColumnHeader className="w-full text-left" column={column} title="Thành tiền" />,
     cell: ({ row }) => (
-      <div className="text-right tabular-nums">{(row.original.money_VAT || 0).toLocaleString("en-GB")}</div>
+      <div className="text-left tabular-nums">{(row.original.money || 0).toLocaleString("en-GB")}</div>
     ),
     enableSorting: false,
-    size: 120,
+    size: 110,
   },
 
   {
@@ -217,7 +223,15 @@ export const dashboardColumns = (onRowUpdated?: OnRowUpdated, onDeleteRow?: OnDe
       </span>
     ),
     enableSorting: false,
-    size: 110,
+    size: 130,
+  },
+
+  {
+    accessorKey: "order_id",
+    header: ({ column }) => <DataTableColumnHeader column={column} title="Mã đơn hàng" />,
+    cell: ({ row }) => <span className="font-mono">{row.original.order_id}</span>,
+    enableSorting: false,
+    size: 160,
   },
 
   {
@@ -258,6 +272,78 @@ export const dashboardColumns = (onRowUpdated?: OnRowUpdated, onDeleteRow?: OnDe
     ),
     enableSorting: false,
     size: 110,
+  },
+
+  {
+    accessorKey: "voucher",
+    header: ({ column }) => <DataTableColumnHeader column={column} title="Voucher" />,
+    cell: ({ row }) => (
+      <span className="block max-w-[120px] truncate" title={row.original.voucher || undefined}>
+        {getDisplayValue(row.original.voucher)}
+      </span>
+    ),
+    enableSorting: false,
+    size: 120,
+  },
+
+  {
+    accessorKey: "send_noti",
+    header: ({ column }) => <DataTableColumnHeader column={column} title="Mail remind" />,
+    cell: ({ row }) => <span>{row.original.send_noti}</span>,
+    enableSorting: false,
+    size: 90,
+  },
+
+  {
+    accessorKey: "utm_source",
+    header: ({ column }) => <DataTableColumnHeader column={column} title="UTM Source" />,
+    cell: ({ row }) => (
+      <span className="block max-w-[160px] truncate" title={row.original.utm_source || undefined}>
+        {getDisplayValue(row.original.utm_source)}
+      </span>
+    ),
+    enableSorting: false,
+    size: 140,
+  },
+
+  {
+    accessorKey: "utm_medium",
+    header: ({ column }) => <DataTableColumnHeader column={column} title="UTM Medium" />,
+    cell: ({ row }) => (
+      <span className="block max-w-[140px] truncate" title={row.original.utm_medium || undefined}>
+        {getDisplayValue(row.original.utm_medium)}
+      </span>
+    ),
+    enableSorting: false,
+    size: 130,
+  },
+
+  {
+    accessorKey: "utm_campaign",
+    header: ({ column }) => <DataTableColumnHeader column={column} title="UTM Campaign" />,
+    cell: ({ row }) => (
+      <span className="block max-w-[180px] truncate" title={row.original.utm_campaign || undefined}>
+        {getDisplayValue(row.original.utm_campaign)}
+      </span>
+    ),
+    enableSorting: false,
+    size: 160,
+  },
+
+  {
+    accessorKey: "step_mail",
+    header: ({ column }) => <DataTableColumnHeader column={column} title="Step mail" />,
+    cell: ({ row }) => <span>{row.original.step_mail}</span>,
+    enableSorting: false,
+    size: 85,
+  },
+
+  {
+    accessorKey: "step_zbs",
+    header: ({ column }) => <DataTableColumnHeader column={column} title="Step ZBS" />,
+    cell: ({ row }) => <span>{row.original.step_zbs}</span>,
+    enableSorting: false,
+    size: 85,
   },
 
   // Actions

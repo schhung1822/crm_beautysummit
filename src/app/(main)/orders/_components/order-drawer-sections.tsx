@@ -1,6 +1,7 @@
+/* eslint-disable complexity */
 import * as React from "react";
 
-import { Briefcase, Calendar, Mail, Phone, User2 } from "lucide-react";
+import { Briefcase, Calendar, Gift, Mail, Megaphone, Phone, Send, User2 } from "lucide-react";
 import { z } from "zod";
 
 import { Badge } from "@/components/ui/badge";
@@ -36,7 +37,7 @@ export function OrderDrawerRow({
       <div className="text-muted-foreground mt-0.5">{icon}</div>
       <div className="min-w-0 flex-1">
         <div className="text-muted-foreground text-[11px]">{label}</div>
-        <div className="truncate text-sm font-medium whitespace-nowrap" title={getTooltipText(value)}>
+        <div className="truncate text-sm font-medium text-wrap" title={getTooltipText(value)}>
           {value ?? "—"}
         </div>
       </div>
@@ -46,7 +47,7 @@ export function OrderDrawerRow({
 
 export function OrderDrawerBlock({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <div className="bg-card/60 rounded-2xl border p-3">
+    <div className="bg-card/60 rounded-2xl border p-3 w-[100%]">
       <div className="mb-2 text-sm font-semibold">{title}</div>
       <div className="grid gap-2.5">{children}</div>
     </div>
@@ -232,22 +233,46 @@ export function OrderCustomerInfoSection({
 
 export function OrderExtraInfoSection({
   career,
+  hope,
+  sendNoti,
+  voucher,
   status,
+  utmSource,
+  utmMedium,
+  utmCampaign,
+  stepMail,
+  stepZbs,
   isCheckin,
 }: {
   career?: string | null;
+  hope?: string | null;
+  sendNoti?: number | null;
+  voucher?: string | null;
   status?: string | null;
+  utmSource?: string | null;
+  utmMedium?: string | null;
+  utmCampaign?: string | null;
+  stepMail?: number | null;
+  stepZbs?: number | null;
   isCheckin?: string | number | null;
 }) {
   return (
     <OrderDrawerBlock title="Thông tin thêm">
       <OrderDrawerRow icon={<Briefcase className="h-4 w-4" />} label="Ngành nghề" value={career ?? "—"} />
+      <OrderDrawerRow icon={<User2 className="h-4 w-4" />} label="Mong đợi về Beauty Summit" value={hope ?? "—"} />
+      <OrderDrawerRow icon={<Mail className="h-4 w-4" />} label="Mail remind" value={sendNoti ?? 0} />
+      <OrderDrawerRow icon={<Gift className="h-4 w-4" />} label="Voucher" value={voucher ?? "—"} />
       <OrderDrawerRow icon={<Calendar className="h-4 w-4" />} label="Trạng thái thanh toán" value={status ?? "—"} />
       <OrderDrawerRow
         icon={<Calendar className="h-4 w-4" />}
         label="Trạng thái check-in"
         value={ticketOrders.buildCheckinStatusLabel(isCheckin)}
       />
+      <OrderDrawerRow icon={<Megaphone className="h-4 w-4" />} label="UTM Source" value={utmSource ?? "—"} />
+      <OrderDrawerRow icon={<Send className="h-4 w-4" />} label="UTM Medium" value={utmMedium ?? "—"} />
+      <OrderDrawerRow icon={<Megaphone className="h-4 w-4" />} label="UTM Campaign" value={utmCampaign ?? "—"} />
+      <OrderDrawerRow icon={<Mail className="h-4 w-4" />} label="Step mail" value={stepMail ?? 0} />
+      <OrderDrawerRow icon={<Send className="h-4 w-4" />} label="Step ZBS" value={stepZbs ?? 0} />
     </OrderDrawerBlock>
   );
 }

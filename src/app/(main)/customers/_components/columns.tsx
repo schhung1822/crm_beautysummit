@@ -1,11 +1,11 @@
 import { ColumnDef } from "@tanstack/react-table";
 
 import { DataTableColumnHeader } from "@/components/data-table/data-table-column-header";
+import { formatGender } from "@/lib/utils";
 
 import { RowActionsCell } from "./row-actions-cell";
 import { type Users } from "./schema";
 import { TableCellViewer } from "./table-cell-viewer";
-import { formatGender } from "@/lib/utils";
 
 type OnRowUpdated = (updated: Users) => void;
 type OnDuplicateRow = (row: Users) => Promise<void> | void;
@@ -18,7 +18,7 @@ export const dashboardColumns = (
 ): ColumnDef<Users>[] => [
   {
     accessorKey: "name",
-    header: ({ column }) => <DataTableColumnHeader column={column} title="Ho ten" />,
+    header: ({ column }) => <DataTableColumnHeader column={column} title="Họ tên" />,
     cell: ({ row }) => (
       <div className="max-w-[300px] truncate">
         <TableCellViewer item={row.original} onUpdated={onRowUpdated} />
@@ -28,13 +28,13 @@ export const dashboardColumns = (
   },
   {
     accessorKey: "customer_ID",
-    header: ({ column }) => <DataTableColumnHeader column={column} title="Ma khach hang" />,
+    header: ({ column }) => <DataTableColumnHeader column={column} title="Mã khách hàng" />,
     cell: ({ row }) => <span className="block max-w-[240px] truncate">{row.original.customer_ID}</span>,
     enableSorting: false,
   },
   {
     accessorKey: "phone",
-    header: ({ column }) => <DataTableColumnHeader column={column} title="Dien thoai" />,
+    header: ({ column }) => <DataTableColumnHeader column={column} title="Điện thoại" />,
     cell: ({ row }) => <span className="block max-w-[180px] truncate font-mono">{row.original.phone}</span>,
     enableSorting: false,
   },
@@ -46,19 +46,19 @@ export const dashboardColumns = (
   },
   {
     accessorKey: "gender",
-    header: ({ column }) => <DataTableColumnHeader column={column} title="Gioi tinh" />,
+    header: ({ column }) => <DataTableColumnHeader column={column} title="Giới tính" />,
     cell: ({ row }) => <span className="block max-w-[120px] truncate">{formatGender(row.original.gender)}</span>,
     enableSorting: false,
   },
   {
     accessorKey: "career",
-    header: ({ column }) => <DataTableColumnHeader column={column} title="Nghe nghiep" />,
+    header: ({ column }) => <DataTableColumnHeader column={column} title="Nghề nghiệp" />,
     cell: ({ row }) => <span className="block max-w-[220px] truncate">{row.original.career}</span>,
     enableSorting: false,
   },
   {
     accessorKey: "create_time",
-    header: ({ column }) => <DataTableColumnHeader column={column} title="Ngay tao" />,
+    header: ({ column }) => <DataTableColumnHeader column={column} title="Ngày tạo" />,
     cell: ({ row }) => (
       <span className="block max-w-[180px] truncate text-sm">
         {row.original.create_time instanceof Date

@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useContext, useEffect, useState, ReactNode } from "react";
+import { type ReactNode, createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 
 import { useRouter } from "next/navigation";
 
@@ -30,10 +30,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
   const router = useRouter();
 
-  const fetchUser = async () => {
+  const fetchUser = useCallback(async () => {
     try {
       const response = await fetch("/api/auth/me");
-      if (response.ok) {
+      const contentType = response.headers.get("content-type") ?? "";
+
+      if (response.ok && contentType.includes("application/json")) {
         const data = await response.json();
         setUser(data.user);
       } else {
@@ -45,13 +47,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } finally {
       setIsLoading(false);
     }
-  };
-
-  useEffect(() => {
-    fetchUser();
   }, []);
 
-  const logout = async () => {
+  useEffect(() => {
+    void fetchUser();
+  }, [fetchUser]);
+
+  const logout = useCallback(async () => {
     try {
       const response = await fetch("/api/auth/logout", {
         method: "POST",
@@ -69,13 +71,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       console.error("Logout error:", error);
       toast.error("Có lỗi xảy ra");
     }
-  };
+  }, [router]);
 
-  const refreshUser = async () => {
+  const refreshUser = useCallback(async () => {
     await fetchUser();
-  };
+  }, [fetchUser]);
 
-  return <AuthContext.Provider value={{ user, isLoading, logout, refreshUser }}>{children}</AuthContext.Provider>;
+  const contextValue = useMemo(
+    () => ({ user, isLoading, logout, refreshUser }),
+    [user, isLoading, logout, refreshUser],
+  );
+
+  return <AuthContext.Provider value={contextValue}>{children}</AuthContext.Provider>;
 }
 
 export function useAuth() {

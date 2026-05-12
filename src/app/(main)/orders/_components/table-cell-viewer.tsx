@@ -189,7 +189,15 @@ export function TableCellViewer({ item, onRowUpdated, triggerElement }: ViewerPr
             {!isEditing ? (
               <OrderExtraInfoSection
                 career={displayedItem.career}
+                hope={displayedItem.hope}
+                sendNoti={displayedItem.send_noti}
+                voucher={displayedItem.voucher}
                 status={displayedItem.status}
+                utmSource={displayedItem.utm_source}
+                utmMedium={displayedItem.utm_medium}
+                utmCampaign={displayedItem.utm_campaign}
+                stepMail={displayedItem.step_mail}
+                stepZbs={displayedItem.step_zbs}
                 isCheckin={displayedItem.is_checkin}
               />
             ) : null}

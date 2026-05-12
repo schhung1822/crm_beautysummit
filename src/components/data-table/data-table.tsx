@@ -1,5 +1,6 @@
 ﻿"use client";
 
+/* eslint-disable max-lines */
 import * as React from "react";
 
 import {
@@ -23,6 +24,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { cn } from "@/lib/utils";
 
 import { DraggableRow } from "./draggable-row";
 
@@ -31,6 +33,10 @@ interface DataTableProps<TData, TValue> {
   columns: ColumnDef<TData, TValue>[];
   dndEnabled?: boolean;
   onReorder?: (newData: TData[]) => void;
+  className?: string;
+  viewportClassName?: string;
+  footerClassName?: string;
+  stickyFooter?: boolean;
 }
 
 function getColumnPixelSize(columnId: string, size: number) {
@@ -141,6 +147,10 @@ export function DataTable<TData, TValue>({
   columns,
   dndEnabled = false,
   onReorder,
+  className,
+  viewportClassName,
+  footerClassName,
+  stickyFooter = false,
 }: DataTableProps<TData, TValue>) {
   const { pageIndex, pageSize } = table.getState().pagination;
 
@@ -167,7 +177,7 @@ export function DataTable<TData, TValue>({
     }
   }, [pageCount, pageIndex, isFocused]);
 
-  const commitPageInput = React.useCallback(() => {
+  function commitPageInput() {
     if (pageCount === 0) {
       setPageInput("0");
       return;
@@ -183,7 +193,7 @@ export function DataTable<TData, TValue>({
 
     table.setPageIndex(parsed - 1);
     setPageInput(String(parsed));
-  }, [pageCount, pageInput, pageIndex, table]);
+  }
 
   function handleDragEnd(event: DragEndEvent) {
     const { active, over } = event;
@@ -202,7 +212,7 @@ export function DataTable<TData, TValue>({
   }
 
   const tableElement = (
-    <Table>
+    <Table containerClassName={stickyFooter ? "nice-scroll h-full overflow-auto" : undefined}>
       <TableHeader className="bg-muted sticky top-0 z-10">
         {table.getHeaderGroups().map((headerGroup) => (
           <TableRow key={headerGroup.id}>
@@ -264,12 +274,24 @@ export function DataTable<TData, TValue>({
   );
 
   return (
-    <div className="flex flex-col gap-2">
-      <div className="scrollbar-thin scrollbar-thumb-muted-foreground/40 scrollbar-track-transparent hover:scrollbar-thumb-muted-foreground/60 overflow-hidden rounded-lg border">
+    <div className={cn("flex min-h-0 min-w-0 max-w-full flex-col gap-2 overflow-hidden", className)}>
+      <div
+        className={cn(
+          "scrollbar-thin scrollbar-thumb-muted-foreground/40 scrollbar-track-transparent hover:scrollbar-thumb-muted-foreground/60 min-w-0 max-w-full overflow-hidden rounded-lg border",
+          stickyFooter && "min-h-0 flex-1 basis-0",
+          viewportClassName,
+        )}
+      >
         {content}
       </div>
 
-      <div className="flex items-center justify-between px-4 py-2">
+      <div
+        className={cn(
+          "flex items-center justify-between px-4 py-2",
+          stickyFooter && "supports-backdrop-filter:bg-background/80 bg-background/95 sticky bottom-0 z-10 border rounded-lg backdrop-blur",
+          footerClassName,
+        )}
+      >
         {selectionEnabled ? (
           <div className="text-muted-foreground hidden flex-1 text-sm lg:flex">
             {selectedCount} của {totalFiltered} hàng đã chọn

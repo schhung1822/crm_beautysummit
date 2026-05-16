@@ -1,8 +1,7 @@
 import { getChannels } from "@/lib/orders";
 
 import { ChartAreaInteractive } from "./_components/chart-area-interactive";
-import type { Stats } from "./_components/columns";
-import { DataTable } from "./_components/data-table";
+import { DashboardAnalytics } from "./_components/dashboard-analytics";
 import { DateRangeFilter } from "./_components/date-range-filter";
 import type { Channel } from "./_components/schema";
 import { SectionCards } from "./_components/section-cards";
@@ -27,13 +26,13 @@ function buildChartData(channels: Channel[]): { date: string; orders: number; re
   for (const c of channels) {
     if (!c.create_time) continue;
     const d = c.create_time instanceof Date ? c.create_time : new Date(String(c.create_time));
-    const key = d.toISOString().slice(0, 10); // YYYY-MM-DD
+    const key = d.toISOString().slice(0, 10);
     const existing = chartMap.get(key);
     if (existing) {
       existing.orders += 1;
-      existing.revenue += Number(c.money_VAT) || 0;
+      existing.revenue += Number(c.money) || 0;
     } else {
-      chartMap.set(key, { orders: 1, revenue: Number(c.money_VAT) || 0 });
+      chartMap.set(key, { orders: 1, revenue: Number(c.money) || 0 });
     }
   }
 
@@ -53,7 +52,7 @@ function computeTotals(channels: Channel[]): {
 
       acc.registeredCount += 1;
       acc.completedCount += isCompleted ? 1 : 0;
-      acc.totalVat += isCompleted ? Number(channel.money_VAT) || 0 : 0;
+      acc.totalVat += isCompleted ? Number(channel.money) || 0 : 0;
       return acc;
     },
     { registeredCount: 0, completedCount: 0, totalVat: 0 },
@@ -76,7 +75,6 @@ export default async function Page({ searchParams }: { searchParams: Promise<Rec
   const from = params.from ? new Date(params.from) : undefined;
   const to = params.to ? new Date(params.to) : undefined;
 
-  // Ensure toDate is end of day
   if (to) {
     to.setHours(23, 59, 59, 999);
   }
@@ -84,18 +82,13 @@ export default async function Page({ searchParams }: { searchParams: Promise<Rec
   const { channels } = await fetchData(from, to);
   const totals = computeTotals(channels);
   const chartData = buildChartData(channels);
-  const orderStats: Stats = {
-    totalOrders: channels.length,
-    totalMoney: channels.reduce((sum, channel) => sum + (Number(channel.money) || 0), 0),
-    totalMoneyVAT: channels.reduce((sum, channel) => sum + (Number(channel.money_VAT) || 0), 0),
-  };
 
   return (
     <div className="@container/main flex flex-col gap-4 md:gap-6">
       <DateRangeFilter />
       <SectionCards stats={totals} />
       <ChartAreaInteractive chartData={chartData} />
-      <DataTable data={channels} stats={orderStats} />
+      <DashboardAnalytics initialData={channels} />
     </div>
   );
 }

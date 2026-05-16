@@ -50,7 +50,7 @@ export const SectionCards = memo(function SectionCards({ stats }: SectionCardsPr
 
       <Card className="@container/card p-3">
         <CardHeader>
-          <CardDescription>Tổng thành tiền (VAT)</CardDescription>
+          <CardDescription>Tổng thành tiền</CardDescription>
           <CardTitle className="text-2xl font-semibold tabular-nums @[250px]/card:text-3xl">
             {formatNumber(stats.totalVat)}
           </CardTitle>

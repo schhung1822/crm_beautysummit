@@ -13,6 +13,8 @@ export const channelSchema = z.object({
   create_time: z.date().nullable(),
   gender: z.string(),
   career: z.string(),
+  hope: z.string().optional().default(""),
+  voucher: z.string().optional().default(""),
   is_checkin: z.number().default(0),
   number_checkin: z.number().default(0),
   status_checkin: z.string(),
@@ -20,3 +22,4 @@ export const channelSchema = z.object({
 });
 
 export type Channel = z.infer<typeof channelSchema>;
+

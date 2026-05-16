@@ -339,11 +339,10 @@ export default function DashboardClient({ events }: { events: any }) {
             <button
               key={t.key}
               onClick={() => setView(t.key)}
-              className={`inline-flex cursor-pointer items-center gap-2 rounded-lg border px-5 py-2.5 text-[13px] font-medium transition-colors ${
-                view === t.key
+              className={`inline-flex cursor-pointer items-center gap-2 rounded-lg border px-5 py-2.5 text-[13px] font-medium transition-colors ${view === t.key
                   ? "border-primary bg-primary text-primary-foreground shadow-sm"
                   : "border-border bg-muted/50 text-muted-foreground hover:bg-accent hover:text-accent-foreground"
-              }`}
+                }`}
             >
               <t.Icon className="size-4" />
               {t.label}
@@ -361,9 +360,8 @@ export default function DashboardClient({ events }: { events: any }) {
               <StatCard label="Đã thanh toán" value={EVENT_STATS.paid} color={C.green} />
               <StatCard label="Chưa TT" value={EVENT_STATS.unpaid} color={C.red} />
               <StatCard label="Check-in" value={EVENT_STATS.checkedIn} color={C.pink} />
-              <StatCard label="Đổi voucher" value={EVENT_STATS.voucherClaimed} color={C.goldLight} />
+              <StatCard label="Đổi quà tặng" value={EVENT_STATS.voucherClaimed} color={C.goldLight} />
               <StatCard label="Bình chọn" value={EVENT_STATS.voted} color={C.orange} />
-              <StatCard label="Đủ ĐK VF3" value={EVENT_STATS.vf3Eligible} color={C.purple} />
             </div>
 
             {/* Funnel + Hourly */}
@@ -524,16 +522,14 @@ export default function DashboardClient({ events }: { events: any }) {
                       return (
                         <div
                           key={i}
-                          className={`group relative flex shrink-0 items-center gap-3 overflow-hidden rounded-xl border px-3 py-2.5 transition-all hover:-translate-y-px hover:shadow-md ${
-                            isPodium
+                          className={`group relative flex shrink-0 items-center gap-3 overflow-hidden rounded-xl border px-3 py-2.5 transition-all hover:-translate-y-px hover:shadow-md ${isPodium
                               ? `${style!.row} ${style!.border}`
                               : "border-border bg-card hover:border-primary/50"
-                          } ${isEmpty ? "opacity-50" : ""}`}
+                            } ${isEmpty ? "opacity-50" : ""}`}
                         >
                           <div
-                            className={`relative flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-[13px] font-black tabular-nums ${
-                              isPodium ? `${style!.badge} text-white` : "bg-muted text-muted-foreground"
-                            }`}
+                            className={`relative flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-[13px] font-black tabular-nums ${isPodium ? `${style!.badge} text-white` : "bg-muted text-muted-foreground"
+                              }`}
                           >
                             {isPodium && PodiumIcon ? (
                               <>
@@ -549,9 +545,8 @@ export default function DashboardClient({ events }: { events: any }) {
                             <img
                               src={imageUrl}
                               alt={title}
-                              className={`h-11 w-11 shrink-0 rounded-xl bg-white object-cover ring-1 ${
-                                isPodium ? "ring-background shadow-md" : "ring-border"
-                              }`}
+                              className={`h-11 w-11 shrink-0 rounded-xl bg-white object-cover ring-1 ${isPodium ? "ring-background shadow-md" : "ring-border"
+                                }`}
                             />
                           ) : (
                             <div className="bg-primary text-primary-foreground ring-border flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-[13px] font-black shadow-sm ring-1">
@@ -574,18 +569,16 @@ export default function DashboardClient({ events }: { events: any }) {
                             </div>
                             <div className="bg-muted mt-1.5 h-1.5 overflow-hidden rounded-full">
                               <div
-                                className={`h-full rounded-full ${
-                                  isPodium ? style!.bar : "bg-primary"
-                                } ${getPctWidthClass(pct)}`}
+                                className={`h-full rounded-full ${isPodium ? style!.bar : "bg-primary"
+                                  } ${getPctWidthClass(pct)}`}
                               />
                             </div>
                           </div>
 
                           <div className="flex shrink-0 flex-col items-end leading-none">
                             <span
-                              className={`text-[18px] font-semibold tabular-nums ${
-                                isPodium ? style!.accent : "text-foreground"
-                              }`}
+                              className={`text-[18px] font-semibold tabular-nums ${isPodium ? style!.accent : "text-foreground"
+                                }`}
                             >
                               {votes.toLocaleString()}
                             </span>

@@ -69,14 +69,14 @@ export const ChartAreaInteractive = React.memo(function ChartAreaInteractive({
   const gradRevenueId = `fillRevenue-${templateKey}`;
 
   return (
-    <Card className="@container/card">
+    <Card className="@container/card pb-4">
       <CardHeader>
-        <CardTitle className="mt-2">Biểu đồ đơn hàng - doanh thu</CardTitle>
+        <CardTitle className="mt-2 pt-2">Biểu đồ đơn hàng - doanh thu</CardTitle>
       </CardHeader>
 
       <CardContent className=" sm:px-6 sm:pt-6">
         {/* ✅ ChartContainer sẽ set: --color-orders, --color-revenue */}
-        <ChartContainer config={chartConfig} className="aspect-auto h-[250px] w-full">
+        <ChartContainer config={chartConfig} className="aspect-auto h-[320px] w-full">
           <AreaChart data={filteredData} margin={{ top: 10, right: 20, left: 0, bottom: 0 }}>
             <defs>
               <linearGradient id={gradOrdersId} x1="0" y1="0" x2="0" y2="1">

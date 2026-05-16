@@ -17,6 +17,7 @@ import { fetchChannelsByDateRange } from "@/server/server-actions";
 
 import { dashboardColumns as makeColumns, type Stats } from "./columns";
 import type { Channel } from "./schema";
+import { TierStatsTable } from "./tier-stats-table";
 
 export function DataTable({ data: initialData = [], stats }: { data?: Channel[]; stats: Stats }) {
   const columns = makeColumns(stats);
@@ -123,6 +124,7 @@ export function DataTable({ data: initialData = [], stats }: { data?: Channel[];
           ) : null}
         </div>
       </div>
+      <TierStatsTable data={data} />
       <div className="nice-scroll overflow-hidden rounded-lg">
         <DataTableNew table={table} columns={columns} />
       </div>

@@ -37,11 +37,6 @@ export function useDataTableInstance<TData, TValue>({
   );
   const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>([]);
   const [sorting, setSorting] = React.useState<SortingState>([]);
-  const [pagination, setPagination] = React.useState({
-    pageIndex: defaultPageIndex,
-    pageSize: defaultPageSize,
-  });
-  const previousDataRef = React.useRef(data);
 
   const table = useReactTable({
     data,
@@ -51,7 +46,12 @@ export function useDataTableInstance<TData, TValue>({
       columnVisibility,
       rowSelection,
       columnFilters,
-      pagination,
+    },
+    initialState: {
+      pagination: {
+        pageIndex: defaultPageIndex,
+        pageSize: defaultPageSize,
+      },
     },
     enableRowSelection,
     enableMultiRowSelection: enableRowSelection,
@@ -62,7 +62,6 @@ export function useDataTableInstance<TData, TValue>({
     onSortingChange: setSorting,
     onColumnFiltersChange: setColumnFilters,
     onColumnVisibilityChange: setColumnVisibility,
-    onPaginationChange: setPagination,
     getCoreRowModel: getCoreRowModel(),
     getFilteredRowModel: getFilteredRowModel(),
     getPaginationRowModel: getPaginationRowModel(),
@@ -71,35 +70,28 @@ export function useDataTableInstance<TData, TValue>({
     getFacetedUniqueValues: getFacetedUniqueValues(),
   });
 
+  // Clean up row selection when data changes (rows removed by filter/delete)
+  const getRowIdStable = getRowId;
   React.useEffect(() => {
-    if (previousDataRef.current === data) {
-      return;
-    }
-
-    previousDataRef.current = data;
-
-    setPagination((prev) => (prev.pageIndex === 0 ? prev : { ...prev, pageIndex: 0 }));
-
-    if (!enableRowSelection) {
-      return;
-    }
+    if (!enableRowSelection) return;
 
     const nextRowIds = new Set(
       data.map((row, index) =>
-        (getRowId ?? ((item, idx) => (item as { id?: string | number }).id?.toString() ?? String(idx)))(row, index),
+        (getRowIdStable ?? ((item, idx) => (item as { id?: string | number }).id?.toString() ?? String(idx)))(
+          row,
+          index,
+        ),
       ),
     );
 
     setRowSelection((prev) => {
+      if (Object.keys(prev).length === 0) return prev;
       const nextEntries = Object.entries(prev).filter(([rowId]) => nextRowIds.has(rowId));
-
-      if (nextEntries.length === Object.keys(prev).length) {
-        return prev;
-      }
-
+      if (nextEntries.length === Object.keys(prev).length) return prev;
       return Object.fromEntries(nextEntries);
     });
-  }, [data, enableRowSelection, getRowId]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [data, enableRowSelection]);
 
   React.useEffect(() => {
     if (enableRowSelection) {

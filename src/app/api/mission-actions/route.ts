@@ -1,3 +1,4 @@
+/* eslint-disable max-lines */
 import { NextRequest, NextResponse } from "next/server";
 
 import { createApiTrace, maskPhoneForLogs, shortIdForLogs } from "@/lib/api-observability";
@@ -8,8 +9,8 @@ import {
   isMiniAppDay1UploadMissionId,
 } from "@/lib/miniapp-day1-giftcodes";
 import { forwardMiniAppDay1ImageWebhook } from "@/lib/miniapp-day1-image-webhook";
-import { verifyMiniAppDay2InvoiceWebhook } from "@/lib/miniapp-day2-invoice-webhook";
 import { forwardMiniAppDay2ImageWebhook } from "@/lib/miniapp-day2-image-webhook";
+import { verifyMiniAppDay2InvoiceWebhook } from "@/lib/miniapp-day2-invoice-webhook";
 import {
   getMiniAppDay2RequiredImageCount,
   isMiniAppDay2InvoiceMissionId,
@@ -61,9 +62,19 @@ function parseFilesFromFormData(formData: FormData): File[] {
 
   return Array.from(
     new Set(
-      entries.filter(
-        (entry): entry is File => entry instanceof File && entry.type.startsWith("image/"),
-      ),
+      entries.filter((entry): entry is File => {
+        if (!(entry instanceof File)) {
+          return false;
+        }
+
+        const contentType = parseString(entry.type).toLowerCase();
+        if (contentType.startsWith("image/")) {
+          return true;
+        }
+
+        const fileName = parseString(entry.name).toLowerCase();
+        return /\.(png|jpe?g|webp|gif|bmp|heic|heif|avif)$/i.test(fileName);
+      }),
     ),
   );
 }
@@ -84,6 +95,8 @@ export async function OPTIONS(request: NextRequest) {
   });
 }
 
+// This route intentionally centralizes multiple mission flows behind one API surface.
+// eslint-disable-next-line complexity
 export async function POST(request: NextRequest) {
   try {
     const contentType = request.headers.get("content-type") ?? "";
@@ -321,7 +334,7 @@ export async function POST(request: NextRequest) {
         trace.mark("invoice_not_verified");
         return jsonWithCors(
           request,
-          { message: verification.message || "Ma hoa don khong hop le hoac chua du dieu kien" },
+          { message: verification.message ?? "Ma hoa don khong hop le hoac chua du dieu kien" },
           { status: 400 },
         );
       }

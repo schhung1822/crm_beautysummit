@@ -9,6 +9,23 @@ type MiniAppDay1ImageWebhookPayload = {
   files: File[];
 };
 
+type MiniAppDay1ImageWebhookResponse = {
+  data?: {
+    imageUrl?: unknown;
+    imageUrls?: unknown;
+    path?: unknown;
+    paths?: unknown;
+    url?: unknown;
+    urls?: unknown;
+  };
+  imageUrl?: unknown;
+  imageUrls?: unknown;
+  path?: unknown;
+  paths?: unknown;
+  url?: unknown;
+  urls?: unknown;
+};
+
 const DEFAULT_DAY1_IMAGE_WEBHOOK_URL = "https://nextg.nextgency.vn/webhook/miniapp/upload-img";
 
 function parseString(value: unknown): string {
@@ -32,74 +49,42 @@ function readWebhookImageReferences(value: unknown): string[] {
   return value.map((item) => readWebhookImageReference(item)).filter((item): item is string => Boolean(item));
 }
 
-export async function forwardMiniAppDay1ImageWebhook(
-  payload: MiniAppDay1ImageWebhookPayload,
-): Promise<string[]> {
-  const webhookUrl = resolveWebhookUrl();
-  if (!webhookUrl) {
-    throw new Error("Chua cau hinh webhook upload anh ngay 1");
-  }
-
-  const files = payload.files.filter((file) => file instanceof File);
-  if (files.length === 0) {
-    throw new Error("Vui lòng chọn ảnh hợp lệ");
-  }
-
-  const formData = new FormData();
-  formData.set("missionId", parseString(payload.missionId));
-  formData.set("missionTitle", parseString(payload.missionTitle));
-  formData.set("orderCode", parseString(payload.orderCode));
-  formData.set("zid", parseString(payload.zid));
-  formData.set("phone", parseString(payload.phone));
-  formData.set("name", parseString(payload.name));
-  formData.set("avatar", parseString(payload.avatar));
-  formData.set("imageCount", String(files.length));
-  formData.set("requiredImageCount", String(files.length));
-
+function appendWebhookFiles(formData: FormData, files: File[]) {
   files.forEach((file, index) => {
     const fileName = file.name || `mission-proof-${index + 1}.jpg`;
+    formData.append("files", file, fileName);
+    formData.append("files[]", file, fileName);
     formData.append("images", file, fileName);
     formData.append("images[]", file, fileName);
 
     if (index === 0) {
+      formData.set("file", file, fileName);
       formData.set("image", file, fileName);
     }
   });
+}
 
-  const response = await fetch(webhookUrl, {
-    method: "POST",
-    body: formData,
-  });
-
-  if (!response.ok) {
-    const responseText = await response.text().catch(() => "");
-    throw new Error(responseText || "Xác nhận thất bại, vui lòng thử lại sau");
-  }
-
+async function readWebhookResponseBody(response: Response): Promise<MiniAppDay1ImageWebhookResponse | null> {
   const responseContentType = response.headers.get("content-type") ?? "";
   if (!/application\/json/i.test(responseContentType)) {
-    return [];
+    return null;
   }
 
-  const responseBody = (await response.json().catch(() => null)) as
-    | {
-        url?: unknown;
-        imageUrl?: unknown;
-        path?: unknown;
-        urls?: unknown;
-        imageUrls?: unknown;
-        paths?: unknown;
-        data?: {
-          url?: unknown;
-          imageUrl?: unknown;
-          path?: unknown;
-          urls?: unknown;
-          imageUrls?: unknown;
-          paths?: unknown;
-        };
-      }
-    | null;
+  return (await response.json().catch(() => null)) as MiniAppDay1ImageWebhookResponse | null;
+}
 
+function findFirstImageReference(values: unknown[]): string | null {
+  for (const value of values) {
+    const reference = readWebhookImageReference(value);
+    if (reference) {
+      return reference;
+    }
+  }
+
+  return null;
+}
+
+function collectWebhookImageReferences(responseBody: MiniAppDay1ImageWebhookResponse | null): string[] {
   if (!responseBody) {
     return [];
   }
@@ -113,17 +98,57 @@ export async function forwardMiniAppDay1ImageWebhook(
     ...readWebhookImageReferences(responseBody.data?.paths),
   ];
 
-  const singleReference =
-    readWebhookImageReference(responseBody.url) ||
-    readWebhookImageReference(responseBody.imageUrl) ||
-    readWebhookImageReference(responseBody.path) ||
-    readWebhookImageReference(responseBody.data?.url) ||
-    readWebhookImageReference(responseBody.data?.imageUrl) ||
-    readWebhookImageReference(responseBody.data?.path);
+  const singleReference = findFirstImageReference([
+    responseBody.url,
+    responseBody.imageUrl,
+    responseBody.path,
+    responseBody.data?.url,
+    responseBody.data?.imageUrl,
+    responseBody.data?.path,
+  ]);
 
   if (singleReference) {
     references.unshift(singleReference);
   }
 
   return Array.from(new Set(references.map((item) => item.trim()).filter(Boolean)));
+}
+
+export async function forwardMiniAppDay1ImageWebhook(
+  payload: MiniAppDay1ImageWebhookPayload,
+): Promise<string[]> {
+  const webhookUrl = resolveWebhookUrl();
+  if (!webhookUrl) {
+    throw new Error("Chua cau hinh webhook upload anh ngay 1");
+  }
+
+  const files = payload.files.filter((file) => file instanceof File);
+  if (files.length === 0) {
+    throw new Error("Vui long chon anh hop le");
+  }
+
+  const formData = new FormData();
+  formData.set("missionId", parseString(payload.missionId));
+  formData.set("missionTitle", parseString(payload.missionTitle));
+  formData.set("orderCode", parseString(payload.orderCode));
+  formData.set("zid", parseString(payload.zid));
+  formData.set("phone", parseString(payload.phone));
+  formData.set("name", parseString(payload.name));
+  formData.set("avatar", parseString(payload.avatar));
+  formData.set("imageCount", String(files.length));
+  formData.set("requiredImageCount", String(files.length));
+  appendWebhookFiles(formData, files);
+
+  const response = await fetch(webhookUrl, {
+    method: "POST",
+    body: formData,
+  });
+
+  if (!response.ok) {
+    const responseText = await response.text().catch(() => "");
+    throw new Error(responseText || "Xac nhan that bai, vui long thu lai sau");
+  }
+
+  const responseBody = await readWebhookResponseBody(response);
+  return collectWebhookImageReferences(responseBody);
 }

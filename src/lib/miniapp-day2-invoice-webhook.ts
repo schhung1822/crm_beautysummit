@@ -15,6 +15,15 @@ type MiniAppDay2InvoiceWebhookResult = {
   message?: string;
 };
 
+type MiniAppDay2InvoiceWebhookResponse = {
+  data?: {
+    message?: unknown;
+    order?: unknown;
+  };
+  message?: unknown;
+  order?: unknown;
+};
+
 const DEFAULT_DAY2_INVOICE_WEBHOOK_URL = "https://nextg.nextgency.vn/webhook/miniapp/check-hoa-don";
 
 function parseString(value: unknown): string {
@@ -56,6 +65,46 @@ function isNonZeroOrderValue(value: string | number | null): boolean {
   return normalizedValue !== "0";
 }
 
+function buildInvoiceWebhookRequestBody(
+  payload: MiniAppDay2InvoiceWebhookPayload,
+  invoiceCode: string,
+) {
+  return {
+    missionId: parseString(payload.missionId),
+    missionTitle: parseString(payload.missionTitle),
+    orderCode: parseString(payload.orderCode),
+    invoiceCode,
+    maHoaDon: invoiceCode,
+    code: invoiceCode,
+    zid: parseString(payload.zid),
+    phone: parseString(payload.phone),
+    name: parseString(payload.name),
+    avatar: parseString(payload.avatar),
+  };
+}
+
+async function readInvoiceWebhookResponse(
+  response: Response,
+): Promise<MiniAppDay2InvoiceWebhookResponse | null> {
+  const responseContentType = response.headers.get("content-type") ?? "";
+  if (!/application\/json/i.test(responseContentType)) {
+    return null;
+  }
+
+  return (await response.json().catch(() => null)) as MiniAppDay2InvoiceWebhookResponse | null;
+}
+
+function readInvoiceWebhookMessage(responseBody: MiniAppDay2InvoiceWebhookResponse | null): string | undefined {
+  const messages = [parseString(responseBody?.message), parseString(responseBody?.data?.message)].filter(Boolean);
+  return messages[0] || undefined;
+}
+
+function readInvoiceWebhookOrder(
+  responseBody: MiniAppDay2InvoiceWebhookResponse | null,
+): string | number | null {
+  return resolveOrderValue(responseBody?.order) ?? resolveOrderValue(responseBody?.data?.order);
+}
+
 export async function verifyMiniAppDay2InvoiceWebhook(
   payload: MiniAppDay2InvoiceWebhookPayload,
 ): Promise<MiniAppDay2InvoiceWebhookResult> {
@@ -69,53 +118,23 @@ export async function verifyMiniAppDay2InvoiceWebhook(
     throw new Error("Vui long nhap ma hoa don hop le");
   }
 
-  const requestBody = {
-    missionId: parseString(payload.missionId),
-    missionTitle: parseString(payload.missionTitle),
-    orderCode: parseString(payload.orderCode),
-    invoiceCode,
-    maHoaDon: invoiceCode,
-    code: invoiceCode,
-    zid: parseString(payload.zid),
-    phone: parseString(payload.phone),
-    name: parseString(payload.name),
-    avatar: parseString(payload.avatar),
-  };
-
   const response = await fetch(webhookUrl, {
     method: "POST",
     headers: {
       "content-type": "application/json",
     },
-    body: JSON.stringify(requestBody),
+    body: JSON.stringify(buildInvoiceWebhookRequestBody(payload, invoiceCode)),
   });
 
-  const responseContentType = response.headers.get("content-type") ?? "";
-  const responseBody = /application\/json/i.test(responseContentType)
-    ? ((await response.json().catch(() => null)) as
-        | {
-            order?: unknown;
-            message?: unknown;
-            data?: {
-              order?: unknown;
-              message?: unknown;
-            };
-          }
-        | null)
-    : null;
+  const responseBody = await readInvoiceWebhookResponse(response);
 
   if (!response.ok) {
-    const responseText =
-      parseString(responseBody?.message) ||
-      parseString(responseBody?.data?.message) ||
-      (await response.text().catch(() => ""));
+    const responseText = readInvoiceWebhookMessage(responseBody) ?? (await response.text().catch(() => ""));
     throw new Error(responseText || "Khong the xac minh hoa don");
   }
 
-  const order =
-    resolveOrderValue(responseBody?.order) ?? resolveOrderValue(responseBody?.data?.order);
-  const message =
-    parseString(responseBody?.message) || parseString(responseBody?.data?.message) || undefined;
+  const order = readInvoiceWebhookOrder(responseBody);
+  const message = readInvoiceWebhookMessage(responseBody);
 
   return {
     valid: isNonZeroOrderValue(order),

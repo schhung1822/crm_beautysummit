@@ -1,1 +1,1 @@
-export { OPTIONS, POST } from "@/app/api/miniapp/bootstrap/route";
+export { GET, OPTIONS, POST } from "@/app/api/miniapp/bootstrap/route";

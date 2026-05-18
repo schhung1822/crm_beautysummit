@@ -50,7 +50,7 @@ function extractManagedImageFileName(value: string): string {
 }
 
 export function buildManagedImageUrl(fileName: string): string {
-  return `/api/upload?file=${encodeURIComponent(fileName)}`;
+  return `/images/${encodeURIComponent(fileName)}`;
 }
 
 export function isDataImageUrl(value: unknown): boolean {

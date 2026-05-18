@@ -21,11 +21,11 @@ async function getActiveCheckinLocations() {
   const sanitizedRows = await Promise.all(
     (rows as any[]).map(async (row) => {
       const currentImageUrl = String(row.imageUrl ?? "").trim();
-      if (!isDataImageUrl(currentImageUrl)) {
+      const nextImageUrl = await normalizeStoredImageUrl(currentImageUrl, "checkin-location");
+      if (nextImageUrl === currentImageUrl) {
         return row;
       }
 
-      const nextImageUrl = await normalizeStoredImageUrl(currentImageUrl, "checkin-location");
       await db.query(
         `
         UPDATE checkin_locations
@@ -80,92 +80,118 @@ function parseBootstrapPayload(body: MiniAppBootstrapPayload): MiniAppBootstrapP
 }
 
 function jsonWithCors(request: NextRequest, body: unknown, init?: ResponseInit): NextResponse {
-  return applyCorsHeaders(request, NextResponse.json(body, init), ["POST", "OPTIONS"]);
+  return applyCorsHeaders(request, NextResponse.json(body, init), ["GET", "POST", "OPTIONS"]);
+}
+
+function parseBootstrapPayloadFromQuery(request: NextRequest): MiniAppBootstrapPayload {
+  return {
+    id: request.nextUrl.searchParams.get("id") ?? undefined,
+    name: request.nextUrl.searchParams.get("name") ?? undefined,
+    phone: request.nextUrl.searchParams.get("phone") ?? undefined,
+    avatar: request.nextUrl.searchParams.get("avatar") ?? undefined,
+    payload: request.nextUrl.searchParams.get("payload") ?? undefined,
+  };
+}
+
+async function handleBootstrap(
+  request: NextRequest,
+  rawBody: MiniAppBootstrapPayload,
+): Promise<NextResponse> {
+  let body: MiniAppBootstrapPayload;
+
+  try {
+    body = parseBootstrapPayload(rawBody);
+  } catch {
+    return jsonWithCors(request, { message: "Invalid bootstrap payload" }, { status: 400 });
+  }
+
+  const zid = String(body.id ?? "").trim();
+  const phone = toDatabasePhone(body.phone) ?? "";
+  const avatar = String(body.avatar ?? "").trim();
+  const name = normalizeMiniAppName(body.name);
+
+  const trace = createApiTrace("miniapp/bootstrap.POST", {
+    zid: shortIdForLogs(zid),
+    phone: maskPhoneForLogs(phone),
+    hasName: Boolean(name),
+  });
+
+  if (!zid || !phone || !avatar) {
+    trace.mark("invalid_request");
+    return jsonWithCors(request, { message: "id, phone va avatar la bat buoc" }, { status: 400 });
+  }
+
+  const user = await trace.step("upsert_user", () =>
+    upsertMiniAppUser({
+      zid,
+      phone,
+      avatar,
+      name,
+    }),
+  );
+
+  const [ticketRows, rewards, voteCategories, checkinZones, eventDay1] = await trace.step("load_bundle", () =>
+    Promise.all([
+      queryMiniAppTicketRowsByPhone(phone),
+      loadMiniAppRewards({
+        zid,
+        phone,
+        name,
+        avatar,
+      }),
+      listVoteCategories(),
+      getActiveCheckinLocations(),
+      getEventDay1Date(),
+    ]),
+  );
+
+  const tickets = ticketRows.map((row) => mapMiniAppTicketRow(row)).filter((ticket) => Boolean(ticket.code));
+
+  trace.done({
+    ticketCount: tickets.length,
+    bpointVoucherCount: rewards.vouchers.bpoint.length,
+    freeVoucherCount: rewards.vouchers.free.length,
+    voteCategoryCount: voteCategories.length,
+  });
+
+  return jsonWithCors(
+    request,
+    {
+      data: {
+        user,
+        eventDay1,
+        tickets,
+        checkinZones,
+        rewards: {
+          ...rewards,
+          voteCategories,
+        },
+      },
+    },
+    { status: 200 },
+  );
 }
 
 export async function OPTIONS(request: NextRequest) {
   return new NextResponse(null, {
     status: 204,
-    headers: buildCorsHeaders(request, ["POST", "OPTIONS"]),
+    headers: buildCorsHeaders(request, ["GET", "POST", "OPTIONS"]),
   });
+}
+
+export async function GET(request: NextRequest) {
+  try {
+    return await handleBootstrap(request, parseBootstrapPayloadFromQuery(request));
+  } catch (error) {
+    console.error("Mini app bootstrap error:", error);
+    return jsonWithCors(request, { message: "Unable to bootstrap mini app" }, { status: 500 });
+  }
 }
 
 export async function POST(request: NextRequest) {
   try {
     const rawBody = (await request.json()) as MiniAppBootstrapPayload;
-    let body: MiniAppBootstrapPayload;
-
-    try {
-      body = parseBootstrapPayload(rawBody);
-    } catch {
-      return jsonWithCors(request, { message: "Invalid bootstrap payload" }, { status: 400 });
-    }
-
-    const zid = String(body.id ?? "").trim();
-    const phone = toDatabasePhone(body.phone) ?? "";
-    const avatar = String(body.avatar ?? "").trim();
-    const name = normalizeMiniAppName(body.name);
-
-    const trace = createApiTrace("miniapp/bootstrap.POST", {
-      zid: shortIdForLogs(zid),
-      phone: maskPhoneForLogs(phone),
-      hasName: Boolean(name),
-    });
-
-    if (!zid || !phone || !avatar) {
-      trace.mark("invalid_request");
-      return jsonWithCors(request, { message: "id, phone va avatar la bat buoc" }, { status: 400 });
-    }
-
-    const user = await trace.step("upsert_user", () =>
-      upsertMiniAppUser({
-        zid,
-        phone,
-        avatar,
-        name,
-      }),
-    );
-
-    const [ticketRows, rewards, voteCategories, checkinZones, eventDay1] = await trace.step("load_bundle", () =>
-      Promise.all([
-        queryMiniAppTicketRowsByPhone(phone),
-        loadMiniAppRewards({
-          zid,
-          phone,
-          name,
-          avatar,
-        }),
-        listVoteCategories(),
-        getActiveCheckinLocations(),
-        getEventDay1Date(),
-      ]),
-    );
-
-    const tickets = ticketRows.map((row) => mapMiniAppTicketRow(row)).filter((ticket) => Boolean(ticket.code));
-
-    trace.done({
-      ticketCount: tickets.length,
-      bpointVoucherCount: rewards.vouchers.bpoint.length,
-      freeVoucherCount: rewards.vouchers.free.length,
-      voteCategoryCount: voteCategories.length,
-    });
-
-    return jsonWithCors(
-      request,
-      {
-        data: {
-          user,
-          eventDay1,
-          tickets,
-          checkinZones,
-          rewards: {
-            ...rewards,
-            voteCategories,
-          },
-        },
-      },
-      { status: 200 },
-    );
+    return await handleBootstrap(request, rawBody);
   } catch (error) {
     console.error("Mini app bootstrap error:", error);
     return jsonWithCors(request, { message: "Unable to bootstrap mini app" }, { status: 500 });

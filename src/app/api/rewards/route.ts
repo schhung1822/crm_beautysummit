@@ -23,6 +23,7 @@ type RewardsPayload = {
   avatar?: string;
   orderCode?: string;
   missionId?: string;
+  missionValue?: string;
   voucherId?: string;
   milestonePct?: number;
   categoryId?: string;
@@ -107,7 +108,12 @@ export async function POST(request: NextRequest) {
         return jsonWithCors(request, { message: "missionId is required" }, { status: 400 });
       }
 
-      const state = await trace.step("complete_mission", () => completeMiniAppMission(identity, missionId));
+      const state = await trace.step("complete_mission", () =>
+        completeMiniAppMission(identity, missionId, {
+          orderCode: requireString(body.orderCode),
+          missionValue: requireString(body.missionValue),
+        }),
+      );
       trace.done({
         completedMissionCount: state.completedIds.length,
         totalPoints: state.totalPoints,

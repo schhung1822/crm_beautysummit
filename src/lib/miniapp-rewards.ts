@@ -1,11 +1,18 @@
 /* eslint-disable max-lines, complexity, @typescript-eslint/prefer-nullish-coalescing */
 import { randomBytes, randomUUID } from "node:crypto";
 
-import type { ResultSetHeader, RowDataPacket } from "mysql2/promise";
+import type { PoolConnection, ResultSetHeader, RowDataPacket } from "mysql2/promise";
 
 import { createApiTrace, maskPhoneForLogs, shortIdForLogs } from "@/lib/api-observability";
 import { getDB } from "@/lib/db";
 import { normalizeStoredImageUrl } from "@/lib/image-storage";
+import {
+  isMiniAppDay1GiftCodeMissionId,
+  normalizeMiniAppGiftCode,
+  resolveMiniAppDay1GiftCodeEntry,
+} from "@/lib/miniapp-day1-giftcodes";
+import { syncMiniAppTaskReport } from "@/lib/miniapp-task-report";
+import { queryMiniAppTicketRowsByPhone } from "@/lib/miniapp-tickets";
 import { buildPhoneVariants, toDatabasePhone } from "@/lib/phone";
 import { clearVoteCategoryCache, listVoteCategories } from "@/lib/vote-options";
 
@@ -46,6 +53,12 @@ export type MiniAppRewardsBundle = {
   };
 };
 
+export type MiniAppGiftCodeMissionResult = {
+  state: MiniAppRewardState;
+  pointsAwarded: number;
+  giftCode: string;
+};
+
 type MiniAppVoucherRow = RowDataPacket & {
   id: number;
   voucher_id: string | null;
@@ -81,6 +94,20 @@ type MiniAppRewardStateRow = RowDataPacket & {
   update_time: Date | string | null;
 };
 
+type MiniAppGiftCodeRedemptionRow = RowDataPacket & {
+  id: number;
+  giftcode: string | null;
+  mission_id: string | null;
+  points: number | null;
+  ordercode: string | null;
+  zid: string | null;
+  phone: string | null;
+};
+
+type MiniAppGiftCodeRedemptionIndexRow = RowDataPacket & {
+  Key_name: string;
+};
+
 type UserAccessRow = RowDataPacket & {
   id: number;
 };
@@ -112,33 +139,71 @@ type AdminVoucherInput = {
   isActive?: boolean;
 };
 
-const BASE_MISSION_POINTS = [
-  ["b1", 10],
-  ["b2", 10],
-  ["b3", 15],
-  ["d1-1", 15],
-  ["d1-2", 15],
-  ["d1-3", 10],
-  ["d1-vote", 15],
-  ["d2-2", 10],
+const MINIAPP_MISSION_TIERS = ["GOLD", "RUBY", "VIP"] as const;
+
+export type MiniAppMissionTier = (typeof MINIAPP_MISSION_TIERS)[number];
+type MiniAppRewardTicketTier = MiniAppMissionTier | "VVIP";
+export type MiniAppMissionPhase = "before" | "day1" | "day2" | "after";
+
+type MiniAppMissionCatalogSeed = {
+  suffix: string;
+  tiers: readonly MiniAppMissionTier[];
+  points: number;
+  phase: MiniAppMissionPhase;
+  survey?: boolean;
+};
+
+export type MiniAppMissionCatalogItem = {
+  id: string;
+  suffix: string;
+  tier: MiniAppMissionTier;
+  points: number;
+  phase: MiniAppMissionPhase;
+  survey: boolean;
+};
+
+const MINIAPP_MISSION_CATALOG_SEED: readonly MiniAppMissionCatalogSeed[] = [
+  { suffix: "b1", tiers: MINIAPP_MISSION_TIERS, points: 10, phase: "before" },
+  { suffix: "b2", tiers: MINIAPP_MISSION_TIERS, points: 10, phase: "before" },
+  { suffix: "b3", tiers: MINIAPP_MISSION_TIERS, points: 15, phase: "before" },
+  { suffix: "b4", tiers: MINIAPP_MISSION_TIERS, points: 10, phase: "before" },
+  { suffix: "b5", tiers: MINIAPP_MISSION_TIERS, points: 10, phase: "before", survey: true },
+  { suffix: "b6", tiers: MINIAPP_MISSION_TIERS, points: 10, phase: "before" },
+  { suffix: "d1-1", tiers: MINIAPP_MISSION_TIERS, points: 20, phase: "day1" },
+  { suffix: "d1-2", tiers: MINIAPP_MISSION_TIERS, points: 0, phase: "day1" },
+  { suffix: "d1-3", tiers: MINIAPP_MISSION_TIERS, points: 0, phase: "day1" },
+  { suffix: "d1-4", tiers: MINIAPP_MISSION_TIERS, points: 0, phase: "day1" },
+  { suffix: "d1-5", tiers: MINIAPP_MISSION_TIERS, points: 60, phase: "day1" },
+  { suffix: "d1-6", tiers: MINIAPP_MISSION_TIERS, points: 25, phase: "day1" },
+  { suffix: "d1-7", tiers: MINIAPP_MISSION_TIERS, points: 0, phase: "day1" },
+  { suffix: "d1-vote", tiers: MINIAPP_MISSION_TIERS, points: 15, phase: "day2" },
+  { suffix: "d2-3", tiers: MINIAPP_MISSION_TIERS, points: 10, phase: "day2" },
+  { suffix: "d2-4", tiers: MINIAPP_MISSION_TIERS, points: 50, phase: "day2" },
+  { suffix: "d2-5", tiers: MINIAPP_MISSION_TIERS, points: 50, phase: "day2" },
+  { suffix: "d2-6", tiers: MINIAPP_MISSION_TIERS, points: 50, phase: "day2" },
+  { suffix: "d2-2", tiers: MINIAPP_MISSION_TIERS, points: 10, phase: "after", survey: true },
+  { suffix: "a-2", tiers: MINIAPP_MISSION_TIERS, points: 50, phase: "after" },
+  { suffix: "a-3", tiers: MINIAPP_MISSION_TIERS, points: 30, phase: "after" },
+  { suffix: "a-4", tiers: MINIAPP_MISSION_TIERS, points: 30, phase: "after" },
+  { suffix: "a-5", tiers: MINIAPP_MISSION_TIERS, points: 30, phase: "after" },
 ] as const;
 
-export type MiniAppMissionTier = "GOLD" | "RUBY" | "VIP";
+const MINIAPP_DEFAULT_ENTRY_POINTS: Record<MiniAppRewardTicketTier, number> = {
+  GOLD: 0,
+  RUBY: 200,
+  VIP: 500,
+  VVIP: 1000,
+};
 
-const RUBY_MISSION_POINTS = [
-  ["b4", 10],
-  ["d1-4", 10],
-  ["d2-3", 10],
-] as const;
-
-const VIP_MISSION_POINTS = [
-  ["b5", 10],
-  ["d1-5", 10],
-] as const;
+const LEGACY_MISSION_SUFFIX_ALIASES: Record<string, string> = {
+  "d2-1": "d1-vote",
+  "a-1": "d2-2",
+};
 
 const VALID_MILESTONES = new Set([30, 50, 100]);
 const ACCESS_CACHE_TTL_MS = Math.max(1000, Number(process.env.MINIAPP_ACCESS_CACHE_TTL_MS) || 10000);
 const VOUCHER_CACHE_TTL_MS = Math.max(1000, Number(process.env.MINIAPP_VOUCHER_CACHE_TTL_MS) || 15000);
+const MINIAPP_GIFTCODE_REDEMPTION_TABLE = "miniapp_giftcode_redemption";
 
 const miniAppAccessCache = new Map<
   string,
@@ -156,32 +221,67 @@ const voucherRowCache = new Map<
   }
 >();
 
-function addMissionPoints(
-  map: Record<string, number>,
-  tier: MiniAppMissionTier,
-  source: readonly (readonly [string, number])[],
-) {
-  source.forEach(([suffix, points]) => {
-    map[`${tier}-${suffix}`] = points;
+function buildMissionCatalogByTier(): Record<MiniAppMissionTier, MiniAppMissionCatalogItem[]> {
+  const catalog: Record<MiniAppMissionTier, MiniAppMissionCatalogItem[]> = {
+    GOLD: [],
+    RUBY: [],
+    VIP: [],
+  };
+
+  MINIAPP_MISSION_CATALOG_SEED.forEach((entry) => {
+    entry.tiers.forEach((tier) => {
+      catalog[tier].push({
+        id: `${tier}-${entry.suffix}`,
+        suffix: entry.suffix,
+        tier,
+        points: entry.points,
+        phase: entry.phase,
+        survey: Boolean(entry.survey),
+      });
+    });
   });
+
+  return catalog;
 }
 
 function normalizeMissionTierPrefix(value: unknown): MiniAppMissionTier | null {
-  const normalized = String(value ?? "").trim().toUpperCase();
-
-  if (normalized === "VIP") {
+  const normalizedTier = normalizeRewardTicketTier(value);
+  if (normalizedTier === "VVIP") {
     return "VIP";
   }
 
-  if (normalized === "RUBY" || normalized.startsWith("PRE")) {
+  return normalizedTier;
+}
+
+function normalizeRewardTicketTier(value: unknown): MiniAppRewardTicketTier | null {
+  const normalized = String(value ?? "").trim().toUpperCase();
+
+  if (!normalized) {
+    return null;
+  }
+
+  if (normalized.includes("VVIP")) {
+    return "VVIP";
+  }
+
+  if (normalized.includes("VIP")) {
+    return "VIP";
+  }
+
+  if (normalized.includes("RUBY") || normalized.startsWith("PRE")) {
     return "RUBY";
   }
 
-  if (normalized === "GOLD" || normalized.startsWith("STAN")) {
+  if (normalized.includes("GOLD") || normalized.startsWith("STAN")) {
     return "GOLD";
   }
 
   return null;
+}
+
+function resolveDefaultEntryPoints(ticketClass: unknown): number {
+  const tier = normalizeRewardTicketTier(ticketClass);
+  return tier ? MINIAPP_DEFAULT_ENTRY_POINTS[tier] : 0;
 }
 
 export function normalizeMissionId(value: unknown): string {
@@ -198,27 +298,40 @@ export function normalizeMissionId(value: unknown): string {
   const prefix = raw.slice(0, separatorIndex);
   const suffix = raw.slice(separatorIndex + 1);
   const normalizedTier = normalizeMissionTierPrefix(prefix);
+  const normalizedSuffix = LEGACY_MISSION_SUFFIX_ALIASES[suffix] ?? suffix;
 
-  return normalizedTier ? `${normalizedTier}-${suffix}` : raw;
+  return normalizedTier ? `${normalizedTier}-${normalizedSuffix}` : raw;
 }
 
-function buildMissionPointMap(): Record<string, number> {
-  const map: Record<string, number> = {};
-  addMissionPoints(map, "GOLD", BASE_MISSION_POINTS);
-  addMissionPoints(map, "RUBY", BASE_MISSION_POINTS);
-  addMissionPoints(map, "RUBY", RUBY_MISSION_POINTS);
-  addMissionPoints(map, "VIP", BASE_MISSION_POINTS);
-  addMissionPoints(map, "VIP", RUBY_MISSION_POINTS);
-  addMissionPoints(map, "VIP", VIP_MISSION_POINTS);
-  return map;
-}
-
-const MISSION_POINT_MAP = buildMissionPointMap();
+const MISSION_CATALOG_BY_TIER = buildMissionCatalogByTier();
+const MISSION_POINT_MAP: Record<string, number> = Object.fromEntries(
+  MINIAPP_MISSION_TIERS.flatMap((tier) =>
+    MISSION_CATALOG_BY_TIER[tier].map((mission) => [mission.id, mission.points] as const),
+  ),
+);
+const MISSION_PHASE_MAP: Record<string, MiniAppMissionPhase> = Object.fromEntries(
+  MINIAPP_MISSION_TIERS.flatMap((tier) =>
+    MISSION_CATALOG_BY_TIER[tier].map((mission) => [mission.id, mission.phase] as const),
+  ),
+);
+const SURVEY_MISSION_IDS = new Set<string>(
+  MINIAPP_MISSION_TIERS.flatMap((tier) =>
+    MISSION_CATALOG_BY_TIER[tier].filter((mission) => mission.survey).map((mission) => mission.id),
+  ),
+);
 const MISSION_ID_MAP = {
-  GOLD: Object.keys(MISSION_POINT_MAP).filter((missionId) => missionId.startsWith("GOLD-")),
-  RUBY: Object.keys(MISSION_POINT_MAP).filter((missionId) => missionId.startsWith("RUBY-")),
-  VIP: Object.keys(MISSION_POINT_MAP).filter((missionId) => missionId.startsWith("VIP-")),
+  GOLD: MISSION_CATALOG_BY_TIER.GOLD.map((mission) => mission.id),
+  RUBY: MISSION_CATALOG_BY_TIER.RUBY.map((mission) => mission.id),
+  VIP: MISSION_CATALOG_BY_TIER.VIP.map((mission) => mission.id),
 } as const;
+
+export function getMiniAppMissionCatalogByTier(): Record<MiniAppMissionTier, MiniAppMissionCatalogItem[]> {
+  return {
+    GOLD: MISSION_CATALOG_BY_TIER.GOLD.map((mission) => ({ ...mission })),
+    RUBY: MISSION_CATALOG_BY_TIER.RUBY.map((mission) => ({ ...mission })),
+    VIP: MISSION_CATALOG_BY_TIER.VIP.map((mission) => ({ ...mission })),
+  };
+}
 
 export function getMiniAppMissionIdsByTier(): Record<MiniAppMissionTier, string[]> {
   return {
@@ -228,14 +341,12 @@ export function getMiniAppMissionIdsByTier(): Record<MiniAppMissionTier, string[
   };
 }
 
-export function getMiniAppMissionPhaseKey(missionId: string): "before" | "day1" | "day2" | null {
-  const normalizedMissionId = normalizeMissionId(missionId);
-  const suffix = normalizedMissionId.split("-").slice(1).join("-");
+export function isMiniAppSurveyMissionId(missionId: string): boolean {
+  return SURVEY_MISSION_IDS.has(normalizeMissionId(missionId));
+}
 
-  if (suffix.startsWith("b")) return "before";
-  if (suffix.startsWith("d1")) return "day1";
-  if (suffix.startsWith("d2")) return "day2";
-  return null;
+export function getMiniAppMissionPhaseKey(missionId: string): MiniAppMissionPhase | null {
+  return MISSION_PHASE_MAP[normalizeMissionId(missionId)] ?? null;
 }
 
 function parseString(value: unknown): string {
@@ -365,6 +476,10 @@ function computeTotalPoints(completedIds: string[]): number {
   return uniqueMissionIdArray(completedIds).reduce((sum, missionId) => sum + (MISSION_POINT_MAP[missionId] ?? 0), 0);
 }
 
+function computeStoredBasePoints(value: Pick<StoredRewardState, "completedIds" | "totalPoints">): number {
+  return Math.max(parseNumber(value.totalPoints) - computeTotalPoints(value.completedIds), 0);
+}
+
 export function hasCompletedAllTierMissions(completedIds: string[]): boolean {
   const completedSet = new Set(uniqueMissionIdArray(completedIds));
 
@@ -432,6 +547,9 @@ function buildStoredStateUpdate(
       | "avatar"
     >
   >,
+  options?: {
+    minimumBasePoints?: number;
+  },
 ): StoredRewardState {
   const completedIds = uniqueMissionIdArray(patch.completedIds ?? current.completedIds);
   const claimedFreeVoucherIds = uniqueStringArray(patch.claimedFreeVoucherIds ?? current.claimedFreeVoucherIds);
@@ -439,7 +557,8 @@ function buildStoredStateUpdate(
   const claimedMilestonePcts = uniqueNumberArray(patch.claimedMilestonePcts ?? current.claimedMilestonePcts);
   const votes = patch.votes ?? current.votes;
   const spentPoints = Math.max(parseNumber(patch.spentPoints ?? current.spentPoints), 0);
-  const totalPoints = computeTotalPoints(completedIds);
+  const basePoints = Math.max(computeStoredBasePoints(current), parseNumber(options?.minimumBasePoints));
+  const totalPoints = basePoints + computeTotalPoints(completedIds);
   const availablePoints = Math.max(totalPoints - spentPoints, 0);
 
   return {
@@ -456,6 +575,195 @@ function buildStoredStateUpdate(
     totalPoints,
     availablePoints,
   };
+}
+
+type SqlExecutor = Pick<PoolConnection, "query">;
+
+async function persistRewardState(executor: SqlExecutor, nextState: StoredRewardState): Promise<StoredRewardState> {
+  const now = new Date();
+  await executor.query(
+    `
+    UPDATE miniapp_user_reward_state
+    SET
+      phone = ?,
+      name = ?,
+      avatar = ?,
+      completed_mission_ids = ?,
+      claimed_free_voucher_ids = ?,
+      redeemed_voucher_ids = ?,
+      claimed_milestone_pcts = ?,
+      votes_json = ?,
+      spent_points = ?,
+      total_points = ?,
+      available_points = ?,
+      updated_at = ?,
+      updated_by = ?,
+      update_time = ?
+    WHERE id = ?
+    LIMIT 1
+    `,
+    [
+      nextState.phone,
+      nextState.name,
+      nextState.avatar,
+      JSON.stringify(nextState.completedIds),
+      JSON.stringify(nextState.claimedFreeVoucherIds),
+      JSON.stringify(nextState.redeemedVoucherIds),
+      JSON.stringify(nextState.claimedMilestonePcts),
+      JSON.stringify(nextState.votes),
+      nextState.spentPoints,
+      nextState.totalPoints,
+      nextState.availablePoints,
+      now,
+      "miniapp",
+      now,
+      nextState.rowId,
+    ],
+  );
+
+  return nextState;
+}
+
+async function ensureMiniAppGiftCodeRedemptionTable(executor: SqlExecutor = getDB()): Promise<void> {
+  await executor.query(
+    `
+    CREATE TABLE IF NOT EXISTS \`${MINIAPP_GIFTCODE_REDEMPTION_TABLE}\` (
+      id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+      created_at DATETIME NOT NULL,
+      updated_at DATETIME NOT NULL,
+      created_by VARCHAR(64) NULL,
+      updated_by VARCHAR(64) NULL,
+      giftcode VARCHAR(191) NOT NULL,
+      mission_id VARCHAR(64) NOT NULL,
+      points INT NOT NULL DEFAULT 0,
+      ordercode VARCHAR(191) NULL,
+      zid VARCHAR(191) NOT NULL,
+      phone VARCHAR(32) NOT NULL,
+      name VARCHAR(191) NULL,
+      PRIMARY KEY (id),
+      UNIQUE KEY uk_miniapp_user_giftcode (zid, giftcode),
+      UNIQUE KEY uk_miniapp_user_mission (zid, mission_id)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+    `,
+  );
+
+  const [indexRows] = await executor.query<MiniAppGiftCodeRedemptionIndexRow[]>(
+    `SHOW INDEX FROM \`${MINIAPP_GIFTCODE_REDEMPTION_TABLE}\``,
+  );
+  const indexNames = new Set(indexRows.map((row) => parseString(row.Key_name)));
+
+  if (indexNames.has("uk_miniapp_giftcode")) {
+    await executor.query(
+      `ALTER TABLE \`${MINIAPP_GIFTCODE_REDEMPTION_TABLE}\` DROP INDEX \`uk_miniapp_giftcode\``,
+    );
+  }
+
+  if (!indexNames.has("uk_miniapp_user_giftcode")) {
+    await executor.query(
+      `ALTER TABLE \`${MINIAPP_GIFTCODE_REDEMPTION_TABLE}\` ADD UNIQUE KEY \`uk_miniapp_user_giftcode\` (zid, giftcode)`,
+    );
+  }
+
+  if (!indexNames.has("uk_miniapp_user_mission")) {
+    await executor.query(
+      `ALTER TABLE \`${MINIAPP_GIFTCODE_REDEMPTION_TABLE}\` ADD UNIQUE KEY \`uk_miniapp_user_mission\` (zid, mission_id)`,
+    );
+  }
+}
+
+async function findGiftCodeRedemptionByUserGiftCode(
+  zid: string,
+  giftCode: string,
+): Promise<MiniAppGiftCodeRedemptionRow | null> {
+  const db = getDB();
+  const [rows] = await db.query<MiniAppGiftCodeRedemptionRow[]>(
+    `
+    SELECT id, giftcode, mission_id, points, ordercode, zid, phone
+    FROM \`${MINIAPP_GIFTCODE_REDEMPTION_TABLE}\`
+    WHERE zid = ?
+      AND giftcode = ?
+    LIMIT 1
+    `,
+    [zid, giftCode],
+  );
+
+  return rows[0] ?? null;
+}
+
+async function findGiftCodeRedemptionByUserMission(
+  zid: string,
+  missionId: string,
+): Promise<MiniAppGiftCodeRedemptionRow | null> {
+  const db = getDB();
+  const [rows] = await db.query<MiniAppGiftCodeRedemptionRow[]>(
+    `
+    SELECT id, giftcode, mission_id, points, ordercode, zid, phone
+    FROM \`${MINIAPP_GIFTCODE_REDEMPTION_TABLE}\`
+    WHERE zid = ?
+      AND mission_id = ?
+    LIMIT 1
+    `,
+    [zid, missionId],
+  );
+
+  return rows[0] ?? null;
+}
+
+async function insertGiftCodeRedemption(
+  executor: SqlExecutor,
+  payload: {
+    giftCode: string;
+    missionId: string;
+    points: number;
+    orderCode?: string;
+    identity: RewardIdentity;
+  },
+): Promise<void> {
+  const now = new Date();
+  await executor.query(
+    `
+    INSERT INTO \`${MINIAPP_GIFTCODE_REDEMPTION_TABLE}\`
+      (
+        created_at,
+        updated_at,
+        created_by,
+        updated_by,
+        giftcode,
+        mission_id,
+        points,
+        ordercode,
+        zid,
+        phone,
+        name
+      )
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `,
+    [
+      now,
+      now,
+      "miniapp",
+      "miniapp",
+      payload.giftCode,
+      payload.missionId,
+      payload.points,
+      parseString(payload.orderCode) || null,
+      parseString(payload.identity.zid),
+      toDatabasePhone(payload.identity.phone) ?? "",
+      parseString(payload.identity.name) || null,
+    ],
+  );
+}
+
+async function resolveIdentityEntryPoints(phone: string): Promise<number> {
+  const normalizedPhone = toDatabasePhone(phone) ?? "";
+  if (!normalizedPhone) {
+    return 0;
+  }
+
+  const ticketRows = await queryMiniAppTicketRowsByPhone(normalizedPhone);
+  const ticketClass = ticketRows.find((row) => parseString(row.ticketClass))?.ticketClass;
+
+  return resolveDefaultEntryPoints(ticketClass);
 }
 
 function buildVoucherCode(): string {
@@ -804,6 +1112,7 @@ export async function ensureMiniAppRewardState(identity: RewardIdentity): Promis
     hasAvatar: Boolean(avatar),
   });
   const existingState = await trace.step("find_reward_state", () => findRewardStateRow(zid));
+  const entryPoints = await trace.step("resolve_entry_points", () => resolveIdentityEntryPoints(phone));
 
   if (!existingState) {
     await trace.step("insert_reward_state", () =>
@@ -831,7 +1140,25 @@ export async function ensureMiniAppRewardState(identity: RewardIdentity): Promis
           )
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         `,
-        [now, now, "miniapp", "miniapp", zid, phone, name, avatar, "[]", "[]", "[]", "[]", "{}", 0, 0, 0, now],
+        [
+          now,
+          now,
+          "miniapp",
+          "miniapp",
+          zid,
+          phone,
+          name,
+          avatar,
+          "[]",
+          "[]",
+          "[]",
+          "[]",
+          "{}",
+          0,
+          entryPoints,
+          entryPoints,
+          now,
+        ],
       ),
     );
 
@@ -845,6 +1172,7 @@ export async function ensureMiniAppRewardState(identity: RewardIdentity): Promis
       mode: "insert",
       completedMissionCount: createdState.completedIds.length,
       availablePoints: createdState.availablePoints,
+      entryPoints,
     });
     return createdState;
   }
@@ -853,92 +1181,42 @@ export async function ensureMiniAppRewardState(identity: RewardIdentity): Promis
     (phone.length > 0 && existingState.phone !== phone) ||
     (name.length > 0 && existingState.name !== name) ||
     (avatar.length > 0 && existingState.avatar !== avatar);
+  const shouldTopUpEntryPoints = entryPoints > computeStoredBasePoints(existingState);
 
-  if (!shouldUpdateIdentity) {
+  if (!shouldUpdateIdentity && !shouldTopUpEntryPoints) {
     trace.done({
       mode: "reuse",
       completedMissionCount: existingState.completedIds.length,
       availablePoints: existingState.availablePoints,
+      entryPoints,
     });
     return existingState;
   }
 
-  await trace.step("update_reward_identity", () =>
-    db.query(
-      `
-      UPDATE miniapp_user_reward_state
-      SET
-        phone = ?,
-        name = IF(? <> '', ?, name),
-        avatar = IF(? <> '', ?, avatar),
-        updated_at = ?,
-        updated_by = ?,
-        update_time = ?
-      WHERE id = ?
-      LIMIT 1
-      `,
-      [phone || existingState.phone, name, name, avatar, avatar, now, "miniapp", now, existingState.rowId],
-    ),
+  const nextState = buildStoredStateUpdate(
+    existingState,
+    {
+      phone,
+      name,
+      avatar,
+    },
+    {
+      minimumBasePoints: entryPoints,
+    },
   );
-
-  const refreshedState = await trace.step("reload_updated_reward_state", () => findRewardStateRow(zid));
-  if (!refreshedState) {
-    trace.mark("missing_reward_state_row_after_update");
-    throw new Error("Unable to refresh mini app reward state");
-  }
+  await trace.step("save_reward_state", () => saveMiniAppRewardState(nextState));
 
   trace.done({
-    mode: "update_identity",
-    completedMissionCount: refreshedState.completedIds.length,
-    availablePoints: refreshedState.availablePoints,
+    mode: shouldUpdateIdentity && shouldTopUpEntryPoints ? "update_identity_and_entry_points" : shouldTopUpEntryPoints ? "top_up_entry_points" : "update_identity",
+    completedMissionCount: nextState.completedIds.length,
+    availablePoints: nextState.availablePoints,
+    entryPoints,
   });
-  return refreshedState;
+  return nextState;
 }
 
 async function saveMiniAppRewardState(nextState: StoredRewardState): Promise<StoredRewardState> {
-  const db = getDB();
-  const now = new Date();
-  await db.query(
-    `
-    UPDATE miniapp_user_reward_state
-    SET
-      phone = ?,
-      name = ?,
-      avatar = ?,
-      completed_mission_ids = ?,
-      claimed_free_voucher_ids = ?,
-      redeemed_voucher_ids = ?,
-      claimed_milestone_pcts = ?,
-      votes_json = ?,
-      spent_points = ?,
-      total_points = ?,
-      available_points = ?,
-      updated_at = ?,
-      updated_by = ?,
-      update_time = ?
-    WHERE id = ?
-    LIMIT 1
-    `,
-    [
-      nextState.phone,
-      nextState.name,
-      nextState.avatar,
-      JSON.stringify(nextState.completedIds),
-      JSON.stringify(nextState.claimedFreeVoucherIds),
-      JSON.stringify(nextState.redeemedVoucherIds),
-      JSON.stringify(nextState.claimedMilestonePcts),
-      JSON.stringify(nextState.votes),
-      nextState.spentPoints,
-      nextState.totalPoints,
-      nextState.availablePoints,
-      now,
-      "miniapp",
-      now,
-      nextState.rowId,
-    ],
-  );
-
-  return nextState;
+  return persistRewardState(getDB(), nextState);
 }
 
 export async function loadMiniAppRewards(identity: RewardIdentity): Promise<MiniAppRewardsBundle> {
@@ -961,14 +1239,33 @@ export async function loadMiniAppRewards(identity: RewardIdentity): Promise<Mini
   };
 }
 
-export async function completeMiniAppMission(identity: RewardIdentity, missionId: string): Promise<MiniAppRewardState> {
+export async function completeMiniAppMission(
+  identity: RewardIdentity,
+  missionId: string,
+  options?: {
+    orderCode?: string;
+    missionValue?: string;
+  },
+): Promise<MiniAppRewardState> {
   const normalizedMissionId = normalizeMissionId(missionId);
-  if (!MISSION_POINT_MAP[normalizedMissionId]) {
+  const isKnownMissionId = Object.prototype.hasOwnProperty.call(MISSION_POINT_MAP, normalizedMissionId);
+  if (!isKnownMissionId) {
+    console.warn("Mini app mission rejected", {
+      missionId,
+      normalizedMissionId,
+      knownMissionCount: Object.keys(MISSION_POINT_MAP).length,
+    });
     throw new Error("Nhiệm vụ không hợp lệ");
   }
 
   const current = await ensureMiniAppRewardState(identity);
   if (current.completedIds.includes(normalizedMissionId)) {
+    try {
+      await syncMiniAppTaskReport(identity, normalizedMissionId, options);
+    } catch (error) {
+      console.warn("Mini app task report sync warning:", error);
+    }
+
     return buildRewardStatePayload(current);
   }
 
@@ -976,7 +1273,117 @@ export async function completeMiniAppMission(identity: RewardIdentity, missionId
     completedIds: [...current.completedIds, normalizedMissionId],
   });
   await saveMiniAppRewardState(nextState);
+
+  try {
+    await syncMiniAppTaskReport(identity, normalizedMissionId, options);
+  } catch (error) {
+    console.warn("Mini app task report sync warning:", error);
+  }
+
   return buildRewardStatePayload(nextState);
+}
+
+export async function redeemMiniAppGiftCodeMission(
+  identity: RewardIdentity,
+  missionId: string,
+  giftCode: string,
+  options?: {
+    orderCode?: string;
+  },
+): Promise<MiniAppGiftCodeMissionResult> {
+  const normalizedMissionId = normalizeMissionId(missionId);
+  const normalizedGiftCode = normalizeMiniAppGiftCode(giftCode);
+
+  if (!isMiniAppDay1GiftCodeMissionId(normalizedMissionId)) {
+    throw new Error("Nhiệm vụ này không hỗ trợ quét giftcode");
+  }
+
+  if (!normalizedGiftCode) {
+    throw new Error("Giftcode không được để trống");
+  }
+
+  const giftCodeEntry = resolveMiniAppDay1GiftCodeEntry(normalizedGiftCode, normalizedMissionId);
+  if (!giftCodeEntry) {
+    throw new Error("Giftcode không hợp lệ hoặc không áp dụng cho nhiệm vụ này");
+  }
+
+  const awardedPoints = Math.max(parseNumber(giftCodeEntry.points), 0);
+  if (awardedPoints <= 0) {
+    throw new Error("Giftcode chưa được cấu hình điểm thưởng");
+  }
+
+  const current = await ensureMiniAppRewardState(identity);
+  if (current.completedIds.includes(normalizedMissionId)) {
+    throw new Error("Nhiệm vụ này đã được hoàn thành");
+  }
+
+  await ensureMiniAppGiftCodeRedemptionTable();
+
+  const existingGiftCode = await findGiftCodeRedemptionByUserGiftCode(identity.zid, normalizedGiftCode);
+  if (existingGiftCode) {
+    throw new Error("Tài khoản của bạn đã sử dụng giftcode này");
+  }
+
+  const existingMissionRedemption = await findGiftCodeRedemptionByUserMission(identity.zid, normalizedMissionId);
+  if (existingMissionRedemption) {
+    throw new Error("Nhiệm vụ này đã được ghi nhận giftcode");
+  }
+
+  const nextState = buildStoredStateUpdate(
+    current,
+    {
+      completedIds: [...current.completedIds, normalizedMissionId],
+    },
+    {
+      minimumBasePoints: computeStoredBasePoints(current) + awardedPoints,
+    },
+  );
+
+  const db = getDB();
+  const connection = await db.getConnection();
+
+  try {
+    await connection.beginTransaction();
+    await ensureMiniAppGiftCodeRedemptionTable(connection);
+    await insertGiftCodeRedemption(connection, {
+      giftCode: normalizedGiftCode,
+      missionId: normalizedMissionId,
+      points: awardedPoints,
+      orderCode: options?.orderCode,
+      identity,
+    });
+    await persistRewardState(connection, nextState);
+    await connection.commit();
+  } catch (error) {
+    try {
+      await connection.rollback();
+    } catch {
+      // Ignore rollback errors after the original failure.
+    }
+
+    if (String((error as { code?: string } | null)?.code ?? "") === "ER_DUP_ENTRY") {
+      throw new Error("Giftcode này đã được tài khoản của bạn sử dụng hoặc nhiệm vụ đã được ghi nhận");
+    }
+
+    throw error;
+  } finally {
+    connection.release();
+  }
+
+  try {
+    await syncMiniAppTaskReport(identity, normalizedMissionId, {
+      orderCode: options?.orderCode,
+      missionValue: normalizedGiftCode,
+    });
+  } catch (error) {
+    console.warn("Mini app task report sync warning:", error);
+  }
+
+  return {
+    state: buildRewardStatePayload(nextState),
+    pointsAwarded: awardedPoints,
+    giftCode: normalizedGiftCode,
+  };
 }
 
 export async function updateMiniAppVote(

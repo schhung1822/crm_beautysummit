@@ -11,9 +11,15 @@ const PUBLIC_ROUTES = [
   "/api/miniapp/bootstrap",
   "/api/miniapp/tickets",
   "/api/miniapp/rewards",
+  "/api/miniapp/mission-actions",
+  "/api/miniapp/zalo-phone",
   "/api/bootstrap",
   "/api/tickets",
   "/api/rewards",
+  "/api/mission-actions",
+  "/api/zalo-phone",
+  "/api/khaosat",
+  "/api/health",
   "/api/webhook/zalo-miniapp",
 ];
 

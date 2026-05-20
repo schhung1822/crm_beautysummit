@@ -36,6 +36,10 @@ function resolveWebhookUrl(): string {
   return parseString(process.env.MINIAPP_DAY1_IMAGE_WEBHOOK_URL) || DEFAULT_DAY1_IMAGE_WEBHOOK_URL;
 }
 
+function resolveWebhookFileFieldName(fileCount: number): string {
+  return fileCount > 1 ? "files" : "file";
+}
+
 function readWebhookImageReference(value: unknown): string | null {
   const normalizedValue = parseString(value);
   return normalizedValue || null;
@@ -50,17 +54,12 @@ function readWebhookImageReferences(value: unknown): string[] {
 }
 
 function appendWebhookFiles(formData: FormData, files: File[]) {
+  const fileFieldName = resolveWebhookFileFieldName(files.length);
+  formData.set("fileFieldName", fileFieldName);
+
   files.forEach((file, index) => {
     const fileName = file.name || `mission-proof-${index + 1}.jpg`;
-    formData.append("files", file, fileName);
-    formData.append("files[]", file, fileName);
-    formData.append("images", file, fileName);
-    formData.append("images[]", file, fileName);
-
-    if (index === 0) {
-      formData.set("file", file, fileName);
-      formData.set("image", file, fileName);
-    }
+    formData.append(fileFieldName, file, fileName);
   });
 }
 

@@ -42,6 +42,10 @@ function parseCheckinCount(value: unknown): number {
   return Number.isFinite(parsed) && parsed > 0 ? parsed : 0;
 }
 
+function buildPaydoneTicketStatusWhereClause(): string {
+  return `LOWER(TRIM(COALESCE(o.status, ''))) = 'paydone'`;
+}
+
 export function mapMiniAppTicketRow(row: MiniAppTicketRow) {
   const checkedZones = parseCheckedZones(row.checked_zones);
   const checkinCount = Math.max(parseCheckinCount(row.checkin_count), checkedZones.length);
@@ -116,6 +120,7 @@ export async function queryMiniAppTicketRowsByPhone(phone: string): Promise<Mini
   const [rows] = await db.query<MiniAppTicketRow[]>(
     `
     ${buildMiniAppTicketSelectSql(`o.phone IN (${placeholders})`)}
+      AND ${buildPaydoneTicketStatusWhereClause()}
       AND o.ordercode IS NOT NULL
       AND TRIM(o.ordercode) <> ''
     ORDER BY o.create_time DESC
@@ -132,6 +137,7 @@ export async function queryMiniAppTicketRowByCode(ticketCode: string): Promise<M
   const [rows] = await db.query<MiniAppTicketRow[]>(
     `
     ${buildMiniAppTicketSelectSql("o.ordercode = ?")}
+      AND ${buildPaydoneTicketStatusWhereClause()}
     LIMIT 1
     `,
     [ticketCode],

@@ -1,16 +1,17 @@
-/* eslint-disable max-lines */
 import { NextRequest, NextResponse } from "next/server";
 
 import { createApiTrace, maskPhoneForLogs, shortIdForLogs } from "@/lib/api-observability";
 import { applyCorsHeaders, buildCorsHeaders } from "@/lib/cors";
 import {
   getMiniAppDay1RequiredImageCount,
+  getMiniAppDay1UploadCompletionCount,
+  getMiniAppDay1UploadMaxFileSizeBytes,
   isMiniAppDay1GiftCodeMissionId,
   isMiniAppDay1UploadMissionId,
 } from "@/lib/miniapp-day1-giftcodes";
 import { forwardMiniAppDay1ImageWebhook } from "@/lib/miniapp-day1-image-webhook";
-import { forwardMiniAppDay2ImageWebhook } from "@/lib/miniapp-day2-image-webhook";
 import { verifyMiniAppDay2InvoiceWebhook } from "@/lib/miniapp-day2-invoice-webhook";
+import { forwardMiniAppDay2ImageWebhook } from "@/lib/miniapp-day2-image-webhook";
 import {
   getMiniAppDay2RequiredImageCount,
   isMiniAppDay2InvoiceMissionId,
@@ -21,6 +22,7 @@ import {
   ensureMiniAppRewardState,
   hasMiniAppUserAccess,
   normalizeMissionId,
+  recordMiniAppMissionProgressStep,
   redeemMiniAppGiftCodeMission,
 } from "@/lib/miniapp-rewards";
 import { toDatabasePhone } from "@/lib/phone";
@@ -95,8 +97,6 @@ export async function OPTIONS(request: NextRequest) {
   });
 }
 
-// This route intentionally centralizes multiple mission flows behind one API surface.
-// eslint-disable-next-line complexity
 export async function POST(request: NextRequest) {
   try {
     const contentType = request.headers.get("content-type") ?? "";
@@ -170,13 +170,37 @@ export async function POST(request: NextRequest) {
         );
       }
 
+      if (isDay1ImageAction && files.length > requiredImageCount) {
+        trace.mark("too_many_day1_images");
+        return jsonWithCors(
+          request,
+          { message: `Vui long chi tai len ${requiredImageCount} anh moi lan` },
+          { status: 400 },
+        );
+      }
+
+      if (isDay1ImageAction) {
+        const maxFileSizeBytes = getMiniAppDay1UploadMaxFileSizeBytes(missionId);
+        const oversizedFile = files.find((file) => file.size > maxFileSizeBytes);
+        if (maxFileSizeBytes > 0 && oversizedFile) {
+          trace.mark("day1_image_too_large");
+          return jsonWithCors(
+            request,
+            { message: "Moi anh tai len toi da 5MB" },
+            { status: 400 },
+          );
+        }
+      }
+
       const hasAccess = await trace.step("access_check", () => hasMiniAppUserAccess(identity.zid, identity.phone));
       if (!hasAccess) {
         trace.mark("access_denied");
         return jsonWithCors(request, { message: "Mini app account is not authorized" }, { status: 403 });
       }
 
-      const currentState = await trace.step("ensure_reward_state", () => ensureMiniAppRewardState(identity));
+      const currentState = await trace.step("ensure_reward_state", () =>
+        ensureMiniAppRewardState(identity, { orderCode }),
+      );
       if (currentState.completedIds.includes(missionId)) {
         trace.done({ mode: "reuse_completed_state" });
         const state = await trace.step("reload_completed_state", () =>
@@ -202,11 +226,23 @@ export async function POST(request: NextRequest) {
           }),
       );
 
-      const state = await trace.step("complete_mission", () =>
-        completeMiniAppMission(identity, missionId, {
-          orderCode,
-          missionValue: uploadedImageUrls.join(",") || undefined,
-        }),
+      const state = await trace.step(
+        isDay1ImageAction ? "record_day1_upload_progress" : "complete_mission",
+        () =>
+          isDay1ImageAction
+            ? recordMiniAppMissionProgressStep(
+                identity,
+                missionId,
+                uploadedImageUrls[0] || `UPLOAD::${Date.now()}::${files[0]?.name || "image"}`,
+                {
+                  orderCode,
+                  completionCount: getMiniAppDay1UploadCompletionCount(missionId),
+                },
+              )
+            : completeMiniAppMission(identity, missionId, {
+                orderCode,
+                missionValue: uploadedImageUrls.join(",") || undefined,
+              }),
       );
 
       trace.done({
@@ -251,10 +287,10 @@ export async function POST(request: NextRequest) {
       return jsonWithCors(request, { message: "Mini app account is not authorized" }, { status: 403 });
     }
 
-    if (action === "redeem-day1-giftcode") {
+    if (action === "redeem-day1-giftcode" || action === "redeem-giftcode") {
       if (!isMiniAppDay1GiftCodeMissionId(missionId)) {
         trace.mark("invalid_day1_giftcode_mission");
-        return jsonWithCors(request, { message: "Nhiem vu giftcode ngay 1 khong hop le" }, { status: 400 });
+        return jsonWithCors(request, { message: "Nhiem vu giftcode khong hop le" }, { status: 400 });
       }
 
       const giftCode = parseString(body.giftCode);
@@ -296,7 +332,9 @@ export async function POST(request: NextRequest) {
         return jsonWithCors(request, { message: "Vui long nhap ma hoa don" }, { status: 400 });
       }
 
-      const currentState = await trace.step("ensure_reward_state", () => ensureMiniAppRewardState(identity));
+      const currentState = await trace.step("ensure_reward_state", () =>
+        ensureMiniAppRewardState(identity, { orderCode }),
+      );
       if (currentState.completedIds.includes(missionId)) {
         trace.done({ mode: "reuse_completed_state" });
         const state = await trace.step("reload_completed_state", () =>
@@ -334,7 +372,7 @@ export async function POST(request: NextRequest) {
         trace.mark("invoice_not_verified");
         return jsonWithCors(
           request,
-          { message: verification.message ?? "Ma hoa don khong hop le hoac chua du dieu kien" },
+          { message: verification.message || "Ma hoa don khong hop le hoac chua du dieu kien" },
           { status: 400 },
         );
       }

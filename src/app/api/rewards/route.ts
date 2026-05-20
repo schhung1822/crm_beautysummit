@@ -81,8 +81,9 @@ export async function POST(request: NextRequest) {
     }
 
     if (action === "load") {
+      const orderCode = requireString(body.orderCode);
       const [rewards, voteCategories] = await trace.step("load_bundle", () =>
-        Promise.all([loadMiniAppRewards(identity), listVoteCategories()]),
+        Promise.all([loadMiniAppRewards(identity, { orderCode }), listVoteCategories()]),
       );
       trace.done({
         bpointVoucherCount: rewards.vouchers.bpoint.length,
@@ -128,7 +129,11 @@ export async function POST(request: NextRequest) {
         return jsonWithCors(request, { message: "voucherId is required" }, { status: 400 });
       }
 
-      const state = await trace.step("claim_voucher", () => claimMiniAppVoucher(identity, voucherId));
+      const state = await trace.step("claim_voucher", () =>
+        claimMiniAppVoucher(identity, voucherId, {
+          orderCode: requireString(body.orderCode),
+        }),
+      );
       trace.done({
         claimedFreeVoucherCount: state.claimedFreeVoucherIds.length,
       });
@@ -142,7 +147,11 @@ export async function POST(request: NextRequest) {
         return jsonWithCors(request, { message: "voucherId is required" }, { status: 400 });
       }
 
-      const state = await trace.step("redeem_voucher", () => redeemMiniAppVoucher(identity, voucherId));
+      const state = await trace.step("redeem_voucher", () =>
+        redeemMiniAppVoucher(identity, voucherId, {
+          orderCode: requireString(body.orderCode),
+        }),
+      );
       trace.done({
         redeemedVoucherCount: state.redeemedVoucherIds.length,
         availablePoints: state.availablePoints,
@@ -157,7 +166,11 @@ export async function POST(request: NextRequest) {
         return jsonWithCors(request, { message: "milestonePct is required" }, { status: 400 });
       }
 
-      const state = await trace.step("claim_milestone", () => claimMiniAppMilestone(identity, milestonePct));
+      const state = await trace.step("claim_milestone", () =>
+        claimMiniAppMilestone(identity, milestonePct, {
+          orderCode: requireString(body.orderCode),
+        }),
+      );
       trace.done({
         claimedMilestoneCount: state.claimedMilestonePcts.length,
       });

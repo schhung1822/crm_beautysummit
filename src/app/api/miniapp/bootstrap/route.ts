@@ -63,6 +63,7 @@ type MiniAppBootstrapPayload = {
   name?: string;
   phone?: string;
   avatar?: string;
+  orderCode?: string;
   payload?: string;
 };
 
@@ -89,6 +90,7 @@ function parseBootstrapPayloadFromQuery(request: NextRequest): MiniAppBootstrapP
     name: request.nextUrl.searchParams.get("name") ?? undefined,
     phone: request.nextUrl.searchParams.get("phone") ?? undefined,
     avatar: request.nextUrl.searchParams.get("avatar") ?? undefined,
+    orderCode: request.nextUrl.searchParams.get("orderCode") ?? undefined,
     payload: request.nextUrl.searchParams.get("payload") ?? undefined,
   };
 }
@@ -138,6 +140,8 @@ async function handleBootstrap(
         phone,
         name,
         avatar,
+      }, {
+        orderCode: String(body.orderCode ?? "").trim(),
       }),
       listVoteCategories(),
       getActiveCheckinLocations(),

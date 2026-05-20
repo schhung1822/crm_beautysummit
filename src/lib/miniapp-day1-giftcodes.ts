@@ -6,21 +6,55 @@ import {
 
 // Shared giftcodes are maintained in miniapp-shared-giftcodes.ts.
 
-type MiniAppDay1GiftCodeMissionSuffix = "d1-2" | "d1-3" | "d1-4" | "d1-7";
-type MiniAppDay1UploadMissionSuffix = "d1-6";
+type MiniAppGiftCodeMissionSuffix = "d1-2" | "d1-3" | "d1-4" | "d1-7" | "d2-6" | "d2-7";
+type MiniAppUploadMissionSuffix = "d1-6";
+type MiniAppRepeatableGiftCodeMissionBonus = {
+  threshold: number;
+  points: number;
+};
 
 export type MiniAppDay1GiftCodeEntry = MiniAppSharedGiftCodeEntry;
 
-const DAY1_GIFTCODE_MISSION_SUFFIXES = new Set<MiniAppDay1GiftCodeMissionSuffix>([
+const GIFTCODE_MISSION_SUFFIXES = new Set<MiniAppGiftCodeMissionSuffix>([
   "d1-2",
   "d1-3",
   "d1-4",
   "d1-7",
+  "d2-6",
+  "d2-7",
 ]);
 
-const DAY1_UPLOAD_REQUIRED_IMAGE_COUNT = new Map<MiniAppDay1UploadMissionSuffix, number>([
-  ["d1-6", 5],
+const REPEATABLE_GIFTCODE_MISSION_LIMITS = new Map<MiniAppGiftCodeMissionSuffix, number>([
+  ["d1-2", 100],
+  ["d1-7", 20],
+  ["d2-7", 100],
 ]);
+
+const REPEATABLE_GIFTCODE_MISSION_BONUSES = new Map<
+  MiniAppGiftCodeMissionSuffix,
+  readonly MiniAppRepeatableGiftCodeMissionBonus[]
+>([
+  [
+    "d1-2",
+    [
+      { threshold: 20, points: 5 },
+      { threshold: 50, points: 10 },
+      { threshold: 100, points: 20 },
+    ],
+  ],
+  [
+    "d2-7",
+    [
+      { threshold: 20, points: 10 },
+      { threshold: 50, points: 20 },
+      { threshold: 100, points: 40 },
+    ],
+  ],
+]);
+
+const UPLOAD_REQUIRED_IMAGE_COUNT = new Map<MiniAppUploadMissionSuffix, number>([["d1-6", 1]]);
+const UPLOAD_COMPLETION_COUNT = new Map<MiniAppUploadMissionSuffix, number>([["d1-6", 5]]);
+const UPLOAD_MAX_FILE_SIZE_BYTES = new Map<MiniAppUploadMissionSuffix, number>([["d1-6", 5 * 1024 * 1024]]);
 
 function parseString(value: unknown): string {
   return String(value ?? "").trim();
@@ -40,20 +74,44 @@ function missionIdToSuffix(missionId: string): string {
 export { normalizeMiniAppGiftCode };
 
 export function isMiniAppDay1GiftCodeMissionId(missionId: string): boolean {
-  return DAY1_GIFTCODE_MISSION_SUFFIXES.has(
-    missionIdToSuffix(missionId) as MiniAppDay1GiftCodeMissionSuffix,
+  return GIFTCODE_MISSION_SUFFIXES.has(missionIdToSuffix(missionId) as MiniAppGiftCodeMissionSuffix);
+}
+
+export function isMiniAppRepeatableGiftCodeMissionId(missionId: string): boolean {
+  return REPEATABLE_GIFTCODE_MISSION_LIMITS.has(
+    missionIdToSuffix(missionId) as MiniAppGiftCodeMissionSuffix,
   );
+}
+
+export function getMiniAppRepeatableGiftCodeMissionLimit(missionId: string): number {
+  const missionSuffix = missionIdToSuffix(missionId) as MiniAppGiftCodeMissionSuffix;
+  return REPEATABLE_GIFTCODE_MISSION_LIMITS.get(missionSuffix) ?? 0;
+}
+
+export function getMiniAppRepeatableGiftCodeMissionBonuses(
+  missionId: string,
+): readonly MiniAppRepeatableGiftCodeMissionBonus[] {
+  const missionSuffix = missionIdToSuffix(missionId) as MiniAppGiftCodeMissionSuffix;
+  return REPEATABLE_GIFTCODE_MISSION_BONUSES.get(missionSuffix) ?? [];
 }
 
 export function isMiniAppDay1UploadMissionId(missionId: string): boolean {
-  return DAY1_UPLOAD_REQUIRED_IMAGE_COUNT.has(
-    missionIdToSuffix(missionId) as MiniAppDay1UploadMissionSuffix,
-  );
+  return UPLOAD_REQUIRED_IMAGE_COUNT.has(missionIdToSuffix(missionId) as MiniAppUploadMissionSuffix);
 }
 
 export function getMiniAppDay1RequiredImageCount(missionId: string): number {
-  const missionSuffix = missionIdToSuffix(missionId) as MiniAppDay1UploadMissionSuffix;
-  return DAY1_UPLOAD_REQUIRED_IMAGE_COUNT.get(missionSuffix) ?? 1;
+  const missionSuffix = missionIdToSuffix(missionId) as MiniAppUploadMissionSuffix;
+  return UPLOAD_REQUIRED_IMAGE_COUNT.get(missionSuffix) ?? 1;
+}
+
+export function getMiniAppDay1UploadCompletionCount(missionId: string): number {
+  const missionSuffix = missionIdToSuffix(missionId) as MiniAppUploadMissionSuffix;
+  return UPLOAD_COMPLETION_COUNT.get(missionSuffix) ?? 1;
+}
+
+export function getMiniAppDay1UploadMaxFileSizeBytes(missionId: string): number {
+  const missionSuffix = missionIdToSuffix(missionId) as MiniAppUploadMissionSuffix;
+  return UPLOAD_MAX_FILE_SIZE_BYTES.get(missionSuffix) ?? 0;
 }
 
 // Backward-compatible alias used by current reward flow.
@@ -64,9 +122,9 @@ export function resolveMiniAppDay1GiftCodeEntry(
   missionId: string,
 ): MiniAppDay1GiftCodeEntry | null {
   const normalizedCode = normalizeMiniAppGiftCode(giftCode);
-  const missionSuffix = missionIdToSuffix(missionId) as MiniAppDay1GiftCodeMissionSuffix;
+  const missionSuffix = missionIdToSuffix(missionId) as MiniAppGiftCodeMissionSuffix;
 
-  if (!normalizedCode || !DAY1_GIFTCODE_MISSION_SUFFIXES.has(missionSuffix)) {
+  if (!normalizedCode || !GIFTCODE_MISSION_SUFFIXES.has(missionSuffix)) {
     return null;
   }
 

@@ -59,116 +59,77 @@ export function normalizeMiniAppGiftCode(value: unknown): string {
   return parseString(rawGiftCode).toUpperCase();
 }
 
-// Update shared giftcodes here. Each account can redeem a shared code once.
+const REGULAR_BOOTH_GIFTCODE_MISSION_SUFFIXES = ["d1-2", "d2-7"] as const;
+const REGULAR_BOOTH_GIFTCODES = [
+  "BS26-GIANHANG01",
+  "BS26-GIANHANG02",
+  "BS26-GIANHANG03",
+  "BS26-GIANHANG04",
+  "BS26-GIANHANG05",
+  "BS26-GIANHANG06",
+  "BS26-GIANHANG07",
+  "BS26-GIANHANG08",
+  "BS26-GIANHANG09",
+  "BS26-GIANHANG10",
+] as const;
+
+// Keep Extra booth codes capped at 20 entries.
+const EXTRA_BOOTH_GIFTCODES = [
+  "BS26-EXTRA01",
+  "BS26-EXTRA02",
+  "BS26-EXTRA03",
+  "BS26-EXTRA04",
+  "BS26-EXTRA05",
+] as const;
+
+const createSharedGiftCodeEntries = (
+  codes: readonly string[],
+  points: number,
+  missionSuffixes: readonly string[],
+  note: string,
+): MiniAppSharedGiftCodeEntry[] =>
+  codes.map((code) => ({
+    code,
+    points,
+    active: true,
+    missionSuffixes: [...missionSuffixes],
+    note,
+  }));
+
+// Regular booth codes can scale to hundreds of entries:
+// append more raw codes to REGULAR_BOOTH_GIFTCODES above.
 export const MINIAPP_SHARED_GIFTCODES: readonly MiniAppSharedGiftCodeEntry[] = [
   {
     code: "BS26-KHAIMAC",
     points: 20,
     active: true,
-    note: "Quet ma QR trong thoi gian khai mac o san khau chinh",
+    missionSuffixes: ["d1-3"],
+    note: "QR khai mac san khau chinh - 20 diem",
   },
   {
     code: "BS26-GIAOLUU",
     points: 30,
     active: true,
-    note: "Quet ma QR trong thoi gian giao luu o san khau chinh",
+    missionSuffixes: ["d1-4"],
+    note: "QR giao luu san khau chinh - 30 diem",
   },
   {
     code: "BS26-AWARD",
     points: 50,
     active: true,
-    note: "Quet ma QR trong thoi gian to chuc trao giai BEAUTY AWARD",
+    missionSuffixes: ["d2-6"],
+    note: "QR trao giai Beauty Awards - 50 diem",
   },
-  // GIFTCODE GIAN HANG THUONG
-  {
-    code: "BS26-GIANHANG01",
-    points: 5,
-    active: true,
-    note: "QR cho gian hang thuong - 5 diem",
-  },
-  {
-    code: "BS26-GIANHANG02",
-    points: 5,
-    active: true,
-    note: "QR cho gian hang thuong - 5 diem",
-  },
-  {
-    code: "BS26-GIANHANG03",
-    points: 5,
-    active: true,
-    note: "QR cho gian hang thuong - 5 diem",
-  },
-  {
-    code: "BS26-GIANHANG04",
-    points: 5,
-    active: true,
-    note: "QR cho gian hang thuong - 5 diem",
-  },
-  {
-    code: "BS26-GIANHANG05",
-    points: 5,
-    active: true,
-    note: "QR cho gian hang thuong - 5 diem",
-  },
-  {
-    code: "BS26-GIANHANG06",
-    points: 5,
-    active: true,
-    note: "QR cho gian hang thuong - 5 diem",
-  },
-  {
-    code: "BS26-GIANHANG07",
-    points: 5,
-    active: true,
-    note: "QR cho gian hang thuong - 5 diem",
-  },
-  {
-    code: "BS26-GIANHANG08",
-    points: 5,
-    active: true,
-    note: "QR cho gian hang thuong - 5 diem",
-  },
-  {
-    code: "BS26-GIANHANG09",
-    points: 5,
-    active: true,
-    note: "QR cho gian hang thuong - 5 diem",
-  },
-  {
-    code: "BS26-GIANHANG10",
-    points: 5,
-    active: true,
-    note: "QR cho gian hang thuong - 5 diem",
-  },
-  // Giftcode cho gian hang Extra
-  {
-    code: "BS26-EXTRA01",
-    points: 20,
-    active: true,
-    note: "QR cho gian hang Extra - 20 diem",
-  },
-  {
-    code: "BS26-EXTRA02",
-    points: 20,
-    active: true,
-    note: "QR cho gian hang Extra - 20 diem",
-  },
-  {
-    code: "BS26-EXTRA03",
-    points: 20,
-    active: true,
-    note: "QR cho gian hang Extra - 20 diem",
-  },
-  {
-    code: "BS26-EXTRA04",
-    points: 20,
-    active: true,
-    note: "QR cho gian hang Extra - 20 diem",
-  },
-  {
-    code: "BS26-EXTRA05",
-    points: 20,
-    active: true,
-    note: "QR cho gian hang Extra - 20 diem",
-  },
+  ...createSharedGiftCodeEntries(
+    REGULAR_BOOTH_GIFTCODES,
+    5,
+    REGULAR_BOOTH_GIFTCODE_MISSION_SUFFIXES,
+    "QR gian hang thuong - 5 diem",
+  ),
+  ...createSharedGiftCodeEntries(
+    EXTRA_BOOTH_GIFTCODES,
+    20,
+    ["d1-7"],
+    "QR gian hang Extra - 20 diem",
+  ),
 ];

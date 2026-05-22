@@ -38,6 +38,14 @@ type NormalizedOrderPayload = {
 };
 
 type ExistsRow = RowDataPacket & { is_exists: number };
+type ExistingOrderRow = RowDataPacket & {
+  ordercode: string | null;
+  order_id: string | null;
+  status: string | null;
+  money: number | null;
+  money_VAT: number | null;
+};
+type OrderTotalRow = RowDataPacket & { total_payment: number | string | null };
 type CustomerLookupRow = RowDataPacket & {
   id: number;
   customer_id: string | null;
@@ -146,7 +154,22 @@ function formatWebhookTransactionDate(value: Date) {
   const hour = lookup.get("hour") ?? "00";
   const minute = lookup.get("minute") ?? "00";
 
-  return `${year}/${month}/${day} ${hour}:${minute}`;
+  return `${year}-${month}-${day} ${hour}:${minute}`;
+}
+
+function normalizePaymentStatus(value: string | null | undefined) {
+  return String(value ?? "").trim().toLowerCase();
+}
+
+function isPaydoneStatus(value: string | null | undefined) {
+  return normalizePaymentStatus(value) === "paydone";
+}
+
+function resolvePaymentAmount(money: number, moneyVat: number) {
+  const normalizedMoney = Number.isFinite(money) ? money : 0;
+  const normalizedMoneyVat = Number.isFinite(moneyVat) ? moneyVat : 0;
+  const preferredAmount = normalizedMoneyVat > 0 ? normalizedMoneyVat : normalizedMoney;
+  return Math.max(0, Math.round(preferredAmount));
 }
 
 function normalizeOrderPayload(body: Record<string, unknown>): NormalizedOrderPayload {
@@ -208,6 +231,51 @@ async function orderCodeExists(orderCode: string, excludeOrderCode?: string | nu
 
   const [rows] = await db.query<ExistsRow[]>(sql, params);
   return rows.length > 0;
+}
+
+async function findOrderByCode(orderCode: string) {
+  const db = getDB();
+  const [rows] = await db.query<ExistingOrderRow[]>(
+    `
+    SELECT
+      ordercode,
+      order_id,
+      status,
+      money,
+      money_VAT
+    FROM orders
+    WHERE ordercode = ?
+    LIMIT 1
+    `,
+    [orderCode],
+  );
+
+  return rows[0] ?? null;
+}
+
+async function getOrderTransferAmount(orderId: string | null, orderCode: string) {
+  const db = getDB();
+
+  if (orderId) {
+    const [rows] = await db.query<OrderTotalRow[]>(
+      `
+      SELECT COALESCE(SUM(COALESCE(money_VAT, money, 0)), 0) AS total_payment
+      FROM orders
+      WHERE order_id = ?
+      `,
+      [orderId],
+    );
+
+    const total = Number(rows[0]?.total_payment ?? 0);
+    return Math.max(0, Math.round(Number.isFinite(total) ? total : 0));
+  }
+
+  const existingOrder = await findOrderByCode(orderCode);
+  if (!existingOrder) {
+    return 0;
+  }
+
+  return resolvePaymentAmount(Number(existingOrder.money ?? 0), Number(existingOrder.money_VAT ?? 0));
 }
 
 async function orderIdExists(orderId: string) {
@@ -433,7 +501,7 @@ async function insertTicketOrder(orderCode: string, orderId: string, payload: No
   );
 }
 
-async function notifyPaymentUpdateWebhook(payload: { orderId: string; createTime: Date; totalPayment: number }) {
+async function notifyPaymentUpdateWebhook(payload: { code: string; transactionDate: Date; transferAmount: number }) {
   try {
     const response = await fetch(UPDATE_PAYMENT_WEBHOOK_URL, {
       method: "POST",
@@ -441,9 +509,9 @@ async function notifyPaymentUpdateWebhook(payload: { orderId: string; createTime
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        code: payload.orderId,
-        transactionDate: formatWebhookTransactionDate(payload.createTime),
-        transferAmount: payload.totalPayment,
+        code: payload.code,
+        transactionDate: formatWebhookTransactionDate(payload.transactionDate),
+        transferAmount: payload.transferAmount,
       }),
       signal: AbortSignal.timeout(10_000),
     });
@@ -454,12 +522,12 @@ async function notifyPaymentUpdateWebhook(payload: { orderId: string; createTime
         status: response.status,
         statusText: response.statusText,
         body: responseBody,
-        orderId: payload.orderId,
+        code: payload.code,
       });
     }
   } catch (error) {
     console.error("Failed to notify update payment webhook", {
-      orderId: payload.orderId,
+      code: payload.code,
       error: toErrorMessage(error),
     });
   }
@@ -578,9 +646,9 @@ export async function POST(req: Request) {
 
     await syncCustomerFromOrder(preparedPayload);
     await notifyPaymentUpdateWebhook({
-      orderId,
-      createTime: preparedPayload.create_time,
-      totalPayment: Math.max(0, Math.round(preparedPayload.money_VAT)) * quantity,
+      code: orderId,
+      transactionDate: preparedPayload.create_time,
+      transferAmount: resolvePaymentAmount(preparedPayload.money, preparedPayload.money_VAT) * quantity,
     });
 
     return NextResponse.json({ ok: true, orderCodes, orderId });
@@ -598,9 +666,25 @@ export async function PUT(req: Request) {
       return NextResponse.json({ error: "Missing original order code" }, { status: 400 });
     }
 
+    const existingOrder = await findOrderByCode(originalOrderCode);
+    if (!existingOrder) {
+      return NextResponse.json({ error: "Order record not found" }, { status: 404 });
+    }
+
     const payload = normalizeOrderPayload(body);
     const ordercode = await updateTicketOrder(originalOrderCode, payload);
     await syncCustomerFromOrder(payload);
+
+    if (!isPaydoneStatus(existingOrder.status) && isPaydoneStatus(payload.status)) {
+      const webhookCode = toNullableString(existingOrder.order_id) ?? ordercode;
+      const transferAmount = await getOrderTransferAmount(toNullableString(existingOrder.order_id), ordercode);
+
+      await notifyPaymentUpdateWebhook({
+        code: webhookCode,
+        transactionDate: payload.update_time,
+        transferAmount,
+      });
+    }
 
     return NextResponse.json({
       ok: true,

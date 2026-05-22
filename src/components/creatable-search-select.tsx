@@ -128,8 +128,8 @@ export function CreatableSearchSelect({
           variant="outline"
           disabled={disabled}
           className={cn(
-            "h-12 w-full justify-between rounded-[1rem] border-[#e7dfd4] dark:border-slate-800 bg-white dark:bg-slate-900 border-border dark:border-slate-800 px-4 text-left font-medium text-[#241629] dark:text-slate-50 shadow-[0_10px_24px_rgba(184,134,11,0.06)] dark:shadow-none hover:bg-white dark:hover:bg-slate-800",
-            !normalizedValue && "text-[#9a8f97]",
+            "h-12 w-full justify-between rounded-[1rem] border border-input bg-background px-4 text-left font-medium text-foreground shadow-sm hover:bg-accent/40",
+            !normalizedValue && "text-muted-foreground",
             triggerClassName,
           )}
         >
@@ -137,8 +137,11 @@ export function CreatableSearchSelect({
           <ChevronDown className="size-4 opacity-60" />
         </Button>
       </PopoverTrigger>
-      <PopoverContent align="start" className={cn("w-[var(--radix-popover-trigger-width)] p-0", className)}>
-        <Command className="rounded-[1rem]">
+      <PopoverContent
+        align="start"
+        className={cn("w-[var(--radix-popover-trigger-width)] rounded-[1rem] border border-border bg-popover p-0 shadow-md", className)}
+      >
+        <Command className="rounded-[1rem] bg-transparent">
           <CommandInput
             value={query}
             onValueChange={setQuery}
@@ -157,10 +160,10 @@ export function CreatableSearchSelect({
                   className="flex items-center justify-between rounded-xl px-3 py-3"
                 >
                   <div className="flex items-center gap-2">
-                    <Plus className="size-4 text-[#c24db0]" />
+                    <Plus className="text-primary size-4" />
                     <span className="font-medium">Thêm &quot;{normalizedQuery}&quot;</span>
                   </div>
-                  <span className="text-xs text-[#8a7e8b]">{creating ? "Đang tạo..." : "Mới"}</span>
+                  <span className="text-muted-foreground text-xs">{creating ? "Đang tạo..." : "Mới"}</span>
                 </CommandItem>
               </CommandGroup>
             ) : null}
@@ -181,13 +184,13 @@ export function CreatableSearchSelect({
                     className="group flex items-center justify-between rounded-xl px-3 py-3"
                   >
                     <div className="flex min-w-0 items-center gap-2">
-                      <Check className={cn("size-4 text-[#c24db0]", !isActive && "opacity-0")} />
+                      <Check className={cn("text-primary size-4", !isActive && "opacity-0")} />
                       <span className="truncate">{option.label}</span>
                     </div>
                     {option.deletable && onDelete ? (
                       <button
                         type="button"
-                        className="rounded-md p-1 text-[#9a8f97] opacity-0 transition group-hover:opacity-100 hover:bg-[#f8f3ee] hover:text-[#dc2626]"
+                        className="text-muted-foreground hover:bg-accent hover:text-destructive rounded-md p-1 opacity-0 transition group-hover:opacity-100"
                         onMouseDown={(event) => {
                           event.preventDefault();
                           event.stopPropagation();

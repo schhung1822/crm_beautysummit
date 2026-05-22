@@ -50,6 +50,33 @@ function isCompletedStatus(s: string) {
   );
 }
 
+const ORDER_EXPORT_HEADERS = {
+  ordercode: "Mã vé",
+  name: "Họ tên",
+  phone: "Điện thoại",
+  email: "Email",
+  class: "Hạng vé",
+  gender: "Giới tính",
+  career: "Nghề nghiệp",
+  hope: "Mong đợi",
+  money: "Thành tiền",
+  status: "Trạng thái",
+  update_time: "Ngày thanh toán",
+  order_id: "Mã đơn hàng",
+  status_checkin: "Check-in",
+  checkin_time: "Ngày check-in",
+  create_time: "Ngày tạo",
+  voucher: "Voucher",
+  send_noti: "Mail remind",
+  utm_source: "UTM Source",
+  utm_medium: "UTM Medium",
+  utm_campaign: "UTM Campaign",
+  step_mail: "Step mail",
+  step_zbs: "Step ZBS",
+  is_checkin: "Đã check-in",
+  number_checkin: "Số lần check-in",
+} satisfies Partial<Record<keyof Channel, string>>;
+
 // ─── Date range picker ───────────────────────────────────────────────────────
 
 function DateRangePicker({
@@ -276,13 +303,7 @@ function OrdersDataTable({ data: initialData = [] }: { data?: Channel[] }) {
         ? filterDataByDateRange(filteredData, "create_time", dateRangeExp) : filteredData;
       exportData({
         format, data: dataToExport,
-        headers: {
-          ordercode: "Mã vé", name: "Họ tên", phone: "Số điện thoại", email: "Email",
-          class: "Hạng vé", money: "Tiền", money_VAT: "Thành tiền", status: "Trạng thái",
-          gender: "Giới tính", career: "Nghề nghiệp", hope: "Mong đợi",
-          voucher: "Voucher", is_checkin: "Check-in", status_checkin: "Trạng thái CK",
-          checkin_time: "Ngày check-in", create_time: "Ngày tạo",
-        },
+        headers: ORDER_EXPORT_HEADERS,
         filename: `orders_${new Date().toISOString().split("T")[0]}`,
       });
       toast.success(`Xuất ${dataToExport.length} đơn thành công`);

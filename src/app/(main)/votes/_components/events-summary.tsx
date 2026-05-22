@@ -55,13 +55,11 @@ function TopRankItem({ item, rank, voteOptions }: { item: RatioItem; rank: numbe
   const logo = getProductLogo(item.name, voteOptions);
   const displayName = item.name === "?" ? "Chưa có" : item.name;
   const isImage = logo && (logo.startsWith("http") || logo.startsWith("/") || logo.startsWith("data:") || logo.startsWith("avatars/") || logo.startsWith("images/"));
-  
   const isFirst = rank === 1;
   const sizeClass = isFirst ? "w-16 h-16 sm:w-20 sm:h-20" : "w-12 h-12 sm:w-16 sm:h-16";
   const ringColor = isFirst ? "ring-[#f5b700]" : rank === 2 ? "ring-[#cdd4e3]" : "ring-[#d97706]";
   const badgeColor = isFirst ? "bg-[#f5b700]" : rank === 2 ? "bg-[#cdd4e3]" : "bg-[#d97706]";
   const badgeText = rank === 2 ? "text-slate-800" : "text-white";
-  
   const pillarHeight = rank === 1 ? "h-24 sm:h-32" : rank === 2 ? "h-20 sm:h-24" : "h-16 sm:h-20";
   const pillarBg = rank === 1 
     ? "bg-gradient-to-t from-[#f0c648]/40 to-[#f5b700]/80 border-[#f5b700]" 
@@ -85,12 +83,12 @@ function TopRankItem({ item, rank, voteOptions }: { item: RatioItem; rank: numbe
       </div>
       
       <div className={`w-[72px] sm:w-[90px] ${pillarHeight} ${pillarBg} border-t-[3px] rounded-t-xl shadow-inner flex flex-col items-center pt-5 sm:pt-6 px-1 pb-2`}>
-        <span className={`text-[0.65rem] sm:text-[0.75rem] font-bold line-clamp-2 text-center leading-tight ${item.name === "?" ? "text-primary/50 italic" : "text-primary"}`} title={displayName}>
+        <span className={`text-[0.65rem] sm:text-[0.75rem] font-bold line-clamp-2 text-center leading-tight ${item.name === "?" ? "text-primary/50 italic" : "text-[#fff]"}`} title={displayName}>
           {displayName}
         </span>
         <div className="mt-auto flex flex-col items-center">
-          <span className="text-[0.95rem] sm:text-[1.1rem] font-black text-primary leading-none">{item.value > 0 ? item.value : 0}</span>
-          <span className="text-[8px] sm:text-[9px] font-bold uppercase tracking-wider text-primary/80">vote</span>
+          <span className="text-[0.95rem] sm:text-[1.1rem] font-black text-[#fff] leading-none">{item.value > 0 ? item.value : 0}</span>
+          <span className="text-[8px] sm:text-[9px] font-bold uppercase tracking-wider text-[#fff]/80">vote</span>
         </div>
       </div>
     </div>
@@ -123,7 +121,7 @@ export function EventsSummary({ totalVotes, genderData, brandRatioData, leaderbo
     <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-4 gap-4">
       {/* Xếp hạng */}
       <Card className="p-1 lg:col-span-2 shadow-sm">
-        <CardHeader className="flex flex-row items-center justify-between pb-2">
+        <CardHeader className="flex flex-row items-center justify-between pt-2">
           <CardTitle className="text-sm font-medium flex items-center gap-2">
             <Trophy className="w-4 h-4 text-amber-500" /> Bảng xếp hạng
           </CardTitle>
@@ -141,19 +139,18 @@ export function EventsSummary({ totalVotes, genderData, brandRatioData, leaderbo
             </div>
           </div>
           {/* List rest (Phải) */}
-          <div className="flex-1 bg-background p-3 space-y-3 overflow-y-auto custom-scrollbar pt-4 sm:pt-4 w-full sm:w-1/2 h-full">
+          <div className="flex-1 bg-background p-3 space-y-3 overflow-y-auto custom-scrollbar pt-4 sm:pt-4 w-full sm:w-1/2 h-full nice-scroll">
             {fullLeaderboardData.map((item, i) => {
               const logo = getProductLogo(item.name, voteOptions);
               const isImg = logo && (logo.startsWith("http") || logo.startsWith("/") || logo.startsWith("data:") || logo.startsWith("avatars/") || logo.startsWith("images/"));
               const rank = i + 1;
               return (
                 <div key={item.name} className="relative">
-                  <div className="overflow-hidden rounded-[1.2rem] border border-border bg-card shadow-sm hover:shadow-md transition-shadow">
+                  <div className="overflow-hidden rounded-[12px] border border-border bg-card shadow-sm hover:shadow-md transition-shadow">
                     <div className="flex items-center gap-3 px-2.5 py-2.5">
                       <div className="flex w-6 shrink-0 justify-center font-black text-[1.1rem] text-muted-foreground">
                         {rank}
                       </div>
-                      
                       {isImg ? (
                         <img src={getAbsoluteImageUrl(logo)} alt={item.name} className="h-[58px] w-[58px] shrink-0 rounded-[0.9rem] object-cover shadow-[0_6px_14px_rgba(0,0,0,0.1)]" />
                       ) : (
@@ -192,7 +189,7 @@ export function EventsSummary({ totalVotes, genderData, brandRatioData, leaderbo
       </Card>
 
       {/* Pie Chart: Giới tính */}
-      <Card className="p-1 shadow-sm">
+      <Card className="p-1 pt-4 shadow-sm">
         <CardHeader>
           <CardTitle className="text-sm font-medium">Tỷ lệ theo giới tính</CardTitle>
         </CardHeader>
@@ -212,7 +209,7 @@ export function EventsSummary({ totalVotes, genderData, brandRatioData, leaderbo
       </Card>
 
       {/* Pie Chart: Thương hiệu / Sản phẩm */}
-      <Card className="p-1 shadow-sm">
+      <Card className="p-1 pt-4 shadow-sm">
         <CardHeader>
           <CardTitle className="text-sm font-medium">Tỷ lệ theo thương hiệu</CardTitle>
         </CardHeader>

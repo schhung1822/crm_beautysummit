@@ -22,7 +22,7 @@ type VoucherManagerProps = {
   initialData: MiniAppVoucherRecord[];
 };
 
-type CatalogType = "category" | "product" | "brand";
+type CatalogType = "brand";
 
 type CatalogResponse = {
   data?: {
@@ -129,16 +129,6 @@ function buildInitialBrandOptions(data: MiniAppVoucherRecord[]): CreatableSearch
     }));
 }
 
-function buildInitialProductOptions(data: MiniAppVoucherRecord[]): CreatableSearchSelectOption[] {
-  return Array.from(new Set(data.map((item) => item.discount.trim()).filter(Boolean)))
-    .sort()
-    .map((label) => ({
-      id: `product-${buildOptionId(label)}`,
-      label,
-      deletable: false,
-    }));
-}
-
 function mergeOptionLists(
   current: CreatableSearchSelectOption[],
   incoming: CreatableSearchSelectOption[],
@@ -230,9 +220,6 @@ export default function VoucherManager({ initialData }: VoucherManagerProps) {
   const [brandOptions, setBrandOptions] = React.useState<CreatableSearchSelectOption[]>(
     buildInitialBrandOptions(initialData),
   );
-  const [productOptions, setProductOptions] = React.useState<CreatableSearchSelectOption[]>(
-    buildInitialProductOptions(initialData),
-  );
 
   const isEditing = Boolean(form.voucherId);
 
@@ -313,7 +300,6 @@ export default function VoucherManager({ initialData }: VoucherManagerProps) {
       }
 
       setBrandOptions((current) => mergeOptionLists(current, result?.data?.brands ?? []));
-      setProductOptions((current) => mergeOptionLists(current, result?.data?.products ?? []));
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Khong the tai bo loc du lieu");
     }
@@ -370,36 +356,6 @@ export default function VoucherManager({ initialData }: VoucherManagerProps) {
         current.filter((item) => normalizeSearchValue(item.label) !== normalizeSearchValue(option.label)),
       );
       toast.success("Da xoa brand");
-    },
-    [mutateCatalogOption],
-  );
-
-  const handleCreateProduct = React.useCallback(
-    async (label: string) => {
-      const result = await mutateCatalogOption("product", label, "POST");
-      if (!result.data) {
-        return;
-      }
-
-      setProductOptions((current) => mergeOptionLists(current, [result.data!]));
-      toast.success("Da them san pham moi");
-      return result.data;
-    },
-    [mutateCatalogOption],
-  );
-
-  const handleDeleteProduct = React.useCallback(
-    async (option: CreatableSearchSelectOption) => {
-      const confirmed = window.confirm(`Xoa san pham "${option.label}"?`);
-      if (!confirmed) {
-        return;
-      }
-
-      await mutateCatalogOption("product", option.label, "DELETE");
-      setProductOptions((current) =>
-        current.filter((item) => normalizeSearchValue(item.label) !== normalizeSearchValue(option.label)),
-      );
-      toast.success("Da xoa san pham");
     },
     [mutateCatalogOption],
   );
@@ -491,14 +447,6 @@ export default function VoucherManager({ initialData }: VoucherManagerProps) {
         mergeOptionLists(
           current,
           [{ id: `brand-${buildOptionId(form.brand)}`, label: form.brand, deletable: false }].filter(
-            (item) => item.label,
-          ),
-        ),
-      );
-      setProductOptions((current) =>
-        mergeOptionLists(
-          current,
-          [{ id: `product-${buildOptionId(form.discount)}`, label: form.discount, deletable: false }].filter(
             (item) => item.label,
           ),
         ),
@@ -756,11 +704,11 @@ export default function VoucherManager({ initialData }: VoucherManagerProps) {
       </div>
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="sm:max-w-2xl bg-background dark:bg-slate-900 border-border dark:border-slate-800">
+        <DialogContent className="border-border bg-background text-foreground sm:max-w-2xl">
           <DialogHeader>
-<DialogTitle></DialogTitle>
-</DialogHeader>
-<div className="grid gap-4 sm:grid-cols-2">
+            <DialogTitle>{isEditing ? "Sửa quà tặng" : "Thêm quà tặng"}</DialogTitle>
+          </DialogHeader>
+          <div className="grid gap-4 sm:grid-cols-2">
             <div className="grid gap-4 sm:col-span-2 sm:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)_auto] sm:items-end">
               <div className="space-y-1.5">
                 <Label>Loại voucher</Label>
@@ -810,7 +758,7 @@ export default function VoucherManager({ initialData }: VoucherManagerProps) {
 
             <div className="grid gap-4 sm:col-span-2 lg:grid-cols-[minmax(0,1fr)_220px] lg:items-start">
               <div
-                className={`relative overflow-hidden rounded-[1.2rem] border px-4 py-4 shadow-sm ${form.isGrand ? "border-orange-200 dark:border-orange-800" : "border-border dark:border-slate-800 bg-card dark:bg-slate-900"}`}
+                className={`relative overflow-hidden rounded-[12px] border px-2 py-2 shadow-sm ${form.isGrand ? "border-orange-200 dark:border-orange-800" : "border-border bg-card"}`}
                 style={
                   form.isGrand
                     ? {
@@ -820,11 +768,11 @@ export default function VoucherManager({ initialData }: VoucherManagerProps) {
                     : undefined
                 }
               >
-                <div className="mb-3 text-xs font-semibold tracking-[0.14em] uppercase text-muted-foreground" style={{ color: form.color }}>
+                <div className="mb-2 text-xs font-semibold tracking-[0.14em] uppercase text-muted-foreground text-primary">
                   Preview
                 </div>
                 <div
-                  className={`relative flex items-center gap-3 rounded-[1.25rem] border px-3.5 py-3.5 shadow-sm ${form.isGrand ? "overflow-hidden border-orange-300 dark:border-orange-800 bg-background/50 dark:bg-background/20" : "border-border dark:border-slate-800 bg-background dark:bg-slate-950"}`}
+                  className={`relative flex items-center gap-3 rounded-[12px] border px-3.5 py-3.5 shadow-sm ${form.isGrand ? "overflow-hidden border-orange-300 dark:border-orange-800 bg-background/50 dark:bg-background/20" : "border-border bg-background"}`}
                 >
                   {form.isGrand ? (
                     <div className="absolute top-0 right-0 rounded-tr-[1.15rem] rounded-bl-[1rem] bg-[linear-gradient(135deg,#f9c529_0%,#ffb347_46%,#ff72bc_100%)] px-4 text-[11px] tracking-[0.04em] text-white">
@@ -845,11 +793,11 @@ export default function VoucherManager({ initialData }: VoucherManagerProps) {
                       {form.brand || "Brand voucher"}
                     </div>
                     <div
-                      className={`truncate text-[17px] leading-tight font-black ${form.isGrand ? "text-[#241629] dark:text-slate-50" : "text-[#241629] dark:text-slate-50"}`}
+                      className={`truncate text-[17px] leading-tight font-black ${form.isGrand ? "text-[#241629] dark:text-slate-50" : "text-foreground"}`}
                     >
                       {form.discount || "Title voucher"}
                     </div>
-                    <div className={`mt-1 truncate text-[12px] ${form.isGrand ? "text-[#7a7280] dark:text-slate-400" : "text-[#7a7280] dark:text-slate-400"}`}>
+                    <div className={`mt-1 truncate text-[12px] ${form.isGrand ? "text-[#7a7280] dark:text-slate-400" : "text-muted-foreground"}`}>
                       {form.desc || "Mô tả voucher 1 dòng, dài thì sẽ tự cắt."}
                     </div>
                   </div>
@@ -894,18 +842,18 @@ export default function VoucherManager({ initialData }: VoucherManagerProps) {
 
             <div className="space-y-2 sm:col-span-2">
               <Label>Logo voucher</Label>
-              <div className="flex flex-col gap-3 rounded-[1.1rem] border border-[#eadfd2] dark:border-slate-800 bg-[linear-gradient(145deg,#fffdf8,#fff6ea)] dark:bg-[linear-gradient(145deg,#020817,#0f172a)] p-3.5 shadow-[0_10px_24px_rgba(184,134,11,0.06)] sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex flex-col gap-3 rounded-[12px] border border-border bg-card p-3.5 shadow-sm sm:flex-row sm:items-center sm:justify-between">
                 <div className="flex items-center gap-3">
                   <LogoPreview logo={form.logo} brand={form.brand || "Voucher"} color={form.color} />
                   <div className="text-sm">
-                    <div className="font-medium text-[#241629]">
+                    <div className="font-medium text-foreground">
                       {isImageLogo(form.logo) ? "Đã chọn logo ảnh" : "Đang dùng logo chữ"}
                     </div>
-                    <div className="text-xs text-[#7a7280]">Khuyến nghị ảnh vuông, dung lượng dưới 512KB.</div>
+                    <div className="text-muted-foreground text-xs">Khuyến nghị ảnh vuông, dung lượng dưới 512KB.</div>
                   </div>
                 </div>
                 <div className="flex gap-2">
-                  <label className="inline-flex cursor-pointer items-center gap-2 rounded-[0.95rem] border border-[#eadfd2] bg-white px-3 py-2 text-sm font-medium text-[#241629] shadow-[0_8px_18px_rgba(184,134,11,0.05)]">
+                  <label className="inline-flex cursor-pointer items-center gap-2 rounded-[0.95rem] border border-input bg-background px-3 py-2 text-sm font-medium text-foreground shadow-sm">
                     <ImagePlus className="size-4" />
                     Chọn ảnh
                     <input type="file" accept="image/*" className="hidden" onChange={handleLogoFileChange} />
@@ -914,7 +862,7 @@ export default function VoucherManager({ initialData }: VoucherManagerProps) {
                     <Button
                       type="button"
                       variant="outline"
-                      className="rounded-[0.95rem] border-[#eadfd2] bg-white text-[#241629] shadow-[0_8px_18px_rgba(184,134,11,0.05)]"
+                      className="rounded-[0.95rem] border-input bg-background text-foreground shadow-sm"
                       onClick={() => setForm((current) => ({ ...current, logo: "" }))}
                     >
                       Xóa logo
@@ -957,15 +905,12 @@ export default function VoucherManager({ initialData }: VoucherManagerProps) {
             >
               <div className="space-y-1.5">
                 <Label>Tiêu đề</Label>
-                <CreatableSearchSelect
+                <Input
+                  type="text"
                   value={form.discount}
-                  options={productOptions}
-                  placeholder="Chon hoac them san pham"
-                  searchPlaceholder="Tim san pham..."
-                  triggerClassName="h-10 rounded-md border-input px-3 shadow-xs"
-                  onValueChange={(value) => setForm((current) => ({ ...current, discount: value }))}
-                  onCreate={handleCreateProduct}
-                  onDelete={handleDeleteProduct}
+                  placeholder="Nhập tiêu đề"
+                  onChange={(event) => setForm((current) => ({ ...current, discount: event.target.value }))}
+                  className="h-10 border-input bg-background text-foreground"
                 />
               </div>
               {form.kind === "bpoint" ? (

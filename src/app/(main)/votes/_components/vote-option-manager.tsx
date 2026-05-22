@@ -8,9 +8,9 @@ import { toast } from "sonner";
 
 import { CreatableSearchSelect, type CreatableSearchSelectOption } from "@/components/creatable-search-select";
 import { Badge } from "@/components/ui/badge";
-import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import type { VoteOptionRecord } from "@/lib/vote-options";
@@ -28,7 +28,7 @@ type VoteOptionFormState = {
   summary: string;
 };
 
-type CatalogType = "category" | "product" | "brand";
+type CatalogType = "category" | "brand";
 
 type CatalogResponse = {
   data?: {
@@ -64,16 +64,6 @@ function buildInitialCategoryOptions(data: VoteOptionRecord[]): CreatableSearchS
     .sort()
     .map((label) => ({
       id: `category-${buildOptionId(label)}`,
-      label,
-      deletable: false,
-    }));
-}
-
-function buildInitialProductOptions(data: VoteOptionRecord[]): CreatableSearchSelectOption[] {
-  return Array.from(new Set(data.map((item) => normalizeLabel(item.product)).filter(Boolean)))
-    .sort()
-    .map((label) => ({
-      id: `product-${buildOptionId(label)}`,
       label,
       deletable: false,
     }));
@@ -160,11 +150,11 @@ function VoteLogoPreview({
   if (isImageLogo(logo)) {
     const absolutelogo = getAbsoluteImageUrl(logo);
     return (
-      <div className={`flex items-center justify-center overflow-hidden border border-border bg-background shadow-sm ${sizeClass} ${className}`.trim()}>
+      <div className={`flex items-center justify-center overflow-hidden rounded-[14px] border border-border bg-background shadow-sm ${sizeClass} ${className}`.trim()}>
         <img
           src={absolutelogo}
           alt={product}
-          className={`h-full w-full ${fit === "contain" ? "object-contain p-2" : "object-cover"}`}
+          className={`h-full w-full ${fit === "contain" ? "object-contain" : "object-cover"}`}
         />
       </div>
     );
@@ -192,7 +182,7 @@ function VotePreviewCard({
 
   return (
     <div className="space-y-3">
-      <div className="rounded-[1.5rem] border border-border bg-card p-4 shadow-sm">
+      <div className="rounded-[14px] border border-border bg-card p-4 shadow-sm">
         <div className="mb-3 flex items-center justify-between">
           <div className="text-[11px] font-semibold tracking-[0.16em] text-muted-foreground uppercase">Preview</div>
           <div className="rounded-full border border-border bg-background px-2.5 py-1 text-[10px] font-semibold text-muted-foreground">
@@ -227,7 +217,7 @@ function VotePreviewCard({
         </div>
       </div>
 
-      <div className="overflow-hidden rounded-[1.7rem] border border-[#f1a0ff] bg-[linear-gradient(180deg,#d246b7_0%,#ba28b7_34%,#a117bc_68%,#8f12be_100%)] p-4 text-white shadow-[0_18px_38px_rgba(163,24,171,0.22)]">
+      <div className="overflow-hidden rounded-[14px] border border-[#f1a0ff] bg-[linear-gradient(180deg,#c4409d,#8900aa)] p-4 text-white shadow-[0_18px_38px_rgba(163,24,171,0.22)]">
         <div className="mx-auto mb-4 h-1.5 w-12 rounded-full bg-white/22" />
 
         <div className="mb-5 flex items-start justify-between gap-4">
@@ -239,11 +229,10 @@ function VotePreviewCard({
               className="border-white/35 bg-white"
             />
             <div className="min-w-0 flex-1 pt-1">
-              <div className="mb-2 inline-flex rounded-full border border-white/28 bg-white/12 px-3 py-1 text-[11px] font-semibold text-white shadow-[0_10px_22px_rgba(255,105,200,0.18)]">
+              <div className="line-clamp-2 mb-2 text-[1.3rem] font-black leading-tight text-white">{productLabel}</div>
+              <div className=" inline-flex rounded-full border border-white/28 bg-white/12 px-3 py-1 text-[11px] font-semibold text-white shadow-[0_10px_22px_rgba(255,105,200,0.18)]">
                 <span className="truncate">{categoryLabel}</span>
               </div>
-              <div className="line-clamp-2 text-[1.3rem] font-black leading-tight text-white">{productLabel}</div>
-              <div className="mt-1 text-[12px] font-medium text-white/78">Đã đồng bộ dữ liệu</div>
             </div>
           </div>
 
@@ -253,33 +242,33 @@ function VotePreviewCard({
         </div>
 
         <div className="mb-5 grid grid-cols-3 gap-3">
-          <div className="rounded-[1rem] border border-white/14 bg-[linear-gradient(180deg,rgba(255,64,180,0.32)_0%,rgba(167,24,185,0.24)_100%)] px-3 py-3.5 text-center shadow-[0_14px_24px_rgba(116,7,109,0.16)]">
+          <div className="rounded-[12px] border border-white/14 bg-[linear-gradient(180deg,#c31d93,#8d01a8)] px-3 py-3.5 text-center shadow-[0_14px_24px_rgba(116,7,109,0.16)]">
             <div className="text-[1.9rem] font-black leading-none text-white">299</div>
             <div className="mt-1 text-[0.86rem] font-semibold text-white/86">Lượt vote</div>
           </div>
-          <div className="rounded-[1rem] border border-white/14 bg-[linear-gradient(180deg,rgba(255,64,180,0.32)_0%,rgba(167,24,185,0.24)_100%)] px-3 py-3.5 text-center shadow-[0_14px_24px_rgba(116,7,109,0.16)]">
+          <div className="rounded-[12px] border border-white/14 bg-[linear-gradient(180deg,#c31d93,#8d01a8)] px-3 py-3.5 text-center shadow-[0_14px_24px_rgba(116,7,109,0.16)]">
             <div className="text-[1.9rem] font-black leading-none text-white">#3</div>
             <div className="mt-1 text-[0.86rem] font-semibold text-white/86">Xếp hạng</div>
           </div>
-          <div className="rounded-[1rem] border border-white/14 bg-[linear-gradient(180deg,rgba(255,64,180,0.32)_0%,rgba(167,24,185,0.24)_100%)] px-3 py-3.5 text-center shadow-[0_14px_24px_rgba(116,7,109,0.16)]">
+          <div className="rounded-[12px] border border-white/14 bg-[linear-gradient(180deg,#c31d93,#8d01a8)] px-3 py-3.5 text-center shadow-[0_14px_24px_rgba(116,7,109,0.16)]">
             <div className="text-[1.9rem] font-black leading-none text-white">12</div>
             <div className="mt-1 text-[0.86rem] font-semibold text-white/86">Ứng viên</div>
           </div>
         </div>
 
-        <div className="mb-5 rounded-[1.15rem] border border-white/16 bg-[linear-gradient(180deg,rgba(245,34,162,0.22)_0%,rgba(128,11,171,0.22)_100%)] p-4 shadow-[0_16px_34px_rgba(139,9,142,0.16)]">
+        <div className="mb-5 rounded-[1.15rem] border border-white/16 bg-[linear-gradient(180deg,#c31d93,#8d01a8)] p-4 shadow-[0_16px_34px_rgba(139,9,142,0.16)]">
           <div className="grid grid-cols-[96px_minmax(0,1fr)] items-start gap-4">
-            <div className="flex min-h-[7.25rem] items-center justify-center rounded-[1rem] bg-white/10 px-2">
+            <div className="flex min-h-[7.25rem] items-center justify-center rounded-[10px]">
               <VoteLogoPreview
                 logo={detailImage}
                 product={productLabel}
-                fit="contain"
-                className="h-[92px] w-[92px] rounded-[1rem] border-white/18 bg-white/95"
+                fit="cover"
+                className="h-[92px] w-[92px] rounded-[10px]"
               />
             </div>
             <div className="min-w-0 border-l border-white/24 pl-4">
               <div className="mb-1 text-sm font-semibold text-white">Giới thiệu</div>
-              <div className="custom-scrollbar max-h-[8.5rem] overflow-y-auto pr-1">
+              <div className="custom-scrollbar max-h-[8.5rem] overflow-y-auto pr-1 nice-scroll">
                 <p className="whitespace-pre-wrap break-words text-sm leading-6 text-white/92">{summaryText}</p>
               </div>
             </div>
@@ -302,7 +291,7 @@ function VotePreviewCard({
           </div>
         </div>
 
-        <div className="flex w-full items-center justify-center gap-2 rounded-[1rem] border border-white/35 bg-[linear-gradient(180deg,#ff2b8d_0%,#ea0f7e_100%)] px-4 py-3 text-sm font-bold text-white shadow-[0_12px_24px_rgba(255,49,150,0.26)]">
+        <div className="flex w-full items-center justify-center gap-2 rounded-[12px] border border-white/35 bg-[linear-gradient(180deg,#ff2b8d_0%,#ea0f7e_100%)] px-4 py-3 text-sm font-bold text-white shadow-[0_12px_24px_rgba(255,49,150,0.26)]">
           <ThumbsUp className="size-4" />
           Vote cho {productLabel}
         </div>
@@ -319,9 +308,6 @@ export function VoteOptionManager({ initialData }: VoteOptionManagerProps) {
   const [deletingId, setDeletingId] = React.useState<number | null>(null);
   const [categoryOptions, setCategoryOptions] = React.useState<CreatableSearchSelectOption[]>(
     buildInitialCategoryOptions(initialData),
-  );
-  const [productOptions, setProductOptions] = React.useState<CreatableSearchSelectOption[]>(
-    buildInitialProductOptions(initialData),
   );
 
   const [selectedCategory, setSelectedCategory] = React.useState<string | null>(null);
@@ -342,8 +328,6 @@ export function VoteOptionManager({ initialData }: VoteOptionManagerProps) {
       }
 
       setCategoryOptions((current) => mergeOptionLists(current, result?.data?.categories ?? []));
-
-      setProductOptions((current) => mergeOptionLists(current, result?.data?.products ?? []));
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Khong the tai du lieu bo loc");
     }
@@ -404,38 +388,6 @@ export function VoteOptionManager({ initialData }: VoteOptionManagerProps) {
         current.filter((item) => item.label.toLowerCase() !== option.label.toLowerCase()),
       );
       toast.success("Da xoa the loai");
-    },
-    [mutateCatalogOption],
-  );
-
-  const handleCreateProduct = React.useCallback(
-    async (label: string) => {
-      const result = await mutateCatalogOption("product", label, "POST");
-      if (!result.data) {
-        return;
-      }
-
-      setProductOptions((current) =>
-        [...current.filter((item) => item.label.toLowerCase() !== result.data!.label.toLowerCase()), result.data!].sort(
-          (left, right) => left.label.localeCompare(right.label),
-        ),
-      );
-      toast.success("Da them san pham moi");
-      return result.data;
-    },
-    [mutateCatalogOption],
-  );
-
-  const handleDeleteProduct = React.useCallback(
-    async (option: CreatableSearchSelectOption) => {
-      const confirmed = window.confirm(`Xoa san pham "${option.label}"?`);
-      if (!confirmed) {
-        return;
-      }
-
-      await mutateCatalogOption("product", option.label, "DELETE");
-      setProductOptions((current) => current.filter((item) => item.label.toLowerCase() !== option.label.toLowerCase()));
-      toast.success("Da xoa san pham");
     },
     [mutateCatalogOption],
   );
@@ -573,12 +525,6 @@ export function VoteOptionManager({ initialData }: VoteOptionManagerProps) {
             : [],
         ),
       );
-      setProductOptions((current) =>
-        mergeOptionLists(
-          current,
-          form.product ? [{ id: `product-${buildOptionId(form.product)}`, label: form.product, deletable: false }] : [],
-        ),
-      );
       setDialogOpen(false);
       setForm(DEFAULT_FORM);
       toast.success(form.id ? "Đã cập nhật vote" : "Đã tạo vote mới");
@@ -624,10 +570,9 @@ export function VoteOptionManager({ initialData }: VoteOptionManagerProps) {
     <div className="bg-card rounded-xl border p-4 shadow-sm h-full w-full">
       <div className="mb-4 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
         <div className="flex flex-col gap-3 flex-1">
-          <div className="flex items-center gap-2 text-base font-bold text-primary">
-            <Tags className="size-5" />
+          <h2 className="flex text-[24px] items-center gap-2 text-base font-bold text-[#fff]">
             Sản phẩm bình chọn
-          </div>
+          </h2>
         </div>
 
         <div className="flex flex-1 items-center justify-end gap-3 w-full lg:w-auto">
@@ -640,7 +585,6 @@ export function VoteOptionManager({ initialData }: VoteOptionManagerProps) {
 
       {categories.length > 0 ? (
         <div className="mb-4 flex flex-wrap gap-2 py-2 border-y border-dashed border-muted">
-          <span className="text-xs text-muted-foreground mr-1 self-center font-medium">Thể loại hiện có:</span>
           <Badge
             variant={selectedCategory === null ? "default" : "secondary"}
             className={`cursor-pointer rounded-full px-3 py-1 font-semibold transition-colors ${
@@ -722,10 +666,10 @@ export function VoteOptionManager({ initialData }: VoteOptionManagerProps) {
       </div>
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="max-w-[calc(100%-2rem)] rounded-[2rem] border-border dark:border-slate-800 bg-background dark:bg-slate-900 p-0 shadow-lg sm:max-w-[1100px]">
-          <div className="border-b border-border dark:border-slate-800 px-8 py-7">
+        <DialogContent className="max-w-[calc(100%-2rem)] rounded-[14px] border border-border bg-background p-0 text-foreground shadow-xl sm:max-w-[1100px]">
+          <div className="border-b border-border bg-background px-8 py-7 rounded-t-[14px]">
             <DialogHeader className="space-y-2 text-left">
-              <DialogTitle className="text-[2rem] text-foreground">{form.id ? "Sửa vote" : "Thêm vote"}</DialogTitle>
+              <DialogTitle className="text-[2rem] text-foreground">{form.id ? "Sửa sản phẩm bình chọn" : "Thêm sản phẩm bình chọn"}</DialogTitle>
             </DialogHeader>
           </div>
 
@@ -747,22 +691,20 @@ export function VoteOptionManager({ initialData }: VoteOptionManagerProps) {
                   </div>
 
                   <div className="space-y-2 sm:flex-1">
-                    <Label className="text-base font-semibold text-foreground">Sản phẩm</Label>
-                    <CreatableSearchSelect
+                    <Label className="text-base font-semibold text-foreground">Tên Sản phẩm</Label>
+                    <Input
+                      type="text"
                       value={form.product}
-                      options={productOptions}
-                      placeholder="Chọn hoặc thêm sản phẩm"
-                      searchPlaceholder="Tìm sản phẩm..."
-                      onValueChange={(value) => setForm((current) => ({ ...current, product: value }))}
-                      onCreate={handleCreateProduct}
-                      onDelete={handleDeleteProduct}
+                      onChange={(event) => setForm((current) => ({ ...current, product: event.target.value }))}
+                      placeholder="Nhập tên sản phẩm"
+                      className="h-12 rounded-[1rem] border-input bg-background px-4 text-sm text-foreground shadow-sm"
                     />
                   </div>
                 </div>
 
                 <div className="space-y-2">
                   <Label className="text-base font-semibold text-foreground">Ảnh logo</Label>
-                  <div className="flex flex-col gap-4 rounded-[1.5rem] border border-border bg-muted/20 p-4 shadow-sm sm:flex-row sm:items-center sm:justify-between">
+                  <div className="flex flex-col gap-4 rounded-[12px] border border-border bg-muted/20 p-2 shadow-sm sm:flex-row sm:items-center sm:justify-between">
                     <div className="flex items-center gap-4">
                       <VoteLogoPreview logo={form.logo} product={form.product || "Vote"} />
                       <div className="text-sm">
@@ -796,7 +738,7 @@ export function VoteOptionManager({ initialData }: VoteOptionManagerProps) {
 
                 <div className="space-y-2">
                   <Label className="text-base font-semibold text-foreground">Ảnh sản phẩm</Label>
-                  <div className="flex flex-col gap-4 rounded-[1.5rem] border border-border bg-muted/20 p-4 shadow-sm sm:flex-row sm:items-center sm:justify-between">
+                  <div className="flex flex-col gap-4 rounded-[12px] border border-border bg-muted/20 p-2 shadow-sm sm:flex-row sm:items-center sm:justify-between">
                     <div className="flex items-center gap-4">
                       <VoteLogoPreview
                         logo={form.productImage || form.logo}
@@ -838,7 +780,7 @@ export function VoteOptionManager({ initialData }: VoteOptionManagerProps) {
                     rows={6}
                     value={form.summary}
                     onChange={(event) => setForm((current) => ({ ...current, summary: event.target.value }))}
-                      className="max-h-[200px] w-full min-w-0 resize-none break-words overflow-y-auto custom-scrollbar rounded-[1.2rem] border-input bg-background px-4 py-3 text-[15px] leading-7 shadow-sm ![field-sizing:fixed]"
+                      className="max-h-[200px] w-full min-w-0 resize-none break-words overflow-y-auto custom-scrollbar rounded-[12px] border-input bg-background px-4 py-3 text-[15px] leading-7 shadow-sm ![field-sizing:fixed]"
                     placeholder="Nhập mô tả ngắn cho item vote..."
                   />
                 </div>

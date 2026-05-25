@@ -8,6 +8,9 @@ const nextConfig = {
   devIndicators: false,
   reactCompiler: true,
   outputFileTracingRoot: projectRoot,
+  experimental: {
+    proxyClientMaxBodySize: "10mb",
+  },
   turbopack: {
     root: projectRoot,
   },

@@ -6,6 +6,9 @@ const DAY2_INVOICE_MISSION_SUFFIXES = new Set<MiniAppDay2InvoiceMissionSuffix>([
 const DAY2_UPLOAD_REQUIRED_IMAGE_COUNT = new Map<MiniAppDay2UploadMissionSuffix, number>([
   ["d2-5", 1],
 ]);
+const DAY2_UPLOAD_MAX_FILE_SIZE_BYTES = new Map<MiniAppDay2UploadMissionSuffix, number>([
+  ["d2-5", 5 * 1024 * 1024],
+]);
 
 function parseString(value: unknown): string {
   return String(value ?? "").trim();
@@ -37,4 +40,9 @@ export function isMiniAppDay2UploadMissionId(missionId: string): boolean {
 export function getMiniAppDay2RequiredImageCount(missionId: string): number {
   const missionSuffix = missionIdToSuffix(missionId) as MiniAppDay2UploadMissionSuffix;
   return DAY2_UPLOAD_REQUIRED_IMAGE_COUNT.get(missionSuffix) ?? 1;
+}
+
+export function getMiniAppDay2UploadMaxFileSizeBytes(missionId: string): number {
+  const missionSuffix = missionIdToSuffix(missionId) as MiniAppDay2UploadMissionSuffix;
+  return DAY2_UPLOAD_MAX_FILE_SIZE_BYTES.get(missionSuffix) ?? 0;
 }

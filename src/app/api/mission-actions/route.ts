@@ -14,6 +14,7 @@ import { verifyMiniAppDay2InvoiceWebhook } from "@/lib/miniapp-day2-invoice-webh
 import { forwardMiniAppDay2ImageWebhook } from "@/lib/miniapp-day2-image-webhook";
 import {
   getMiniAppDay2RequiredImageCount,
+  getMiniAppDay2UploadMaxFileSizeBytes,
   isMiniAppDay2InvoiceMissionId,
   isMiniAppDay2UploadMissionId,
 } from "@/lib/miniapp-day2-missions";
@@ -179,11 +180,13 @@ export async function POST(request: NextRequest) {
         );
       }
 
-      if (isDay1ImageAction) {
-        const maxFileSizeBytes = getMiniAppDay1UploadMaxFileSizeBytes(missionId);
+      {
+        const maxFileSizeBytes = isDay1ImageAction
+          ? getMiniAppDay1UploadMaxFileSizeBytes(missionId)
+          : getMiniAppDay2UploadMaxFileSizeBytes(missionId);
         const oversizedFile = files.find((file) => file.size > maxFileSizeBytes);
         if (maxFileSizeBytes > 0 && oversizedFile) {
-          trace.mark("day1_image_too_large");
+          trace.mark(isDay1ImageAction ? "day1_image_too_large" : "day2_image_too_large");
           return jsonWithCors(
             request,
             { message: "Moi anh tai len toi da 5MB" },

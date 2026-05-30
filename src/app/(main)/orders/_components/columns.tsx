@@ -85,6 +85,10 @@ function getDisplayValue(value?: string | number | null) {
   return normalized || "—";
 }
 
+function isGiftTicket(value?: number | string | null) {
+  return Number(value ?? 0) === 1;
+}
+
 // ---- Columns factory ----
 export const dashboardColumns = (onRowUpdated?: OnRowUpdated, onDeleteRow?: OnDeleteRow): ColumnDef<Channel>[] => [
   {
@@ -208,6 +212,23 @@ export const dashboardColumns = (onRowUpdated?: OnRowUpdated, onDeleteRow?: OnDe
     },
     enableSorting: false,
     size: 130,
+  },
+
+  {
+    accessorKey: "is_gift",
+    header: ({ column }) => <DataTableColumnHeader column={column} title="Vé tặng" />,
+    cell: ({ row }) => {
+      const isGift = isGiftTicket(row.original.is_gift);
+      const label = isGift ? "Vé tặng" : "Vé mua";
+
+      return (
+        <span className="flex items-center justify-center" title={label} aria-label={label}>
+          <span className={`size-2.5 rounded-full ${isGift ? "bg-green-600" : "bg-red-600"}`} />
+        </span>
+      );
+    },
+    enableSorting: false,
+    size: 80,
   },
 
   {

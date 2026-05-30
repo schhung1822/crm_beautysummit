@@ -21,6 +21,7 @@ type OrderRow = RowDataPacket & {
   money: number | string | null;
   money_VAT: number | string | null;
   status: string | null;
+  is_gift: number | string | null;
   update_time: Date | string | null;
   create_time: Date | string | null;
   gender: string | null;
@@ -67,6 +68,7 @@ function mapRowToChannel(row: OrderRow): Channel {
     money: parseNumber(row.money),
     money_VAT: parseNumber(row.money_VAT),
     status: parseString(row.status),
+    is_gift: parseNumber(row.is_gift),
     update_time: parseDate(row.update_time),
     create_time: parseDate(row.create_time),
     gender: parseString(row.gender),
@@ -118,6 +120,7 @@ export async function getChannels(options?: GetChannelsOptions): Promise<Channel
       COALESCE(money, 0) AS money,
       COALESCE(money_VAT, 0) AS money_VAT,
       COALESCE(status, '') AS status,
+      COALESCE(is_gift, 0) AS is_gift,
       update_time,
       create_time,
       COALESCE(gender, '') AS gender,

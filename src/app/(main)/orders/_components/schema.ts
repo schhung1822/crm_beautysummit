@@ -9,6 +9,7 @@ export const channelSchema = z.object({
   money: z.number(),
   money_VAT: z.number(),
   status: z.string(),
+  is_gift: z.number().default(0),
   update_time: z.date().nullable(),
   create_time: z.date().nullable(),
   gender: z.string(),

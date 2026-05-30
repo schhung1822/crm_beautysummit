@@ -61,6 +61,7 @@ const ORDER_EXPORT_HEADERS = {
   hope: "Mong đợi",
   money: "Thành tiền",
   status: "Trạng thái",
+  is_gift: "Vé tặng",
   update_time: "Ngày thanh toán",
   order_id: "Mã đơn hàng",
   status_checkin: "Check-in",
@@ -301,8 +302,12 @@ function OrdersDataTable({ data: initialData = [] }: { data?: Channel[] }) {
     try {
       const dataToExport = dateRangeExp.from || dateRangeExp.to
         ? filterDataByDateRange(filteredData, "create_time", dateRangeExp) : filteredData;
+      const normalizedDataToExport = dataToExport.map((item) => ({
+        ...item,
+        is_gift: Number(item.is_gift ?? 0) === 1 ? 1 : 0,
+      }));
       exportData({
-        format, data: dataToExport,
+        format, data: normalizedDataToExport,
         headers: ORDER_EXPORT_HEADERS,
         filename: `orders_${new Date().toISOString().split("T")[0]}`,
       });

@@ -331,7 +331,7 @@ export function CheckinLocationManager({
           <Card key={item.id} className="group flex flex-col overflow-hidden rounded-lg shadow-sm transition-shadow hover:shadow-md">
             {item.image_url ? (
               <div
-                className="h-20 w-full shrink-0 bg-cover bg-center"
+                className="h-20 w-full shrink-0 bg-cover asscep bg-center"
                 style={{ backgroundImage: `url('${item.image_url}')` }}
               />
             ) : (

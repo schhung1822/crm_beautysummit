@@ -97,7 +97,7 @@ export function prepareOrderSubmission(
   const issuedAtIso = issuedAt.toISOString();
   const quantityValue = Math.max(1, parseNumberInput(form.quantity, 1));
   const normalizedUnitPrice = form.ticketType === "gift" ? 0 : Math.max(0, Math.round(unitPrice));
-  const paymentStatus = form.ticketType === "gift" ? "present" : "paydone";
+  const paymentStatus = "paydone";
   const genderValue = form.gender === "f" ? "f" : "m";
 
   return {

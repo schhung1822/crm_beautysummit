@@ -172,26 +172,44 @@ function getResultTheme(status: "success" | "repeat" | "denied" | "error") {
   if (status === "success") {
     return {
       icon: <CheckCircle2 className="h-5 w-5" />,
-      iconClass: "bg-emerald-600 text-white",
-      borderClass: "border-emerald-500/60 bg-emerald-50 dark:bg-[#052e22]",
-      titleClass: "text-emerald-700 dark:text-emerald-300",
+      iconClass: "bg-emerald-500 text-white shadow-[0_0_22px_rgba(16,185,129,0.65)]",
+      borderClass:
+        "border-emerald-400/60 bg-[radial-gradient(circle_at_top_left,rgba(16,185,129,0.3),transparent_42%),linear-gradient(135deg,#061c16,#07120f_48%,#020403)] text-white shadow-emerald-500/25",
+      titleClass: "from-emerald-200 to-teal-300",
+      accentClass: "bg-gradient-to-r from-transparent via-emerald-300 to-transparent",
+      panelClass: "border-emerald-300/25 bg-emerald-950/25",
+      ticketClass: "border-emerald-200/80 text-emerald-50 shadow-[0_0_32px_rgba(16,185,129,0.5)]",
+      buttonClass: "bg-emerald-500 text-white hover:bg-emerald-400",
+      dotClass: "bg-emerald-300",
     };
   }
 
   if (status === "repeat") {
     return {
       icon: <CircleAlert className="h-5 w-5" />,
-      iconClass: "bg-amber-500 text-white",
-      borderClass: "border-amber-500/60 bg-amber-50 dark:bg-[#2b2105]",
-      titleClass: "text-amber-700 dark:text-amber-300",
+      iconClass: "bg-amber-400 text-black shadow-[0_0_22px_rgba(251,191,36,0.65)]",
+      borderClass:
+        "border-amber-300/70 bg-[radial-gradient(circle_at_top_left,rgba(251,191,36,0.32),transparent_42%),linear-gradient(135deg,#241803,#161004_48%,#050301)] text-white shadow-amber-500/25",
+      titleClass: "from-amber-100 to-yellow-300",
+      accentClass: "bg-gradient-to-r from-transparent via-amber-300 to-transparent",
+      panelClass: "border-amber-300/25 bg-amber-950/25",
+      ticketClass: "border-amber-100/80 text-amber-50 shadow-[0_0_32px_rgba(251,191,36,0.5)]",
+      buttonClass: "bg-amber-400 text-black hover:bg-amber-300",
+      dotClass: "bg-amber-300",
     };
   }
 
   return {
     icon: <AlertCircle className="h-5 w-5" />,
-    iconClass: "bg-rose-600 text-white",
-    borderClass: "border-rose-500/60 bg-rose-50 dark:bg-[#2d0710]",
-    titleClass: "text-rose-700 dark:text-rose-300",
+    iconClass: "bg-rose-500 text-white shadow-[0_0_22px_rgba(244,63,94,0.65)]",
+    borderClass:
+      "border-rose-400/70 bg-[radial-gradient(circle_at_top_left,rgba(244,63,94,0.32),transparent_42%),linear-gradient(135deg,#2b0710,#15060a_48%,#050102)] text-white shadow-rose-500/25",
+    titleClass: "from-rose-100 to-red-300",
+    accentClass: "bg-gradient-to-r from-transparent via-rose-300 to-transparent",
+    panelClass: "border-rose-300/25 bg-rose-950/25",
+    ticketClass: "border-rose-100/80 text-rose-50 shadow-[0_0_32px_rgba(244,63,94,0.5)]",
+    buttonClass: "bg-rose-500 text-white hover:bg-rose-400",
+    dotClass: "bg-rose-300",
   };
 }
 
@@ -490,64 +508,117 @@ export default function StaffCheckinClient() {
       <Dialog open={Boolean(result)} onOpenChange={(open) => !open && setResult(null)}>
         <DialogContent
           className={cn(
-            "overflow-hidden p-0 shadow-2xl sm:max-w-[420px]",
+            "group overflow-hidden p-0 shadow-2xl sm:max-w-[420px]",
             result ? getResultTheme(result.status).borderClass : "",
           )}
         >
           {result ? (
             <>
-              <DialogHeader className="space-y-0 border-b border-black/10 px-5 py-4 text-left dark:border-white/10">
+              <div className="pointer-events-none absolute inset-0 overflow-hidden">
+                <span
+                  className={cn(
+                    "absolute top-[18%] left-[14%] h-3 w-3 rounded-full blur-md transition-transform duration-500 group-hover:scale-150",
+                    getResultTheme(result.status).dotClass,
+                  )}
+                />
+                <span
+                  className={cn(
+                    "absolute right-[22%] bottom-[18%] h-4 w-4 rounded-full opacity-80 blur-lg transition-transform duration-500 group-hover:scale-125",
+                    getResultTheme(result.status).dotClass,
+                  )}
+                />
+                <span
+                  className={cn(
+                    "absolute top-[8%] left-[42%] h-2 w-2 rounded-full opacity-80 blur transition-transform duration-500 group-hover:scale-175",
+                    getResultTheme(result.status).dotClass,
+                  )}
+                />
+                <span
+                  className={cn(
+                    "absolute top-0 left-0 h-1 w-1/3 transition-all duration-500 group-hover:w-full",
+                    getResultTheme(result.status).accentClass,
+                  )}
+                />
+              </div>
+
+              <DialogHeader className="relative z-10 space-y-0 px-6 pt-6 text-left">
                 <div className="flex items-start gap-3 pr-8">
                   <div
                     className={cn(
-                      "flex h-11 w-11 shrink-0 items-center justify-center rounded-xl shadow-sm",
+                      "flex h-12 w-12 shrink-0 items-center justify-center rounded-xl transition-transform duration-300 group-hover:scale-105",
                       getResultTheme(result.status).iconClass,
                     )}
                   >
                     {getResultTheme(result.status).icon}
                   </div>
                   <div className="min-w-0">
-                    <DialogTitle className={cn("text-xl font-black", getResultTheme(result.status).titleClass)}>
+                    <DialogTitle
+                      className={cn(
+                        "bg-gradient-to-r bg-clip-text text-xl font-black text-transparent drop-shadow-sm",
+                        getResultTheme(result.status).titleClass,
+                      )}
+                    >
                       {getStatusLabel(result.status)}
                     </DialogTitle>
-                    <DialogDescription className="text-muted-foreground mt-1 line-clamp-2 text-sm">
+                    <DialogDescription className="mt-1 line-clamp-2 text-sm text-white/70">
                       {result.message}
                     </DialogDescription>
                   </div>
                 </div>
               </DialogHeader>
 
-              <div className="grid gap-1.5 px-5 py-4">
-                {[
-                  { label: "Tên", value: result.guest?.name ?? "--" },
-                  { label: "Mã vé", value: result.guest?.code ?? result.ticketCode ?? "--", mono: true },
-                  {
-                    label: "Hạng vé",
-                    value: result.guest ? (tierTheme[result.guest.tier]?.label ?? result.guest.ticketClass) : "--",
-                  },
-                  { label: "Trạng thái", value: getStatusLabel(result.status) },
-                  { label: "Thời gian check-in", value: formatDateTimeLabel(result.time) },
-                ].map((item) => (
+              <div className="relative z-10 px-6 py-5">
+                <div className="mb-5 text-center">
+                  <div className="text-[11px] font-bold tracking-[0.22em] text-white/50 uppercase">Hạng vé</div>
                   <div
-                    key={item.label}
-                    className="flex items-center justify-between gap-3 rounded-md bg-white/90 px-3 py-2 shadow-sm ring-1 ring-black/5 dark:bg-black/30 dark:ring-white/10"
+                    className={cn(
+                      "mx-auto mt-2 inline-flex min-w-[170px] justify-center rounded-2xl border px-8 py-3 text-3xl font-black tracking-[0.16em] uppercase backdrop-blur-sm transition-transform duration-300 group-hover:scale-105",
+                      getResultTheme(result.status).ticketClass,
+                    )}
                   >
-                    <div className="text-muted-foreground text-xs font-semibold uppercase">{item.label}</div>
-                    <div
-                      className={cn(
-                        "text-foreground min-w-0 truncate text-right text-sm font-bold",
-                        item.mono ? "font-mono" : "",
-                      )}
-                    >
-                      {item.value}
-                    </div>
+                    {result.guest ? tierTheme[result.guest.tier].label : "--"}
                   </div>
-                ))}
+                </div>
+
+                <div
+                  className={cn(
+                    "grid gap-2 rounded-xl border p-3 backdrop-blur-sm",
+                    getResultTheme(result.status).panelClass,
+                  )}
+                >
+                  {[
+                    { label: "Tên", value: result.guest?.name ?? "--" },
+                    { label: "Mã vé", value: result.guest?.code ?? result.ticketCode ?? "--", mono: true },
+                    { label: "Trạng thái", value: getStatusLabel(result.status) },
+                    { label: "Thời gian check-in", value: formatDateTimeLabel(result.time) },
+                  ].map((item) => (
+                    <div
+                      key={item.label}
+                      className="flex items-center justify-between gap-3 rounded-lg bg-white/10 px-3 py-2 ring-1 ring-white/10"
+                    >
+                      <div className="text-xs font-semibold text-white/55 uppercase">{item.label}</div>
+                      <div
+                        className={cn(
+                          "min-w-0 truncate text-right text-sm font-bold text-white",
+                          item.mono ? "font-mono" : "",
+                        )}
+                      >
+                        {item.value}
+                      </div>
+                    </div>
+                  ))}
+                </div>
               </div>
 
-              <DialogFooter className="border-t border-black/10 px-5 py-3 dark:border-white/10">
+              <DialogFooter className="relative z-10 border-t border-white/10 px-6 py-4">
                 <DialogClose asChild>
-                  <Button type="button" className="h-10 w-full rounded-md font-bold sm:w-auto">
+                  <Button
+                    type="button"
+                    className={cn(
+                      "h-10 w-full rounded-md font-bold sm:w-auto",
+                      getResultTheme(result.status).buttonClass,
+                    )}
+                  >
                     Đóng
                   </Button>
                 </DialogClose>

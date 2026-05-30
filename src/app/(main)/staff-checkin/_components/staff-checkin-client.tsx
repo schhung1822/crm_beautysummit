@@ -6,10 +6,30 @@ import React from "react";
 import dynamic from "next/dynamic";
 
 import type { IDetectedBarcode } from "@yudiel/react-qr-scanner";
-import { AlertCircle, CheckCircle2, CircleAlert, Copy, Keyboard, MapPin, QrCode, ScanLine, Upload, Loader2 } from "lucide-react";
+import {
+  AlertCircle,
+  CheckCircle2,
+  CircleAlert,
+  Copy,
+  Keyboard,
+  MapPin,
+  QrCode,
+  ScanLine,
+  Upload,
+  Loader2,
+} from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogClose,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { type StaffCheckinTier, type StaffCheckinZone } from "@/lib/staff-checkin";
 import { cn } from "@/lib/utils";
@@ -104,6 +124,26 @@ function formatTimeLabel(value: string | null): string {
   });
 }
 
+function formatDateTimeLabel(value: string | null): string {
+  if (!value) {
+    return "--";
+  }
+
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) {
+    return value;
+  }
+
+  return parsed.toLocaleString("vi-VN", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+  });
+}
+
 function buildLocalHistoryItem(guest: StaffGuest, status: "success" | "repeat" | "denied" | "error"): StaffHistoryItem {
   return {
     id: `local-${Date.now()}`,
@@ -132,9 +172,9 @@ function getResultTheme(status: "success" | "repeat" | "denied" | "error") {
   if (status === "success") {
     return {
       icon: <CheckCircle2 className="h-5 w-5" />,
-      iconClass: "bg-emerald-500 text-white",
-      borderClass: "border-emerald-400/30 bg-emerald-400/8",
-      titleClass: "text-emerald-300",
+      iconClass: "bg-emerald-600 text-white",
+      borderClass: "border-emerald-500/60 bg-emerald-50 dark:bg-[#052e22]",
+      titleClass: "text-emerald-700 dark:text-emerald-300",
     };
   }
 
@@ -142,17 +182,29 @@ function getResultTheme(status: "success" | "repeat" | "denied" | "error") {
     return {
       icon: <CircleAlert className="h-5 w-5" />,
       iconClass: "bg-amber-500 text-white",
-      borderClass: "border-amber-400/30 bg-amber-400/8",
-      titleClass: "text-amber-300",
+      borderClass: "border-amber-500/60 bg-amber-50 dark:bg-[#2b2105]",
+      titleClass: "text-amber-700 dark:text-amber-300",
     };
   }
 
   return {
     icon: <AlertCircle className="h-5 w-5" />,
-    iconClass: "bg-rose-500 text-white",
-    borderClass: "border-rose-400/30 bg-rose-400/8",
-    titleClass: "text-rose-300",
+    iconClass: "bg-rose-600 text-white",
+    borderClass: "border-rose-500/60 bg-rose-50 dark:bg-[#2d0710]",
+    titleClass: "text-rose-700 dark:text-rose-300",
   };
+}
+
+function getStatusLabel(status: "success" | "repeat" | "denied" | "error") {
+  if (status === "success") {
+    return "Check-in thành công";
+  }
+
+  if (status === "repeat") {
+    return "Đã check-in";
+  }
+
+  return "Cảnh báo";
 }
 
 function ZoneGlyph({ zoneId, active }: { zoneId: string; active: boolean }) {
@@ -226,12 +278,14 @@ export default function StaffCheckinClient() {
     status: "success" | "repeat" | "denied" | "error";
     message: string;
     guest?: StaffGuest;
+    ticketCode?: string;
+    time: string;
   } | null>(null);
 
   const imageInputRef = React.useRef<HTMLInputElement | null>(null);
   const lastScanRef = React.useRef<{ value: string; at: number } | null>(null);
 
-  const zone = zones.find((item) => item.id === activeZone) || zones[0];
+  const zone = zones.find((item) => item.id === activeZone) ?? zones[0];
   const visibleHistory = history.filter((item) => String(item.zoneId) === String(zone?.id ?? ""));
   const busy = submitting || imageScanning;
 
@@ -251,7 +305,7 @@ export default function StaffCheckinClient() {
 
       const fetchedZones = payload.data.zones || [];
       setZones(fetchedZones);
-      setActiveZone(prev => {
+      setActiveZone((prev) => {
         if (!prev && fetchedZones.length > 0) return fetchedZones[0].id;
         return prev;
       });
@@ -276,15 +330,6 @@ export default function StaffCheckinClient() {
   React.useEffect(() => {
     void loadSnapshot();
   }, [loadSnapshot]);
-
-  React.useEffect(() => {
-    if (!result) {
-      return;
-    }
-
-    const timer = window.setTimeout(() => setResult(null), 6000);
-    return () => window.clearTimeout(timer);
-  }, [result]);
 
   const submitCheckin = React.useCallback(
     async (body: { payload?: string; code?: string }) => {
@@ -319,6 +364,8 @@ export default function StaffCheckinClient() {
           status: nextStatus,
           message: nextMessage,
           guest: payload.data.guest,
+          ticketCode: payload.data.guest?.code ?? body.code ?? body.payload,
+          time: payload.data.guest?.checkinTime ?? new Date().toISOString(),
         });
 
         if (payload.data.stats) {
@@ -344,7 +391,12 @@ export default function StaffCheckinClient() {
       } catch (error) {
         console.error("Staff check-in submit error:", error);
         const message = error instanceof Error ? error.message : "Khong the xu ly check-in";
-        setResult({ status: "error", message });
+        setResult({
+          status: "error",
+          message,
+          ticketCode: body.code ?? body.payload,
+          time: new Date().toISOString(),
+        });
         toast.error(message);
       } finally {
         setSubmitting(false);
@@ -355,7 +407,7 @@ export default function StaffCheckinClient() {
 
   const handleScan = React.useCallback(
     async (detectedCodes: IDetectedBarcode[]) => {
-      if (!scannerEnabled || busy) {
+      if (!scannerEnabled || busy || result) {
         return;
       }
 
@@ -370,10 +422,9 @@ export default function StaffCheckinClient() {
       }
 
       lastScanRef.current = { value: nextValue, at: now };
-      setScannerEnabled(false);
       await submitCheckin({ payload: nextValue });
     },
-    [busy, scannerEnabled, submitCheckin],
+    [busy, result, scannerEnabled, submitCheckin],
   );
 
   const handleManualSubmit = async () => {
@@ -397,7 +448,6 @@ export default function StaffCheckinClient() {
     setResult(null);
     setSelectedImageName(file.name);
     setImageScanning(true);
-    setScannerEnabled(false);
 
     try {
       const payload = await extractQrValueFromFile(file);
@@ -409,7 +459,7 @@ export default function StaffCheckinClient() {
     } catch (error) {
       console.error("Staff image scan error:", error);
       const message = error instanceof Error ? error.message : "Không thể đọc mã QR từ ảnh";
-      setResult({ status: "error", message });
+      setResult({ status: "error", message, time: new Date().toISOString() });
       toast.error(message);
     } finally {
       setImageScanning(false);
@@ -418,7 +468,7 @@ export default function StaffCheckinClient() {
 
   if (!zone) {
     return (
-      <div className="mx-auto flex w-full max-w-[760px] flex-col items-center justify-center py-20 text-muted-foreground">
+      <div className="text-muted-foreground mx-auto flex w-full max-w-[760px] flex-col items-center justify-center py-20">
         <Loader2 className="mb-4 h-8 w-8 animate-spin" />
         <p>Đang tải dữ liệu check-in...</p>
       </div>
@@ -437,22 +487,79 @@ export default function StaffCheckinClient() {
         }}
       />
 
-      <div className="overflow-hidden text-foreground">
-        <div className="mb-6 flex items-start justify-between gap-4">
-          <div>
-            <div className="mb-1 text-[11px] font-semibold tracking-[0.34em] text-primary uppercase">
-              Staff Portal
-            </div>
-            <div className="text-3xl leading-none font-black tracking-tight">Check-in</div>
-          </div>
-          <div className="flex items-center gap-2 rounded-full bg-emerald-500/10 px-3 py-1.5 text-sm font-semibold text-emerald-400">
-            <span className="inline-flex h-2.5 w-2.5 rounded-full bg-emerald-400 shadow-[0_0_16px_rgba(74,222,128,0.8)]" />
-            Online
-          </div>
-        </div>
+      <Dialog open={Boolean(result)} onOpenChange={(open) => !open && setResult(null)}>
+        <DialogContent
+          className={cn(
+            "overflow-hidden p-0 shadow-2xl sm:max-w-[420px]",
+            result ? getResultTheme(result.status).borderClass : "",
+          )}
+        >
+          {result ? (
+            <>
+              <DialogHeader className="space-y-0 border-b border-black/10 px-5 py-4 text-left dark:border-white/10">
+                <div className="flex items-start gap-3 pr-8">
+                  <div
+                    className={cn(
+                      "flex h-11 w-11 shrink-0 items-center justify-center rounded-xl shadow-sm",
+                      getResultTheme(result.status).iconClass,
+                    )}
+                  >
+                    {getResultTheme(result.status).icon}
+                  </div>
+                  <div className="min-w-0">
+                    <DialogTitle className={cn("text-xl font-black", getResultTheme(result.status).titleClass)}>
+                      {getStatusLabel(result.status)}
+                    </DialogTitle>
+                    <DialogDescription className="text-muted-foreground mt-1 line-clamp-2 text-sm">
+                      {result.message}
+                    </DialogDescription>
+                  </div>
+                </div>
+              </DialogHeader>
 
-        <div className="mb-3 text-sm font-medium text-muted-foreground">Khu vực đang check-in</div>
-        <div className="mb-5 flex flex-row gap-2 sm:gap-3 overflow-x-auto pb-4 custom-scrollbar">
+              <div className="grid gap-1.5 px-5 py-4">
+                {[
+                  { label: "Tên", value: result.guest?.name ?? "--" },
+                  { label: "Mã vé", value: result.guest?.code ?? result.ticketCode ?? "--", mono: true },
+                  {
+                    label: "Hạng vé",
+                    value: result.guest ? (tierTheme[result.guest.tier]?.label ?? result.guest.ticketClass) : "--",
+                  },
+                  { label: "Trạng thái", value: getStatusLabel(result.status) },
+                  { label: "Thời gian check-in", value: formatDateTimeLabel(result.time) },
+                ].map((item) => (
+                  <div
+                    key={item.label}
+                    className="flex items-center justify-between gap-3 rounded-md bg-white/90 px-3 py-2 shadow-sm ring-1 ring-black/5 dark:bg-black/30 dark:ring-white/10"
+                  >
+                    <div className="text-muted-foreground text-xs font-semibold uppercase">{item.label}</div>
+                    <div
+                      className={cn(
+                        "text-foreground min-w-0 truncate text-right text-sm font-bold",
+                        item.mono ? "font-mono" : "",
+                      )}
+                    >
+                      {item.value}
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              <DialogFooter className="border-t border-black/10 px-5 py-3 dark:border-white/10">
+                <DialogClose asChild>
+                  <Button type="button" className="h-10 w-full rounded-md font-bold sm:w-auto">
+                    Đóng
+                  </Button>
+                </DialogClose>
+              </DialogFooter>
+            </>
+          ) : null}
+        </DialogContent>
+      </Dialog>
+
+      <div className="text-foreground overflow-hidden">
+        <div className="text-muted-foreground mb-3 text-sm font-medium">Chọn khu vực check-in</div>
+        <div className="custom-scrollbar mb-4 flex flex-row gap-2 overflow-x-auto sm:gap-3">
           {zones.map((item) => {
             const active = item.id === activeZone;
 
@@ -470,8 +577,10 @@ export default function StaffCheckinClient() {
                   void loadSnapshot();
                 }}
                 className={cn(
-                  "shrink-0 w-[110px] sm:w-[140px] rounded-[12px] border bg-card px-1 py-3 text-left transition-all sm:px-4 sm:py-5",
-                  active ? "border-primary shadow-[0_0_0_1px_color-mix(in_srgb,var(--color-primary)_18%,transparent)_inset]" : "border-border",
+                  "bg-card w-[110px] shrink-0 rounded-[12px] border px-1 py-3 text-left transition-all sm:w-[140px] sm:px-4 sm:py-5",
+                  active
+                    ? "border-primary shadow-[0_0_0_1px_color-mix(in_srgb,var(--color-primary)_18%,transparent)_inset]"
+                    : "border-border",
                 )}
               >
                 <div
@@ -496,9 +605,14 @@ export default function StaffCheckinClient() {
           })}
         </div>
 
-        <div className="mb-5 grid grid-cols-4 overflow-hidden rounded-[12px] border border-border bg-card">
+        <div className="border-border bg-card mb-5 grid grid-cols-4 overflow-hidden rounded-[12px] border">
           {[
-            { label: "Tổng", count: `${stats.total.current}/${stats.total.max}`, percent: "", color: "text-foreground" },
+            {
+              label: "Tổng",
+              count: `${stats.total.current}/${stats.total.max}`,
+              percent: "",
+              color: "text-foreground",
+            },
             {
               label: "Gold",
               count: `${stats.gold.current}/${stats.gold.max}`,
@@ -522,7 +636,7 @@ export default function StaffCheckinClient() {
               key={item.label}
               className={cn(
                 "flex flex-col justify-center px-1 py-3 text-center sm:px-4 sm:py-4",
-                index < 3 ? "border-r border-border" : "",
+                index < 3 ? "border-border border-r" : "",
               )}
             >
               <div className={cn("text-[13px] font-black sm:text-[18px]", item.color)}>{item.count}</div>
@@ -531,12 +645,12 @@ export default function StaffCheckinClient() {
                   {item.percent}
                 </div>
               ) : null}
-              <div className="mt-1 text-[10px] text-muted-foreground sm:text-[11px]">{item.label}</div>
+              <div className="text-muted-foreground mt-1 text-[12px] sm:text-[11px]">{item.label}</div>
             </div>
           ))}
         </div>
 
-        <div className="mb-5 grid grid-cols-2 gap-2 rounded-[12px] bg-muted p-1">
+        <div className="bg-muted mb-5 grid grid-cols-2 gap-2 rounded-[12px] p-1">
           <button
             type="button"
             onClick={() => {
@@ -544,7 +658,7 @@ export default function StaffCheckinClient() {
               setResult(null);
             }}
             className={cn(
-              "flex h-14 text-[16px] items-center justify-center gap-2 rounded-[12px] text-lg font-bold transition",
+              "flex h-12 items-center justify-center gap-2 rounded-[12px] text-[16px] font-bold transition",
               mode === "scan" ? "bg-primary text-primary-foreground" : "text-muted-foreground",
             )}
           >
@@ -559,7 +673,7 @@ export default function StaffCheckinClient() {
               setScannerEnabled(false);
             }}
             className={cn(
-              "flex h-14 items-center text-[16px] justify-center gap-2 rounded-[12px] text-lg font-bold transition",
+              "flex h-12 items-center justify-center gap-2 rounded-[12px] text-[16px] font-bold transition",
               mode === "manual" ? "bg-primary text-primary-foreground" : "text-muted-foreground",
             )}
           >
@@ -570,11 +684,11 @@ export default function StaffCheckinClient() {
 
         {mode === "scan" ? (
           <div className="mb-4 flex flex-col items-center">
-            <div className="relative w-full max-w-[280px] overflow-hidden rounded-[32px] border border-border bg-card p-4">
-              <div className="relative aspect-square rounded-[26px] border border-border bg-muted">
+            <div className="border-border bg-card relative w-full max-w-[88vw] overflow-hidden rounded-[20px] border p-4">
+              <div className="border-border bg-muted relative aspect-square rounded-[18px] border">
                 {scannerEnabled ? (
                   <QrScanner
-                    paused={busy}
+                    paused={busy || Boolean(result)}
                     onScan={handleScan}
                     onError={(error) => {
                       console.error("Staff scanner error:", error);
@@ -598,12 +712,12 @@ export default function StaffCheckinClient() {
                   </QrScanner>
                 ) : (
                   <div className="flex h-full flex-col items-center justify-center gap-3">
-                    <div className="flex h-16 w-16 items-center justify-center rounded-[18px] border border-border bg-card">
-                      <QrCode className="h-8 w-8 text-muted-foreground/40" />
+                    <div className="border-border bg-card flex h-16 w-16 items-center justify-center rounded-[18px] border">
+                      <QrCode className="text-muted-foreground/40 h-8 w-8" />
                     </div>
-                    <div className="text-[13px] text-muted-foreground/60">Hướng camera vào mã QR</div>
+                    <div className="text-muted-foreground/60 text-[13px]">Hướng camera vào mã QR</div>
                     {selectedImageName ? (
-                      <div className="max-w-[80%] truncate text-[11px] text-muted-foreground/70">
+                      <div className="text-muted-foreground/70 max-w-[80%] truncate text-[11px]">
                         Ảnh vừa chọn: {selectedImageName}
                       </div>
                     ) : null}
@@ -629,7 +743,7 @@ export default function StaffCheckinClient() {
               disabled={busy}
               onClick={() => setScannerEnabled((current) => !current)}
               className={cn(
-                "mt-4 h-14 w-full rounded-[12px] text-[17px] font-bold",
+                "mt-4 h-12 w-full rounded-[12px] text-[17px] font-bold",
                 scannerEnabled
                   ? "bg-muted text-muted-foreground hover:bg-muted/80"
                   : "bg-primary text-primary-foreground hover:opacity-95",
@@ -642,15 +756,15 @@ export default function StaffCheckinClient() {
               type="button"
               disabled={busy}
               onClick={() => imageInputRef.current?.click()}
-              className="mt-3 flex h-12 w-full items-center justify-center gap-2 rounded-[12px] border border-border bg-card text-sm font-semibold text-muted-foreground transition hover:bg-muted disabled:cursor-not-allowed disabled:opacity-60"
+              className="border-border bg-card text-muted-foreground hover:bg-muted mt-3 flex h-12 w-full items-center justify-center gap-2 rounded-[12px] border text-sm font-semibold transition disabled:cursor-not-allowed disabled:opacity-60"
             >
               <Upload className="h-4 w-4" />
               {imageScanning ? "Đang đọc ảnh..." : "Chọn ảnh từ máy để quét"}
             </button>
           </div>
         ) : (
-          <div className="mb-4 rounded-[24px] border border-border bg-card p-4">
-            <div className="mb-3 text-sm font-semibold text-foreground">Nhập mã vé khách hàng</div>
+          <div className="border-border bg-card mb-4 rounded-[12px] border p-4">
+            <div className="text-foreground mb-3 text-sm font-semibold">Nhập mã vé khách hàng</div>
             <Input
               value={manualCode}
               onChange={(event) => setManualCode(event.target.value.toUpperCase())}
@@ -660,10 +774,10 @@ export default function StaffCheckinClient() {
                   void handleManualSubmit();
                 }
               }}
-              placeholder="DHMN4S154"
-              className="h-14 rounded-[18px] border-border bg-background text-center text-lg font-semibold tracking-[0.18em] text-foreground placeholder:text-muted-foreground/40"
+              placeholder="DHDEMO2026"
+              className="border-border bg-background text-foreground placeholder:text-muted-foreground/40 h-14 rounded-[14px] text-center text-lg font-semibold tracking-[0.18em]"
             />
-            <div className="mt-2 text-center text-xs text-muted-foreground/60">
+            <div className="text-muted-foreground/60 mt-2 text-center text-xs">
               Nhập mã vé khi mã QR không quét được.
             </div>
             <Button
@@ -672,75 +786,38 @@ export default function StaffCheckinClient() {
               onClick={() => {
                 void handleManualSubmit();
               }}
-              className="mt-4 h-14 w-full rounded-[20px] bg-primary text-[17px] font-bold text-primary-foreground hover:opacity-95 disabled:bg-muted disabled:text-muted-foreground/50"
+              className="bg-primary text-primary-foreground disabled:bg-muted disabled:text-muted-foreground/50 mt-4 h-14 w-full rounded-[14px] text-[17px] font-bold hover:opacity-95"
             >
               {busy ? "Đang xử lý..." : "Xác nhận check-in"}
             </Button>
           </div>
         )}
 
-        {result ? (
-          <div className={cn("mb-4 overflow-hidden rounded-[22px] border", getResultTheme(result.status).borderClass)}>
-            <div className="flex items-start gap-3 border-b border-border px-4 py-4">
-              <div
-                className={cn(
-                  "flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl",
-                  getResultTheme(result.status).iconClass,
-                )}
-              >
-                {getResultTheme(result.status).icon}
-              </div>
-              <div className="min-w-0">
-                <div className={cn("text-base font-bold", getResultTheme(result.status).titleClass)}>
-                  {result.message}
-                </div>
-                <div className="mt-1 text-xs text-muted-foreground">{zone.name}</div>
-              </div>
+        <div className="border-border bg-card rounded-[12px] border">
+          <div className="border-border flex items-center justify-between border-b px-5 py-4">
+            <div className="text-foreground text-[12px] font-bold sm:text-[15px]">Lịch sử check-in phiên hiện tại</div>
+            <div className="text-muted-foreground text-sm">
+              {loadingSnapshot ? "Đang tải..." : `${visibleHistory.length} lượt`}
             </div>
-
-            {result.guest ? (
-              <div className="flex items-center justify-between gap-3 px-4 py-4">
-                <div className="min-w-0">
-                  <div className="truncate text-lg font-bold text-foreground">{result.guest.name}</div>
-                  <div className="mt-1 text-sm text-muted-foreground">{result.guest.phone}</div>
-                  <div className="mt-1 text-xs text-muted-foreground/70">{result.guest.code}</div>
-                </div>
-                <div
-                  className={cn(
-                    "rounded-full border px-3 py-1 text-sm font-bold",
-                    tierTheme[result.guest.tier]?.badgeClass,
-                  )}
-                >
-                  {tierTheme[result.guest.tier]?.label}
-                </div>
-              </div>
-            ) : null}
-          </div>
-        ) : null}
-
-        <div className="rounded-[12px] border border-border bg-card">
-          <div className="flex items-center justify-between border-b border-border px-5 py-4">
-            <div className="text-[12px] font-bold text-foreground sm:text-[15px]">Lịch sử check-in</div>
-            <div className="text-sm text-muted-foreground">{loadingSnapshot ? "Đang tải..." : `${visibleHistory.length} lượt`}</div>
           </div>
 
-          <div className="px-4 py-4">
+          <div className="px-3 py-3">
             {visibleHistory.length === 0 ? (
-              <div className="flex flex-col items-center gap-3 py-10 text-center text-muted-foreground/50">
+              <div className="text-muted-foreground/50 flex flex-col items-center gap-3 py-10 text-center">
                 <QrCode className="h-8 w-8 opacity-35" />
                 <div>Chưa có check-in nào</div>
               </div>
             ) : (
-              <div className="flex max-h-[360px] flex-col gap-3 overflow-y-auto pr-1">
+              <div className="flex max-h-[360px] flex-col gap-2 overflow-y-auto pr-1">
                 {visibleHistory.map((item) => (
                   <div
                     key={item.id}
-                    className="flex items-start justify-between gap-3 rounded-[18px] border border-border bg-muted/40 px-4 py-4"
+                    className="border-border bg-muted/40 flex items-center justify-between gap-2 rounded-[12px] border px-3 py-2.5"
                   >
-                    <div className="flex min-w-0 flex-1 items-start gap-3 pr-2">
+                    <div className="flex min-w-0 flex-1 items-center gap-2 pr-1">
                       <div
                         className={cn(
-                          "mt-1.5 h-3 w-3 shrink-0 rounded-full",
+                          "h-2.5 w-2.5 shrink-0 rounded-full",
                           item.status === "repeat"
                             ? "bg-amber-400"
                             : item.status === "denied" || item.status === "error"
@@ -749,37 +826,43 @@ export default function StaffCheckinClient() {
                         )}
                       />
                       <div className="min-w-0 flex-1">
-                        <div className="text-[15px] font-bold break-words text-foreground">{item.name}</div>
-                        <div className="mt-1.5 flex flex-wrap items-center gap-2">
+                        <div className="text-foreground truncate text-[14px] font-bold">{item.name}</div>
+                        <div className="mt-1 flex flex-wrap items-center gap-1.5">
                           <div
                             className={cn(
-                              "rounded-full border px-2 py-[1px] text-[11px] font-bold",
+                              "rounded-full border px-1.5 py-0 text-[10px] font-bold",
                               tierTheme[item.tier]?.badgeClass,
                             )}
                           >
                             {tierTheme[item.tier]?.label}
                           </div>
-                          <div className="text-[13px] break-words text-muted-foreground">{item.zoneName || zone.name}</div>
+                          <div className="text-muted-foreground truncate text-[12px]">{item.zoneName || zone.name}</div>
                         </div>
                       </div>
                     </div>
 
-                    <div className="flex shrink-0 flex-col items-end gap-2">
-                      <button
-                        type="button"
-                        onClick={async () => {
-                          try {
-                            await navigator.clipboard.writeText(item.code);
-                            toast.success("Đã copy mã vé");
-                          } catch {
-                            toast.error("Không thể copy mã vé");
-                          }
-                        }}
-                        className="rounded-lg border border-border p-1.5 text-muted-foreground transition hover:bg-muted hover:text-foreground"
-                      >
-                        <Copy className="h-3.5 w-3.5" />
-                      </button>
-                      <div className="mt-1 mr-1 text-[12px] font-medium text-muted-foreground/70">
+                    <div className="flex shrink-0 flex-col items-end gap-1">
+                      <div className="flex max-w-[46vw] min-w-0 items-center gap-1.5 sm:max-w-none">
+                        <div className="text-foreground min-w-0 truncate font-mono text-[12px] font-semibold">
+                          {item.code}
+                        </div>
+                        <button
+                          type="button"
+                          onClick={async () => {
+                            try {
+                              await navigator.clipboard.writeText(item.code);
+                              toast.success("Đã copy mã vé");
+                            } catch {
+                              toast.error("Không thể copy mã vé");
+                            }
+                          }}
+                          className="border-border text-muted-foreground hover:bg-muted hover:text-foreground rounded-md border p-1.5 transition"
+                          aria-label="Copy ticket code"
+                        >
+                          <Copy className="h-3.5 w-3.5" />
+                        </button>
+                      </div>
+                      <div className="text-muted-foreground/70 mr-1 text-[11px] font-medium">
                         {formatTimeLabel(item.time)}
                       </div>
                     </div>

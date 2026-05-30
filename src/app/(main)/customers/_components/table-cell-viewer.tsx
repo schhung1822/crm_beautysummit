@@ -10,7 +10,6 @@ import { toast } from "sonner";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { formatGender } from "@/lib/utils";
 import {
   Drawer,
   DrawerClose,
@@ -24,7 +23,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useIsMobile } from "@/hooks/use-mobile";
-import { getInitials } from "@/lib/utils";
+import { formatGender, getInitials } from "@/lib/utils";
 
 import { SectionCard, StatCard } from "./customer-detail-blocks";
 import { createEditForm, formatDate, getDisplayValue, type CustomerEditForm } from "./customer-detail-utils";
@@ -117,34 +116,28 @@ export function TableCellViewer({
         )}
       </DrawerTrigger>
 
-      <DrawerContent className="h-screen sm:ml-auto sm:h-screen sm:max-w-[560px]">
-        <DrawerHeader className="gap-4 border-b border-slate-200 dark:border-slate-800 bg-gradient-to-br from-white via-slate-50 to-sky-50/50 dark:from-slate-950 dark:via-slate-900 dark:to-sky-900/20 pb-5">
-          <div className="flex items-start gap-4">
-            <Avatar className="h-14 w-14 shrink-0 rounded-2xl border border-white/90 shadow-[0_14px_28px_rgba(15,23,42,0.1)] ring-2 ring-sky-100">
+      <DrawerContent className="h-screen sm:ml-auto sm:max-w-[400px]">
+        <DrawerHeader className="bg-background/95 sticky top-0 z-10 border-b backdrop-blur">
+          <div className="flex items-center gap-4">
+            <Avatar className="bg-muted h-14 w-14 shrink-0 rounded-xl border shadow-sm">
               <AvatarImage src="/avatars/nghecontent.jpg" alt={previewItem.name} className="rounded-2xl object-cover" />
-              <AvatarFallback className="rounded-2xl bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300">
+              <AvatarFallback className="rounded-xl bg-gradient-to-br from-cyan-500 to-blue-500 text-lg font-black text-white">
                 {getInitials(previewItem.name)}
               </AvatarFallback>
             </Avatar>
 
             <div className="min-w-0 flex-1">
-              <div className="flex flex-wrap items-center gap-2">
-                <DrawerTitle className="truncate text-xl">{getDisplayValue(previewItem.name)}</DrawerTitle>
-                <Badge
-                  variant="outline"
-                  className="rounded-full border-sky-200 dark:border-sky-900/50 bg-sky-50 dark:bg-sky-900/30 px-2.5 py-1 text-[11px] font-semibold text-sky-700 dark:text-sky-300"
-                >
-                  Hồ sơ khách hàng
-                </Badge>
+              <div className="flex items-start justify-between gap-3">
+                <DrawerTitle className="truncate text-base">{getDisplayValue(previewItem.name)}</DrawerTitle>
               </div>
 
-              <DrawerDescription className="mt-1 truncate text-xs tracking-[0.18em] text-slate-500 uppercase">
-                {getDisplayValue(previewItem.customer_ID)}
+              <DrawerDescription className="mt-1 flex flex-col gap-1 truncate text-xs">
+                <span>Mã khách hàng: {getDisplayValue(previewItem.customer_ID)}</span>
               </DrawerDescription>
             </div>
           </div>
 
-          <div className="grid gap-3 sm:grid-cols-2">
+          <div className="hidden">
             <StatCard
               label="Điện thoại"
               value={getDisplayValue(previewItem.phone)}
@@ -158,11 +151,9 @@ export function TableCellViewer({
           </div>
         </DrawerHeader>
 
-        <div className="nice-scroll flex max-h-[80vh] flex-col gap-4 overflow-y-auto bg-slate-50/60 dark:bg-slate-950 px-4 py-4 text-sm sm:max-h-[82vh]">
+        <div className="nice-scroll flex-1 gap-4 overflow-y-auto px-4 py-4">
           {isEditing ? (
-            <SectionCard
-              title="Chỉnh sửa nhanh"
-            >
+            <SectionCard title="Chỉnh sửa nhanh">
               <div className="grid gap-4 md:grid-cols-2">
                 <div className="grid gap-2">
                   <Label htmlFor="customer-name">Họ tên</Label>
@@ -170,7 +161,7 @@ export function TableCellViewer({
                     id="customer-name"
                     value={form.name}
                     onChange={handleChange("name")}
-                    className="h-10 rounded-lg bg-white dark:bg-slate-900 dark:border-slate-800"
+                    className="h-10 rounded-lg bg-white dark:border-slate-800 dark:bg-slate-900"
                   />
                 </div>
                 <div className="grid gap-2">
@@ -179,7 +170,7 @@ export function TableCellViewer({
                     id="customer-phone"
                     value={form.phone}
                     onChange={handleChange("phone")}
-                    className="h-10 rounded-lg bg-white dark:bg-slate-900 dark:border-slate-800"
+                    className="h-10 rounded-lg bg-white dark:border-slate-800 dark:bg-slate-900"
                   />
                 </div>
                 <div className="grid gap-2">
@@ -188,7 +179,7 @@ export function TableCellViewer({
                     id="customer-email"
                     value={form.email}
                     onChange={handleChange("email")}
-                    className="h-10 rounded-lg bg-white dark:bg-slate-900 dark:border-slate-800"
+                    className="h-10 rounded-lg bg-white dark:border-slate-800 dark:bg-slate-900"
                   />
                 </div>
                 <div className="grid gap-2">
@@ -197,7 +188,7 @@ export function TableCellViewer({
                     id="customer-gender"
                     value={form.gender}
                     onChange={handleChange("gender")}
-                    className="border-input w-full min-w-0 bg-background ring-offset-background focus-visible:ring-ring h-10 rounded-lg border px-3 text-sm outline-none focus-visible:ring-2 focus-visible:ring-offset-2"
+                    className="border-input bg-background ring-offset-background focus-visible:ring-ring h-10 w-full min-w-0 rounded-lg border px-3 text-sm outline-none focus-visible:ring-2 focus-visible:ring-offset-2"
                   >
                     <option value="">Chưa chọn</option>
                     <option value="m">Nam</option>
@@ -211,7 +202,7 @@ export function TableCellViewer({
                     id="customer-career"
                     value={form.career}
                     onChange={handleChange("career")}
-                    className="h-10 rounded-lg bg-white dark:bg-slate-900 dark:border-slate-800"
+                    className="h-10 rounded-lg bg-white dark:border-slate-800 dark:bg-slate-900"
                   />
                 </div>
               </div>
@@ -219,7 +210,7 @@ export function TableCellViewer({
           ) : null}
 
           <SectionCard title="Thông tin cơ bản">
-            <div className="grid gap-3 md:grid-cols-2">
+            <div className="grid gap-2.5 ">
               <StatCard
                 label="Số điện thoại"
                 value={getDisplayValue(previewItem.phone)}
@@ -244,10 +235,8 @@ export function TableCellViewer({
             </div>
           </SectionCard>
 
-          <SectionCard
-            title="Dữ liệu theo dõi"
-          >
-            <div className="grid gap-3">
+          <SectionCard title="Dữ liệu theo dõi">
+            <div className="grid gap-2.5">
               <StatCard
                 label="User IP"
                 value={getDisplayValue(previewItem.user_ip)}
@@ -257,12 +246,13 @@ export function TableCellViewer({
                 label="User Agent"
                 value={getDisplayValue(previewItem.user_agent)}
                 icon={<Globe className="size-3.5" />}
+                className="whitespace-wrap"
               />
             </div>
           </SectionCard>
         </div>
 
-        <DrawerFooter className="border-t border-slate-200 dark:border-slate-800 bg-white/95 dark:bg-slate-950/95">
+        <DrawerFooter className="bg-background/95 sticky bottom-0 z-10 border-t backdrop-blur">
           {isEditing ? (
             <div className="grid w-full grid-cols-2 gap-2">
               <Button
@@ -291,7 +281,9 @@ export function TableCellViewer({
                 Chỉnh sửa
               </Button>
               <Link href={`/orders/${item.customer_ID}`} className="w-full">
-                <Button className="w-full bg-slate-900 text-white hover:bg-slate-800 dark:bg-slate-50 dark:text-slate-900 dark:hover:bg-slate-200">Xem đơn hàng</Button>
+                <Button className="w-full bg-slate-900 text-white hover:bg-slate-800 dark:bg-slate-50 dark:text-slate-900 dark:hover:bg-slate-200">
+                  Xem đơn hàng
+                </Button>
               </Link>
             </div>
           )}

@@ -6,7 +6,7 @@ import { Download, Search } from "lucide-react";
 import { toast } from "sonner";
 
 import { DataTable as SharedDataTable } from "@/components/data-table/data-table";
-import { toggleFilteredRows, withSelectionColumn } from "@/components/data-table/selection-toggle";
+import { withSelectionColumn } from "@/components/data-table/selection-toggle";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { DatePicker } from "@/components/ui/date-picker";
@@ -97,14 +97,15 @@ export function DataTable({
     [data],
   );
 
-
   const leaderboardData = React.useMemo(() => {
     const counts = new Map<string, number>();
     data.forEach((item) => {
       const key = (item.brand_name || "Không rõ").trim();
       counts.set(key, (counts.get(key) ?? 0) + 1);
     });
-    return Array.from(counts.entries()).map(([name, value]) => ({ name, value })).sort((a, b) => b.value - a.value);
+    return Array.from(counts.entries())
+      .map(([name, value]) => ({ name, value }))
+      .sort((a, b) => b.value - a.value);
   }, [data]);
 
   const genderData = React.useMemo(() => summaryDataFactory((item) => formatGender(item.gender)), [summaryDataFactory]);
@@ -140,7 +141,10 @@ export function DataTable({
     }
   }, []);
 
-  const columns = React.useMemo(() => withSelectionColumn(dashboardColumns(handleDeleteRow, initialVoteOptions)), [handleDeleteRow, initialVoteOptions]);
+  const columns = React.useMemo(
+    () => withSelectionColumn(dashboardColumns(handleDeleteRow, initialVoteOptions)),
+    [handleDeleteRow, initialVoteOptions],
+  );
   const table = useDataTableInstance({
     data: filteredData,
     columns,
@@ -255,10 +259,9 @@ export function DataTable({
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="flex w-fit items-center gap-3 rounded-lg border bg-card px-4 py-3">
+      <div className="bg-card flex w-fit items-center gap-3 rounded-lg border px-4 py-3">
         <div>
           <div className="text-sm font-semibold">Ngày 1 sự kiện</div>
-  
         </div>
         <DatePicker
           value={pendingEventDay1}
@@ -269,7 +272,13 @@ export function DataTable({
         />
       </div>
 
-      <EventsSummary totalVotes={totalVotes} genderData={genderData} brandRatioData={brandRatioData} leaderboardData={leaderboardData} voteOptions={initialVoteOptions} />
+      <EventsSummary
+        totalVotes={totalVotes}
+        genderData={genderData}
+        brandRatioData={brandRatioData}
+        leaderboardData={leaderboardData}
+        voteOptions={initialVoteOptions}
+      />
 
       <div className="flex items-center justify-between gap-4">
         <div className="flex flex-1 items-center gap-2">
@@ -305,12 +314,6 @@ export function DataTable({
         </div>
 
         <div className="flex items-center gap-2">
-          <Button size="sm" variant="outline" onClick={() => toggleFilteredRows(table, true)}>
-            Chọn tất cả
-          </Button>
-          <Button size="sm" variant="outline" onClick={() => toggleFilteredRows(table, false)}>
-            Bỏ chọn tất cả
-          </Button>
           {selectedItems.length > 0 ? (
             <Button size="sm" variant="destructive" onClick={handleDeleteSelected} disabled={isDeleting}>
               {isDeleting ? "Dang xoa..." : `Xoa (${selectedItems.length})`}

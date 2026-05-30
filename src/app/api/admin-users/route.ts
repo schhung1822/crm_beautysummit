@@ -105,6 +105,44 @@ function toResponseUser(data: {
   };
 }
 
+export async function GET(request: NextRequest) {
+  try {
+    const currentUser = await getCurrentUser();
+    const permissionError = ensureAdminPermission(currentUser);
+    if (permissionError) {
+      return permissionError;
+    }
+
+    const group = request.nextUrl.searchParams.get("group");
+    const users = await prisma.user.findMany({
+      where: group === "members" ? { role: { not: "user" } } : undefined,
+      orderBy: { id: "desc" },
+      select: {
+        id: true,
+        user_id: true,
+        user: true,
+        email: true,
+        zid: true,
+        phone: true,
+        name: true,
+        avatar: true,
+        role: true,
+        status: true,
+        last_login: true,
+        create_time: true,
+        update_time: true,
+      },
+    });
+
+    return NextResponse.json({ data: users.map((item) => toResponseUser(item)) });
+  } catch (error) {
+    return NextResponse.json(
+      { message: error instanceof Error ? error.message : "KhÃ´ng thá»ƒ táº£i danh sÃ¡ch tÃ i khoáº£n" },
+      { status: 400 },
+    );
+  }
+}
+
 async function updateAdminUser(actorName: string, body: AdminUserPayload) {
   const payload = parsePayload(body);
 
@@ -188,7 +226,6 @@ async function deleteAdminUsers(currentUserId: number | null, ids: number[]) {
   const result = await prisma.user.deleteMany({
     where: {
       id: { in: normalizedIds },
-      role: { notIn: ["admin", "staff"] },
     },
   });
 

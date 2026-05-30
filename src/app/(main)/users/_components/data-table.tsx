@@ -6,20 +6,24 @@ import { Search } from "lucide-react";
 import { toast } from "sonner";
 
 import { DataTable as DataTableBase } from "@/components/data-table/data-table";
-import { toggleFilteredRows, withSelectionColumn } from "@/components/data-table/selection-toggle";
+import { withSelectionColumn } from "@/components/data-table/selection-toggle";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useDataTableInstance } from "@/hooks/use-data-table-instance";
 import { matchesSearchTerm } from "@/lib/search-utils";
 
-import { CreateAccountDialog } from "./create-account-dialog";
 import { dashboardColumns } from "./columns";
+import { CreateAccountDialog } from "./create-account-dialog";
 import type { AccountUser } from "./schema";
 
-export function DataTable({ data: initialData }: { data: AccountUser[] }) {
+export function DataTable({ data: initialData, onCreated }: { data: AccountUser[]; onCreated?: () => void }) {
   const [data, setData] = React.useState<AccountUser[]>(() => initialData);
   const [searchTerm, setSearchTerm] = React.useState("");
   const [isDeleting, setIsDeleting] = React.useState(false);
+
+  React.useEffect(() => {
+    setData(initialData);
+  }, [initialData]);
 
   const filteredData = React.useMemo(() => {
     return data.filter((item) =>
@@ -117,13 +121,7 @@ export function DataTable({ data: initialData }: { data: AccountUser[] }) {
           />
         </div>
         <div className="flex items-center gap-2">
-          <CreateAccountDialog />
-          <Button size="sm" variant="outline" onClick={() => toggleFilteredRows(table, true)}>
-            Chọn tất cả
-          </Button>
-          <Button size="sm" variant="outline" onClick={() => toggleFilteredRows(table, false)}>
-            Bỏ chọn tất cả
-          </Button>
+          <CreateAccountDialog onCreated={onCreated} />
           {selectedItems.length > 0 ? (
             <Button size="sm" variant="destructive" onClick={handleDeleteSelected} disabled={isDeleting}>
               {isDeleting ? "Đang xóa..." : `Xóa (${selectedItems.length})`}

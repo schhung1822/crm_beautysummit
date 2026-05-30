@@ -35,7 +35,7 @@ export default async function Layout({ children }: Readonly<{ children: ReactNod
     <div className="bg-muted/20 flex min-h-screen w-full flex-col">
       <header className="bg-background sticky top-0 z-50 flex h-14 shrink-0 items-center gap-2 border-b px-4 lg:px-6">
         <div className="flex w-full items-center justify-between">
-          <div className="flex items-center gap-2 font-semibold">Lễ tân Check-in</div>
+          <div className="flex items-center gap-2 font-semibold">Khu vực soát vé</div>
           <div className="flex items-center gap-2">
             <LayoutControls {...layoutPreferences} />
             <ThemeSwitcher />

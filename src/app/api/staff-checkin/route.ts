@@ -70,6 +70,8 @@ type StaffCheckinGuest = {
   checkinTime: string | null;
 };
 
+const PAYDONE_STATUS_CONDITION = "LOWER(TRIM(COALESCE(o.status, ''))) = 'paydone'";
+
 function json(body: unknown, init?: ResponseInit): NextResponse {
   return NextResponse.json(body, init);
 }
@@ -189,6 +191,7 @@ async function findTicketOrder(ticketCode: string, phone: string | null): Promis
     ) checkin_summary
       ON checkin_summary.order_id = o.id
     WHERE o.ordercode = ?
+      AND ${PAYDONE_STATUS_CONDITION}
       ${phoneCondition}
     LIMIT 1
     `,
@@ -263,7 +266,7 @@ async function loadSnapshot() {
       COALESCE(l.zone_name, '') AS zoneName,
       l.checkin_time
     FROM checkin_log l
-    LEFT JOIN orders o ON l.order_id = o.id
+    INNER JOIN orders o ON l.order_id = o.id
     WHERE l.id IN (
       SELECT id
       FROM (
@@ -274,9 +277,12 @@ async function loadSnapshot() {
             ORDER BY recent.checkin_time DESC, recent.id DESC
           ) AS row_num
         FROM checkin_log recent
+        INNER JOIN orders recent_order ON recent.order_id = recent_order.id
+        WHERE LOWER(TRIM(COALESCE(recent_order.status, ''))) = 'paydone'
       ) ranked
       WHERE ranked.row_num <= 20
     )
+      AND ${PAYDONE_STATUS_CONDITION}
     ORDER BY l.checkin_time DESC, l.id DESC
     `,
   );
@@ -288,6 +294,7 @@ async function loadSnapshot() {
       SUM(CASE WHEN COALESCE(is_checkin, 0) = 1 AND checkin_time >= ? AND checkin_time < ? THEN 1 ELSE 0 END) AS checkedInCount,
       COUNT(*) AS totalCount
     FROM orders
+    WHERE LOWER(TRIM(COALESCE(status, ''))) = 'paydone'
     GROUP BY COALESCE(class, '')
     `,
     [startOfToday, startOfTomorrow],

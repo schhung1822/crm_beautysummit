@@ -10,9 +10,10 @@ import { buildManagedImageUrl } from "@/lib/image-storage";
 
 export const runtime = "nodejs";
 
-const MAX_IMAGE_BYTES = 8 * 1024 * 1024;
+const MAX_IMAGE_BYTES = 16 * 1024 * 1024;
 const MIME_EXTENSION_MAP: Record<string, string> = {
   "image/jpeg": "jpg",
+  "image/jpg": "jpg",
   "image/png": "png",
   "image/webp": "webp",
 };
@@ -39,7 +40,16 @@ export async function POST(request: NextRequest) {
       return jsonWithCors(request, { error: "Missing invitation image file" }, { status: 400 });
     }
 
-    const extension = MIME_EXTENSION_MAP[file.type];
+    const fileName = String(file.name ?? "").toLowerCase();
+    const extension =
+      MIME_EXTENSION_MAP[file.type] ??
+      (fileName.endsWith(".jpg") || fileName.endsWith(".jpeg")
+        ? "jpg"
+        : fileName.endsWith(".png")
+          ? "png"
+          : fileName.endsWith(".webp")
+            ? "webp"
+            : null);
     if (!extension) {
       return jsonWithCors(request, { error: "Only JPG, PNG, and WEBP images are supported" }, { status: 400 });
     }

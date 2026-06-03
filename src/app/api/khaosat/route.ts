@@ -171,6 +171,29 @@ async function ensureKhaoSatTable(): Promise<void> {
       KEY khaosat_mission_idx (mission_id)
     ) DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
   `);
+
+  await ensureTableColumns("khaosat", [
+    ["order_code", "VARCHAR(191) NULL"],
+    ["nghe_nghiep", "TEXT NULL"],
+    ["quy_mo", "TEXT NULL"],
+    ["moi_quan_tam", "LONGTEXT NULL"],
+    ["ly_do_tham_du_json", "LONGTEXT NULL"],
+    ["cau_1", "INT NULL"],
+    ["cau_2", "TEXT NULL"],
+    ["cau_3", "INT NULL"],
+    ["cau_4", "TEXT NULL"],
+    ["cau_4_json", "LONGTEXT NULL"],
+    ["cau_4_khac", "TEXT NULL"],
+    ["cau_5", "TEXT NULL"],
+    ["cau_5_json", "LONGTEXT NULL"],
+    ["cau_5_khac", "TEXT NULL"],
+    ["cau_6", "LONGTEXT NULL"],
+    ["cau_7", "TEXT NULL"],
+    ["cau_7_json", "LONGTEXT NULL"],
+    ["cau_7_khac", "TEXT NULL"],
+    ["cau_8", "TINYINT(1) NULL"],
+    ["survey_json", "LONGTEXT NULL"],
+  ]);
 }
 
 async function ensureKhaoSatBeforeTable(): Promise<void> {
@@ -200,6 +223,11 @@ async function ensureKhaoSatBeforeTable(): Promise<void> {
       KEY khaosat_before_mission_idx (mission_id)
     ) DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
   `);
+
+  await ensureTableColumns("khaosat_before", [
+    ["order_code", "VARCHAR(191) NULL"],
+    ["survey_json", "LONGTEXT NULL"],
+  ]);
 }
 
 async function saveKhaoSat(body: {
@@ -207,8 +235,10 @@ async function saveKhaoSat(body: {
   phone: string;
   name: string;
   avatar: string;
+  orderCode?: string;
   missionId: string;
   camNhan: string;
+  beforeSurvey?: BeforeSurveyPayload;
   afterSurvey?: AfterSurveyPayload;
 }): Promise<void> {
   const db = getDB();
@@ -234,10 +264,43 @@ async function saveKhaoSat(body: {
   assign(columns.has("phone") ? "phone" : null, body.phone);
   assign(columns.has("name") ? "name" : null, body.name);
   assign(columns.has("avatar") ? "avatar" : null, body.avatar);
+  assign(pickExistingColumn(columns, ["order_code", "ordercode", "ma_ve"]), requireString(body.orderCode));
   assign(columns.has("mission_id") ? "mission_id" : null, body.missionId);
   assign(columns.has("cam_nhan") ? "cam_nhan" : null, body.camNhan);
   assign(columns.has("create_time") ? "create_time" : null, now);
   assign(columns.has("update_time") ? "update_time" : null, now);
+
+  if (body.beforeSurvey) {
+    assign(
+      pickExistingColumn(columns, ["nghe_nghiep", "occupation", "job_title", "cau_1", "cau1", "q1"]),
+      body.beforeSurvey.occupation,
+    );
+    assign(
+      pickExistingColumn(columns, ["quy_mo", "scale", "business_scale", "cau_2", "cau2", "q2"]),
+      body.beforeSurvey.scale,
+    );
+    assign(
+      pickExistingColumn(columns, ["moi_quan_tam", "interest", "interests", "cau_3", "cau3", "q3"]),
+      body.beforeSurvey.interest,
+    );
+    assign(
+      pickExistingColumn(columns, [
+        "ly_do_tham_du_json",
+        "attendance_reasons_json",
+        "ly_do_tham_du",
+        "attendance_reasons",
+        "cau_4_json",
+        "cau_4",
+        "cau4",
+        "q4",
+      ]),
+      JSON.stringify(body.beforeSurvey.attendanceReasons),
+    );
+    assign(
+      pickExistingColumn(columns, ["survey_json", "payload_json"]),
+      JSON.stringify(body.beforeSurvey),
+    );
+  }
 
   if (body.afterSurvey) {
     assign(
@@ -260,15 +323,11 @@ async function saveKhaoSat(body: {
       body.afterSurvey.recommendationScore,
     );
     assign(
-      pickExistingColumn(columns, [
-        "cau_4",
-        "cau4",
-        "q4",
-        "cau_4_json",
-        "dieu_yeu_thich",
-        "dieu_yeu_thich_json",
-        "favorite_activities_json",
-      ]),
+      pickExistingColumn(columns, ["cau_4", "cau4", "q4", "dieu_yeu_thich", "favorite_activities"]),
+      body.afterSurvey.favoriteActivities[0] ?? "",
+    );
+    assign(
+      pickExistingColumn(columns, ["cau_4_json", "dieu_yeu_thich_json", "favorite_activities_json"]),
       JSON.stringify(body.afterSurvey.favoriteActivities),
     );
     assign(
@@ -276,15 +335,11 @@ async function saveKhaoSat(body: {
       body.afterSurvey.favoriteActivitiesOther,
     );
     assign(
-      pickExistingColumn(columns, [
-        "cau_5",
-        "cau5",
-        "q5",
-        "cau_5_json",
-        "noi_dung_mo_rong",
-        "noi_dung_mo_rong_json",
-        "expanded_content_json",
-      ]),
+      pickExistingColumn(columns, ["cau_5", "cau5", "q5", "noi_dung_mo_rong", "expanded_content"]),
+      body.afterSurvey.expandedContent[0] ?? "",
+    );
+    assign(
+      pickExistingColumn(columns, ["cau_5_json", "noi_dung_mo_rong_json", "expanded_content_json"]),
       JSON.stringify(body.afterSurvey.expandedContent),
     );
     assign(
@@ -296,15 +351,11 @@ async function saveKhaoSat(body: {
       body.afterSurvey.improvementFeedback,
     );
     assign(
-      pickExistingColumn(columns, [
-        "cau_7",
-        "cau7",
-        "q7",
-        "cau_7_json",
-        "biet_den_qua",
-        "biet_den_qua_json",
-        "discovery_channels_json",
-      ]),
+      pickExistingColumn(columns, ["cau_7", "cau7", "q7", "biet_den_qua", "discovery_channels"]),
+      body.afterSurvey.discoveryChannels[0] ?? "",
+    );
+    assign(
+      pickExistingColumn(columns, ["cau_7_json", "biet_den_qua_json", "discovery_channels_json"]),
       JSON.stringify(body.afterSurvey.discoveryChannels),
     );
     assign(
@@ -353,6 +404,20 @@ async function getTableColumnSet(tableName: string): Promise<Set<string>> {
   return new Set(rows.map((row) => requireString(row.Field)));
 }
 
+async function ensureTableColumns(tableName: string, definitions: Array<[string, string]>): Promise<void> {
+  const db = getDB();
+  const columns = await getTableColumnSet(tableName);
+
+  for (const [column, definition] of definitions) {
+    if (columns.has(column)) {
+      continue;
+    }
+
+    await db.query(`ALTER TABLE \`${tableName}\` ADD COLUMN \`${column}\` ${definition}`);
+    columns.add(column);
+  }
+}
+
 function pickExistingColumn(columns: Set<string>, candidates: string[]): string | null {
   return candidates.find((candidate) => columns.has(candidate)) ?? null;
 }
@@ -362,6 +427,7 @@ async function saveKhaoSatBefore(body: {
   phone: string;
   name: string;
   avatar: string;
+  orderCode?: string;
   missionId: string;
   beforeSurvey: BeforeSurveyPayload;
 }): Promise<void> {
@@ -384,6 +450,7 @@ async function saveKhaoSatBefore(body: {
   assign(columns.has("phone") ? "phone" : null, body.phone);
   assign(columns.has("name") ? "name" : null, body.name);
   assign(columns.has("avatar") ? "avatar" : null, body.avatar);
+  assign(pickExistingColumn(columns, ["order_code", "ordercode", "ma_ve"]), requireString(body.orderCode));
   assign(columns.has("mission_id") ? "mission_id" : null, body.missionId);
   assign(columns.has("create_time") ? "create_time" : null, now);
   assign(columns.has("update_time") ? "update_time" : null, now);
@@ -417,6 +484,10 @@ async function saveKhaoSatBefore(body: {
       "payload_json",
     ]),
     JSON.stringify(body.beforeSurvey.attendanceReasons),
+  );
+  assign(
+    pickExistingColumn(columns, ["survey_json", "payload_json"]),
+    JSON.stringify(body.beforeSurvey),
   );
 
   const insertColumns = values.map(([column]) => `\`${column}\``).join(", ");
@@ -583,10 +654,21 @@ export async function POST(request: NextRequest) {
     }
 
     if (beforeSurveyMission) {
+      await trace.step("ensure_table", ensureKhaoSatTable);
       await trace.step("ensure_before_table", ensureKhaoSatBeforeTable);
+      await trace.step("save_before_survey_main", () =>
+        saveKhaoSat({
+          ...identity,
+          orderCode: requireString(body.orderCode),
+          missionId,
+          camNhan: JSON.stringify(beforeSurvey),
+          beforeSurvey,
+        }),
+      );
       await trace.step("save_before_survey", () =>
         saveKhaoSatBefore({
           ...identity,
+          orderCode: requireString(body.orderCode),
           missionId,
           beforeSurvey,
         }),
@@ -596,6 +678,7 @@ export async function POST(request: NextRequest) {
       await trace.step("save_survey", () =>
         saveKhaoSat({
           ...identity,
+          orderCode: requireString(body.orderCode),
           missionId,
           camNhan: afterSurvey.improvementFeedback || camNhan,
           afterSurvey,

@@ -6,7 +6,10 @@ import type { RowDataPacket } from "mysql2/promise";
 import { createApiTrace, maskPhoneForLogs, shortIdForLogs } from "@/lib/api-observability";
 import { applyCorsHeaders, buildCorsHeaders } from "@/lib/cors";
 import { getDB } from "@/lib/db";
-import { hasMiniAppUserAccess as sharedHasMiniAppUserAccess } from "@/lib/miniapp-rewards";
+import {
+  hasMiniAppUserAccess as sharedHasMiniAppUserAccess,
+  lockMiniAppRewardStateOrderCode,
+} from "@/lib/miniapp-rewards";
 import {
   mapMiniAppTicketRow,
   queryMiniAppTicketRowByCode,
@@ -222,6 +225,18 @@ export async function POST(request: NextRequest) {
 
     const customerId = buildCustomerId(phone);
     const nextName = name || String(ticket.name ?? "");
+    await trace.step("lock_reward_state_ordercode", () =>
+      lockMiniAppRewardStateOrderCode(
+        {
+          zid,
+          phone,
+          name: nextName,
+          avatar: String(body.avatar ?? "").trim(),
+        },
+        ticketCode,
+      ),
+    );
+
     await trace.step("update_order_claim", () =>
       db.query(
         `

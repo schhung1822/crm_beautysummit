@@ -40,6 +40,7 @@ export type MiniAppVoucherRecord = {
 };
 
 export type MiniAppRewardState = {
+  orderCode: string | null;
   completedIds: string[];
   claimedFreeVoucherIds: string[];
   redeemedVoucherIds: string[];
@@ -88,6 +89,7 @@ type MiniAppRewardStateRow = RowDataPacket & {
   phone: string | null;
   name: string | null;
   avatar: string | null;
+  ordercode: string | null;
   completed_mission_ids: string | null;
   claimed_free_voucher_ids: string | null;
   redeemed_voucher_ids: string | null;
@@ -215,7 +217,7 @@ const MINIAPP_MISSION_CATALOG_SEED: readonly MiniAppMissionCatalogSeed[] = [
   { suffix: "d2-3", tiers: MINIAPP_MISSION_TIERS, points: 10, phase: "day2" },
   { suffix: "d2-5", tiers: MINIAPP_MISSION_TIERS, points: 50, phase: "day2" },
   { suffix: "d2-6", tiers: MINIAPP_MISSION_TIERS, points: 50, phase: "day2" },
-  { suffix: "d2-2", tiers: MINIAPP_MISSION_TIERS, points: 10, phase: "day2", survey: true },
+  { suffix: "d2-2", tiers: MINIAPP_MISSION_TIERS, points: 50, phase: "day2", survey: true },
 ] as const;
 
 const MINIAPP_DEFAULT_ENTRY_POINTS: Record<MiniAppRewardTicketTier, number> = {
@@ -240,6 +242,8 @@ const ACCESS_CACHE_TTL_MS = Math.max(1000, Number(process.env.MINIAPP_ACCESS_CAC
 const VOUCHER_CACHE_TTL_MS = Math.max(1000, Number(process.env.MINIAPP_VOUCHER_CACHE_TTL_MS) || 15000);
 const MINIAPP_GIFTCODE_REDEMPTION_TABLE = "miniapp_giftcode_redemption";
 const MINIAPP_CHECKIN_BOOTH_TABLE = "checkin_booth";
+const MINIAPP_GIFT_TABLE = "gift";
+const MINIAPP_LEGACY_GIFTS_TABLE = "gifts";
 const MINIAPP_GIFTCODE_BONUS_PREFIX = "BONUS::";
 const MINIAPP_GIFTCODE_BONUS_LIKE_PATTERN = `${MINIAPP_GIFTCODE_BONUS_PREFIX}%`;
 
@@ -400,13 +404,30 @@ function parseBooleanFlag(value: unknown): boolean {
   return Number(value ?? 0) === 1;
 }
 
+function normalizeOrderCode(value: unknown): string {
+  return parseString(value).toUpperCase();
+}
+
 function uniqueStringArray(values: string[]): string[] {
   return Array.from(new Set(values.map((value) => parseString(value)).filter(Boolean)));
 }
 
-async function ensureGiftsTable(executor: SqlExecutor = getDB()): Promise<void> {
+async function tableExists(tableName: string, executor: SqlExecutor = getDB()): Promise<boolean> {
+  const [rows] = await executor.query<RowDataPacket[]>("SHOW TABLES LIKE ?", [tableName]);
+  return rows.length > 0;
+}
+
+async function ensureGiftsTable(executor: SqlExecutor = getDB()): Promise<string> {
+  if (await tableExists(MINIAPP_GIFT_TABLE, executor)) {
+    return MINIAPP_GIFT_TABLE;
+  }
+
+  if (await tableExists(MINIAPP_LEGACY_GIFTS_TABLE, executor)) {
+    return MINIAPP_LEGACY_GIFTS_TABLE;
+  }
+
   await executor.query(`
-    CREATE TABLE IF NOT EXISTS gifts (
+    CREATE TABLE IF NOT EXISTS \`${MINIAPP_GIFT_TABLE}\` (
       id INT UNSIGNED NOT NULL AUTO_INCREMENT,
       created_at TIMESTAMP NULL DEFAULT NULL,
       updated_at TIMESTAMP NULL DEFAULT NULL,
@@ -423,9 +444,10 @@ async function ensureGiftsTable(executor: SqlExecutor = getDB()): Promise<void> 
       gift_name TEXT NULL,
       gift_brand TEXT NULL,
       gift_code VARCHAR(255) NULL,
+      voucher VARCHAR(255) NULL,
       points_cost INT NULL,
       milestone_pct INT NULL,
-      status VARCHAR(64) NULL DEFAULT 'pending_pickup',
+      status INT NULL DEFAULT 0,
       note TEXT NULL,
       create_time DATETIME NULL DEFAULT CURRENT_TIMESTAMP,
       update_time DATETIME NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
@@ -436,6 +458,8 @@ async function ensureGiftsTable(executor: SqlExecutor = getDB()): Promise<void> 
       KEY gifts_gift_type_idx (gift_type)
     ) DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
   `);
+
+  return MINIAPP_GIFT_TABLE;
 }
 
 async function getTableColumnSet(tableName: string, executor: SqlExecutor = getDB()): Promise<Set<string>> {
@@ -449,9 +473,9 @@ function pickExistingColumn(columns: Set<string>, candidates: string[]): string 
 
 async function recordMiniAppGift(input: MiniAppGiftRecordInput): Promise<void> {
   const db = getDB();
-  await ensureGiftsTable(db);
+  const giftTableName = await ensureGiftsTable(db);
 
-  const columns = await getTableColumnSet("gifts", db);
+  const columns = await getTableColumnSet(giftTableName, db);
   const now = new Date();
   const values: Array<[string, unknown]> = [];
   const identity = input.identity;
@@ -462,7 +486,7 @@ async function recordMiniAppGift(input: MiniAppGiftRecordInput): Promise<void> {
   };
 
   const [[orderRow]] = await db.query<Array<RowDataPacket & { next_order: number }>>(
-    "SELECT COALESCE(MAX(nc_order), 0) + 1 AS next_order FROM gifts",
+    `SELECT COALESCE(MAX(nc_order), 0) + 1 AS next_order FROM \`${giftTableName}\``,
   );
 
   assign(columns.has("created_at") ? "created_at" : null, now);
@@ -479,10 +503,10 @@ async function recordMiniAppGift(input: MiniAppGiftRecordInput): Promise<void> {
   assign(pickExistingColumn(columns, ["gift_id", "voucher_id", "qua_id"]), input.giftId);
   assign(pickExistingColumn(columns, ["gift_name", "name", "ten_qua", "title"]), input.giftName);
   assign(pickExistingColumn(columns, ["gift_brand", "brand", "nhan_hang"]), parseString(input.giftBrand));
-  assign(pickExistingColumn(columns, ["gift_code", "code", "ma_qua", "voucher_code"]), parseString(input.giftCode));
+  assign(pickExistingColumn(columns, ["voucher", "gift_code", "code", "ma_qua", "voucher_code"]), parseString(input.giftCode));
   assign(pickExistingColumn(columns, ["points_cost", "cost", "diem_doi"]), input.pointsCost ?? null);
   assign(pickExistingColumn(columns, ["milestone_pct", "milestone", "moc_tien_do"]), input.milestonePct ?? null);
-  assign(pickExistingColumn(columns, ["status", "trang_thai"]), "pending_pickup");
+  assign(pickExistingColumn(columns, ["status", "trang_thai"]), 0);
   assign(
     pickExistingColumn(columns, ["note", "ghi_chu", "huong_dan"]),
     input.note || "Tới quầy đổi quà và mở QR code cho nhân viên quét để nhận quà.",
@@ -503,7 +527,7 @@ async function recordMiniAppGift(input: MiniAppGiftRecordInput): Promise<void> {
 
   await db.query(
     `
-    INSERT INTO gifts
+    INSERT INTO \`${giftTableName}\`
       (${insertColumns})
     VALUES (${placeholders})
     ON DUPLICATE KEY UPDATE
@@ -740,6 +764,7 @@ function buildRewardStatePayload(
   giftcodeMissionCounts: Record<string, number> = {},
 ): MiniAppRewardState {
   return {
+    orderCode: value.orderCode,
     completedIds: value.completedIds,
     claimedFreeVoucherIds: value.claimedFreeVoucherIds,
     redeemedVoucherIds: value.redeemedVoucherIds,
@@ -773,6 +798,7 @@ function mapRewardStateRow(row: MiniAppRewardStateRow): StoredRewardState {
     phone: toDatabasePhone(row.phone) ?? "",
     name: parseString(row.name),
     avatar: parseString(row.avatar),
+    orderCode: normalizeOrderCode(row.ordercode) || null,
     completedIds,
     claimedFreeVoucherIds,
     redeemedVoucherIds,
@@ -798,10 +824,12 @@ function buildStoredStateUpdate(
       | "phone"
       | "name"
       | "avatar"
+      | "orderCode"
     >
   >,
   options?: {
     minimumBasePoints?: number;
+    basePoints?: number;
   },
 ): StoredRewardState {
   const completedIds = uniqueMissionIdArray(patch.completedIds ?? current.completedIds);
@@ -810,7 +838,10 @@ function buildStoredStateUpdate(
   const claimedMilestonePcts = uniqueNumberArray(patch.claimedMilestonePcts ?? current.claimedMilestonePcts);
   const votes = patch.votes ?? current.votes;
   const spentPoints = Math.max(parseNumber(patch.spentPoints ?? current.spentPoints), 0);
-  const basePoints = Math.max(computeStoredBasePoints(current), parseNumber(options?.minimumBasePoints));
+  const basePoints =
+    options && "basePoints" in options
+      ? Math.max(parseNumber(options.basePoints), 0)
+      : Math.max(computeStoredBasePoints(current), parseNumber(options?.minimumBasePoints));
   const totalPoints = basePoints + computeTotalPoints(completedIds);
   const availablePoints = Math.max(totalPoints - spentPoints, 0);
 
@@ -819,6 +850,7 @@ function buildStoredStateUpdate(
     phone: toDatabasePhone(patch.phone ?? current.phone) ?? current.phone,
     name: parseString(patch.name ?? current.name) || current.name,
     avatar: parseString(patch.avatar ?? current.avatar) || current.avatar,
+    orderCode: normalizeOrderCode(patch.orderCode ?? current.orderCode) || null,
     completedIds,
     claimedFreeVoucherIds,
     redeemedVoucherIds,
@@ -832,7 +864,15 @@ function buildStoredStateUpdate(
 
 type SqlExecutor = Pick<PoolConnection, "query">;
 
+async function ensureRewardStateOrderCodeColumn(executor: SqlExecutor = getDB()): Promise<void> {
+  const columns = await getTableColumnSet("miniapp_user_reward_state", executor);
+  if (!columns.has("ordercode")) {
+    await executor.query("ALTER TABLE miniapp_user_reward_state ADD COLUMN ordercode VARCHAR(191) NULL AFTER avatar");
+  }
+}
+
 async function persistRewardState(executor: SqlExecutor, nextState: StoredRewardState): Promise<StoredRewardState> {
+  await ensureRewardStateOrderCodeColumn(executor);
   const now = new Date();
   await executor.query(
     `
@@ -841,6 +881,7 @@ async function persistRewardState(executor: SqlExecutor, nextState: StoredReward
       phone = ?,
       name = ?,
       avatar = ?,
+      ordercode = ?,
       completed_mission_ids = ?,
       claimed_free_voucher_ids = ?,
       redeemed_voucher_ids = ?,
@@ -859,6 +900,7 @@ async function persistRewardState(executor: SqlExecutor, nextState: StoredReward
       nextState.phone,
       nextState.name,
       nextState.avatar,
+      nextState.orderCode,
       JSON.stringify(nextState.completedIds),
       JSON.stringify(nextState.claimedFreeVoucherIds),
       JSON.stringify(nextState.redeemedVoucherIds),
@@ -1120,15 +1162,7 @@ async function resolveIdentityEntryPoints(phone: string, orderCode?: string): Pr
     }
   }
 
-  const normalizedPhone = toDatabasePhone(phone) ?? "";
-  if (!normalizedPhone) {
-    return 0;
-  }
-
-  const ticketRows = await queryMiniAppTicketRowsByPhone(normalizedPhone);
-  const ticketClass = ticketRows.find((row) => parseString(row.ticketClass))?.ticketClass;
-
-  return resolveDefaultEntryPoints(ticketClass);
+  return 0;
 }
 
 function buildVoucherCode(): string {
@@ -1272,6 +1306,7 @@ async function syncMiniAppVoteRecord(
 
 async function findRewardStateRow(zid: string): Promise<StoredRewardState | null> {
   const db = getDB();
+  await ensureRewardStateOrderCodeColumn(db);
   const [rows] = await db.query<MiniAppRewardStateRow[]>(
     `
     SELECT
@@ -1280,6 +1315,7 @@ async function findRewardStateRow(zid: string): Promise<StoredRewardState | null
       phone,
       name,
       avatar,
+      ordercode,
       completed_mission_ids,
       claimed_free_voucher_ids,
       redeemed_voucher_ids,
@@ -1475,6 +1511,7 @@ export async function ensureMiniAppRewardState(
   const avatar = parseString(identity.avatar);
   const now = new Date();
   const db = getDB();
+  await ensureRewardStateOrderCodeColumn(db);
   const trace = createApiTrace("miniapp-rewards.ensure_state", {
     zid: shortIdForLogs(zid),
     phone: maskPhoneForLogs(phone),
@@ -1483,7 +1520,7 @@ export async function ensureMiniAppRewardState(
   });
   const existingState = await trace.step("find_reward_state", () => findRewardStateRow(zid));
   const entryPoints = await trace.step("resolve_entry_points", () =>
-    resolveIdentityEntryPoints(phone, options?.orderCode),
+    resolveIdentityEntryPoints(phone, existingState?.orderCode || undefined),
   );
 
   if (!existingState) {
@@ -1500,6 +1537,7 @@ export async function ensureMiniAppRewardState(
             phone,
             name,
             avatar,
+            ordercode,
             completed_mission_ids,
             claimed_free_voucher_ids,
             redeemed_voucher_ids,
@@ -1510,7 +1548,7 @@ export async function ensureMiniAppRewardState(
             available_points,
             create_time
           )
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         `,
         [
           now,
@@ -1521,6 +1559,7 @@ export async function ensureMiniAppRewardState(
           phone,
           name,
           avatar,
+          null,
           "[]",
           "[]",
           "[]",
@@ -1553,9 +1592,12 @@ export async function ensureMiniAppRewardState(
     (phone.length > 0 && existingState.phone !== phone) ||
     (name.length > 0 && existingState.name !== name) ||
     (avatar.length > 0 && existingState.avatar !== avatar);
+  const nextOrderCode = existingState.orderCode || null;
+  const currentBasePoints = computeStoredBasePoints(existingState);
+  const shouldResetUnselectedEntryPoints = !nextOrderCode && currentBasePoints > 0;
   const shouldTopUpEntryPoints = entryPoints > computeStoredBasePoints(existingState);
 
-  if (!shouldUpdateIdentity && !shouldTopUpEntryPoints) {
+  if (!shouldUpdateIdentity && !shouldTopUpEntryPoints && !shouldResetUnselectedEntryPoints) {
     trace.done({
       mode: "reuse",
       completedMissionCount: existingState.completedIds.length,
@@ -1571,9 +1613,12 @@ export async function ensureMiniAppRewardState(
       phone,
       name,
       avatar,
+      orderCode: nextOrderCode,
     },
     {
-      minimumBasePoints: entryPoints,
+      ...(shouldResetUnselectedEntryPoints
+        ? { basePoints: 0 }
+        : { minimumBasePoints: entryPoints }),
     },
   );
   await trace.step("save_reward_state", () => saveMiniAppRewardState(nextState));
@@ -1589,6 +1634,35 @@ export async function ensureMiniAppRewardState(
 
 async function saveMiniAppRewardState(nextState: StoredRewardState): Promise<StoredRewardState> {
   return persistRewardState(getDB(), nextState);
+}
+
+export async function lockMiniAppRewardStateOrderCode(
+  identity: RewardIdentity,
+  orderCode: string,
+): Promise<MiniAppRewardState> {
+  const normalizedOrderCode = normalizeOrderCode(orderCode);
+  if (!normalizedOrderCode) {
+    throw new Error("Mã vé là bắt buộc");
+  }
+
+  const current = await ensureMiniAppRewardState(identity, { orderCode: normalizedOrderCode });
+  if (current.orderCode && current.orderCode !== normalizedOrderCode) {
+    throw new Error(`Tài khoản này đã được gắn với vé ${current.orderCode} và không thể đổi vé`);
+  }
+
+  const entryPoints = await resolveIdentityEntryPoints(current.phone, normalizedOrderCode);
+  const currentBasePoints = computeStoredBasePoints(current);
+  if (current.orderCode === normalizedOrderCode && currentBasePoints >= entryPoints) {
+    return buildRewardStatePayloadWithCounts(current);
+  }
+
+  const nextState = buildStoredStateUpdate(current, {
+    orderCode: normalizedOrderCode,
+  }, {
+    basePoints: entryPoints,
+  });
+  await saveMiniAppRewardState(nextState);
+  return buildRewardStatePayloadWithCounts(nextState);
 }
 
 export async function loadMiniAppRewards(
@@ -1693,7 +1767,13 @@ export async function recordMiniAppMissionProgressStep(
     normalizedMissionId,
   );
   if (currentProgressCount >= completionCount) {
-    return buildRewardStatePayloadWithCounts(current);
+    const nextState = buildStoredStateUpdate(current, {
+      completedIds: current.completedIds.includes(normalizedMissionId)
+        ? current.completedIds
+        : [...current.completedIds, normalizedMissionId],
+    });
+    await saveMiniAppRewardState(nextState);
+    return buildRewardStatePayloadWithCounts(nextState);
   }
 
   const db = getDB();
@@ -1711,8 +1791,14 @@ export async function recordMiniAppMissionProgressStep(
       connection,
     );
     if (transactionProgressCount >= completionCount) {
-      await connection.rollback();
-      return buildRewardStatePayloadWithCounts(current);
+      nextState = buildStoredStateUpdate(current, {
+        completedIds: current.completedIds.includes(normalizedMissionId)
+          ? current.completedIds
+          : [...current.completedIds, normalizedMissionId],
+      });
+      await persistRewardState(connection, nextState);
+      await connection.commit();
+      return buildRewardStatePayloadWithCounts(nextState);
     }
 
     await insertGiftCodeRedemption(connection, {

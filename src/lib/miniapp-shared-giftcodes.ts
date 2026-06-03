@@ -377,9 +377,9 @@ export const MINIAPP_SHARED_GIFTCODES: readonly MiniAppSharedGiftCodeEntry[] = [
   },
   ...createSharedGiftCodeEntries(
     REGULAR_BOOTH_GIFTCODES,
-    5,
+    10,
     REGULAR_BOOTH_GIFTCODE_MISSION_SUFFIXES,
-    "QR gian hang thuong - 5 diem",
+    "QR gian hang thuong - 10 diem",
   ),
   ...createSharedGiftCodeEntries(
     EXTRA_BOOTH_GIFTCODES,

@@ -36,7 +36,7 @@ export async function GET(request: NextRequest) {
   try {
     const fileName = extractSafeFileName(request);
     if (!fileName) {
-      return NextResponse.json({ error: "Missing file" }, { status: 400 });
+      return NextResponse.json({ error: "Tệp bị thiếu" }, { status: 400 });
     }
 
     const uploadDir = resolveUploadDir();
@@ -45,7 +45,7 @@ export async function GET(request: NextRequest) {
     const resolvedFilePath = path.resolve(filePath);
 
     if (!resolvedFilePath.startsWith(resolvedUploadDir) || !existsSync(resolvedFilePath)) {
-      return NextResponse.json({ error: "File not found" }, { status: 404 });
+      return NextResponse.json({ error: "Tệp không tồn tại" }, { status: 404 });
     }
 
     const buffer = await readFile(resolvedFilePath);
@@ -58,7 +58,7 @@ export async function GET(request: NextRequest) {
     });
   } catch (error) {
     console.error("Upload asset read error:", error);
-    return NextResponse.json({ error: "Failed to read file" }, { status: 500 });
+    return NextResponse.json({ error: "Không thể đọc tệp" }, { status: 500 });
   }
 }
 
@@ -68,19 +68,19 @@ export async function POST(request: NextRequest) {
     const user = token ? await verifyToken(token) : null;
     
     if (!user || (user.role !== "admin" && user.role !== "administrator")) {
-      return NextResponse.json({ error: "Unauthorized. Only admins can upload files." }, { status: 403 });
+      return NextResponse.json({ error: "Không được phép. Chỉ admin mới có thể tải tệp lên." }, { status: 403 });
     }
 
     const formData = await request.formData();
     const file = formData.get("file") as File;
 
     if (!file) {
-      return NextResponse.json({ error: "No file uploaded" }, { status: 400 });
+      return NextResponse.json({ error: "Tệp bị thiếu" }, { status: 400 });
     }
 
     // Validate file type
     if (!file.type.startsWith("image/")) {
-      return NextResponse.json({ error: "File must be an image" }, { status: 400 });
+      return NextResponse.json({ error: "Tệp phải là hình ảnh" }, { status: 400 });
     }
 
     // Generate unique filename
@@ -107,6 +107,6 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ url, path: `/images/${filename}`, success: true });
   } catch (error) {
     console.error("Upload error:", error);
-    return NextResponse.json({ error: "Failed to upload file" }, { status: 500 });
+    return NextResponse.json({ error: "Không thể tải tệp lên" }, { status: 500 });
   }
 }

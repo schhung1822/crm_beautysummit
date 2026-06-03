@@ -27,6 +27,17 @@ type KhaoSatPayload = {
   scale?: string;
   interest?: string;
   attendanceReasons?: unknown;
+  satisfactionRating?: unknown;
+  attend2027Intent?: unknown;
+  recommendationScore?: unknown;
+  favoriteActivities?: unknown;
+  favoriteActivitiesOther?: string;
+  expandedContent?: unknown;
+  expandedContentOther?: string;
+  improvementFeedback?: string;
+  discoveryChannels?: unknown;
+  discoveryChannelsOther?: string;
+  receiveUpdates?: unknown;
 };
 
 type BeforeSurveyPayload = {
@@ -34,6 +45,20 @@ type BeforeSurveyPayload = {
   scale: string;
   interest: string;
   attendanceReasons: string[];
+};
+
+type AfterSurveyPayload = {
+  satisfactionRating: number;
+  attend2027Intent: string;
+  recommendationScore: number;
+  favoriteActivities: string[];
+  favoriteActivitiesOther: string;
+  expandedContent: string[];
+  expandedContentOther: string;
+  improvementFeedback: string;
+  discoveryChannels: string[];
+  discoveryChannelsOther: string;
+  receiveUpdates: 0 | 1;
 };
 
 type TableColumnRow = RowDataPacket & {
@@ -77,6 +102,36 @@ function parseStringArray(value: unknown): string[] {
   }
 
   return [];
+}
+
+function parseInteger(value: unknown): number {
+  if (typeof value === "number" && Number.isFinite(value)) {
+    return Math.trunc(value);
+  }
+
+  const parsed = Number.parseInt(requireString(value), 10);
+  return Number.isFinite(parsed) ? parsed : Number.NaN;
+}
+
+function parseBooleanNumber(value: unknown): 0 | 1 | null {
+  if (value === true || value === 1 || value === "1") {
+    return 1;
+  }
+
+  if (value === false || value === 0 || value === "0") {
+    return 0;
+  }
+
+  const normalizedValue = requireString(value).toLowerCase();
+  if (["co", "có", "yes", "true"].includes(normalizedValue)) {
+    return 1;
+  }
+
+  if (["khong", "không", "no", "false"].includes(normalizedValue)) {
+    return 0;
+  }
+
+  return null;
 }
 
 function isBeforeSurveyMission(missionId: string): boolean {
@@ -154,57 +209,141 @@ async function saveKhaoSat(body: {
   avatar: string;
   missionId: string;
   camNhan: string;
+  afterSurvey?: AfterSurveyPayload;
 }): Promise<void> {
   const db = getDB();
   const now = new Date();
+  const columns = await getTableColumnSet("khaosat");
+  const values: Array<[string, unknown]> = [];
+
+  const assign = (column: string | null, value: unknown): void => {
+    if (column) {
+      values.push([column, value]);
+    }
+  };
+
   const [[orderRow]] = await db.query<Array<RowDataPacket & { next_order: number }>>(
     "SELECT COALESCE(MAX(nc_order), 0) + 1 AS next_order FROM khaosat",
   );
-  const nextOrder = Number(orderRow?.next_order) || 1;
+  assign(columns.has("created_at") ? "created_at" : null, now);
+  assign(columns.has("updated_at") ? "updated_at" : null, now);
+  assign(columns.has("created_by") ? "created_by" : null, "miniapp");
+  assign(columns.has("updated_by") ? "updated_by" : null, "miniapp");
+  assign(columns.has("nc_order") ? "nc_order" : null, Number(orderRow?.next_order) || 1);
+  assign(columns.has("zid") ? "zid" : null, body.zid);
+  assign(columns.has("phone") ? "phone" : null, body.phone);
+  assign(columns.has("name") ? "name" : null, body.name);
+  assign(columns.has("avatar") ? "avatar" : null, body.avatar);
+  assign(columns.has("mission_id") ? "mission_id" : null, body.missionId);
+  assign(columns.has("cam_nhan") ? "cam_nhan" : null, body.camNhan);
+  assign(columns.has("create_time") ? "create_time" : null, now);
+  assign(columns.has("update_time") ? "update_time" : null, now);
+
+  if (body.afterSurvey) {
+    assign(
+      pickExistingColumn(columns, ["cau_1", "cau1", "q1", "muc_do_hai_long", "satisfaction_rating"]),
+      body.afterSurvey.satisfactionRating,
+    );
+    assign(
+      pickExistingColumn(columns, [
+        "cau_2",
+        "cau2",
+        "q2",
+        "san_sang_tham_du_2027",
+        "tham_du_2027",
+        "attend_2027_intent",
+      ]),
+      body.afterSurvey.attend2027Intent,
+    );
+    assign(
+      pickExistingColumn(columns, ["cau_3", "cau3", "q3", "diem_gioi_thieu", "recommendation_score"]),
+      body.afterSurvey.recommendationScore,
+    );
+    assign(
+      pickExistingColumn(columns, [
+        "cau_4",
+        "cau4",
+        "q4",
+        "cau_4_json",
+        "dieu_yeu_thich",
+        "dieu_yeu_thich_json",
+        "favorite_activities_json",
+      ]),
+      JSON.stringify(body.afterSurvey.favoriteActivities),
+    );
+    assign(
+      pickExistingColumn(columns, ["cau_4_khac", "q4_other", "dieu_yeu_thich_khac", "favorite_activities_other"]),
+      body.afterSurvey.favoriteActivitiesOther,
+    );
+    assign(
+      pickExistingColumn(columns, [
+        "cau_5",
+        "cau5",
+        "q5",
+        "cau_5_json",
+        "noi_dung_mo_rong",
+        "noi_dung_mo_rong_json",
+        "expanded_content_json",
+      ]),
+      JSON.stringify(body.afterSurvey.expandedContent),
+    );
+    assign(
+      pickExistingColumn(columns, ["cau_5_khac", "q5_other", "noi_dung_mo_rong_khac", "expanded_content_other"]),
+      body.afterSurvey.expandedContentOther,
+    );
+    assign(
+      pickExistingColumn(columns, ["cau_6", "cau6", "q6", "can_cai_thien", "improvement_feedback"]),
+      body.afterSurvey.improvementFeedback,
+    );
+    assign(
+      pickExistingColumn(columns, [
+        "cau_7",
+        "cau7",
+        "q7",
+        "cau_7_json",
+        "biet_den_qua",
+        "biet_den_qua_json",
+        "discovery_channels_json",
+      ]),
+      JSON.stringify(body.afterSurvey.discoveryChannels),
+    );
+    assign(
+      pickExistingColumn(columns, ["cau_7_khac", "q7_other", "biet_den_qua_khac", "discovery_channels_other"]),
+      body.afterSurvey.discoveryChannelsOther,
+    );
+    assign(
+      pickExistingColumn(columns, ["cau_8", "cau8", "q8", "nhan_thong_tin_2027", "receive_updates"]),
+      body.afterSurvey.receiveUpdates,
+    );
+    assign(
+      pickExistingColumn(columns, ["survey_json", "payload_json"]),
+      JSON.stringify(body.afterSurvey),
+    );
+  }
+
+  const insertColumns = values.map(([column]) => `\`${column}\``).join(", ");
+  const placeholders = values.map(() => "?").join(", ");
+  const params = values.map(([, value]) => value);
+  const updateColumns = values
+    .map(([column]) => column)
+    .filter(
+      (column) =>
+        !["created_at", "created_by", "create_time", "nc_order", "zid", "mission_id"].includes(column),
+    );
+  const updateSql =
+    updateColumns.length > 0
+      ? updateColumns.map((column) => `\`${column}\` = VALUES(\`${column}\`)`).join(",\n      ")
+      : "`mission_id` = `mission_id`";
 
   await db.query(
     `
     INSERT INTO khaosat
-      (
-        created_at,
-        updated_at,
-        created_by,
-        updated_by,
-        nc_order,
-        zid,
-        phone,
-        name,
-        avatar,
-        mission_id,
-        cam_nhan,
-        create_time,
-        update_time
-      )
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      (${insertColumns})
+    VALUES (${placeholders})
     ON DUPLICATE KEY UPDATE
-      updated_at = VALUES(updated_at),
-      updated_by = VALUES(updated_by),
-      phone = VALUES(phone),
-      name = IF(VALUES(name) <> '', VALUES(name), name),
-      avatar = IF(VALUES(avatar) <> '', VALUES(avatar), avatar),
-      cam_nhan = VALUES(cam_nhan),
-      update_time = VALUES(update_time)
+      ${updateSql}
     `,
-    [
-      now,
-      now,
-      "miniapp",
-      "miniapp",
-      nextOrder,
-      body.zid,
-      body.phone,
-      body.name,
-      body.avatar,
-      body.missionId,
-      body.camNhan,
-      now,
-      now,
-    ],
+    params,
   );
 }
 
@@ -326,6 +465,20 @@ export async function POST(request: NextRequest) {
       interest: requireString(body.interest),
       attendanceReasons: parseStringArray(body.attendanceReasons),
     };
+    const receiveUpdates = parseBooleanNumber(body.receiveUpdates);
+    const afterSurvey: AfterSurveyPayload = {
+      satisfactionRating: parseInteger(body.satisfactionRating),
+      attend2027Intent: requireString(body.attend2027Intent),
+      recommendationScore: parseInteger(body.recommendationScore),
+      favoriteActivities: parseStringArray(body.favoriteActivities),
+      favoriteActivitiesOther: requireString(body.favoriteActivitiesOther),
+      expandedContent: parseStringArray(body.expandedContent),
+      expandedContentOther: requireString(body.expandedContentOther),
+      improvementFeedback: requireString(body.improvementFeedback ?? body.camNhan ?? body.feedback),
+      discoveryChannels: parseStringArray(body.discoveryChannels),
+      discoveryChannelsOther: requireString(body.discoveryChannelsOther),
+      receiveUpdates: receiveUpdates ?? 0,
+    };
     const trace = createApiTrace("miniapp/khaosat.POST", {
       zid: shortIdForLogs(identity.zid),
       phone: maskPhoneForLogs(identity.phone),
@@ -366,9 +519,61 @@ export async function POST(request: NextRequest) {
           { status: 400 },
         );
       }
-    } else if (!camNhan) {
-      trace.mark("missing_feedback");
-      return jsonWithCors(request, { message: "Vui lòng nhập cảm nhận về sự kiện" }, { status: 400 });
+    } else {
+      if (afterSurvey.satisfactionRating < 1 || afterSurvey.satisfactionRating > 5) {
+        trace.mark("invalid_satisfaction_rating");
+        return jsonWithCors(request, { message: "Vui lòng chọn mức độ hài lòng từ 1 đến 5 sao" }, { status: 400 });
+      }
+
+      if (!afterSurvey.attend2027Intent) {
+        trace.mark("missing_attend_2027_intent");
+        return jsonWithCors(request, { message: "Vui lòng chọn mức độ sẵn sàng tham dự Beauty Summit 2027" }, { status: 400 });
+      }
+
+      if (afterSurvey.recommendationScore < 0 || afterSurvey.recommendationScore > 10) {
+        trace.mark("invalid_recommendation_score");
+        return jsonWithCors(request, { message: "Vui lòng chọn điểm giới thiệu từ 0 đến 10" }, { status: 400 });
+      }
+
+      if (afterSurvey.favoriteActivities.length === 0) {
+        trace.mark("missing_favorite_activities");
+        return jsonWithCors(request, { message: "Vui lòng chọn điều bạn yêu thích nhất tại sự kiện" }, { status: 400 });
+      }
+
+      if (afterSurvey.favoriteActivities.includes("Khác") && !afterSurvey.favoriteActivitiesOther) {
+        trace.mark("missing_favorite_activities_other");
+        return jsonWithCors(request, { message: "Vui lòng nhập nội dung khác cho câu 4" }, { status: 400 });
+      }
+
+      if (afterSurvey.expandedContent.length === 0) {
+        trace.mark("missing_expanded_content");
+        return jsonWithCors(request, { message: "Vui lòng chọn nội dung muốn mở rộng trong năm tới" }, { status: 400 });
+      }
+
+      if (afterSurvey.expandedContent.includes("Khác") && !afterSurvey.expandedContentOther) {
+        trace.mark("missing_expanded_content_other");
+        return jsonWithCors(request, { message: "Vui lòng nhập nội dung khác cho câu 5" }, { status: 400 });
+      }
+
+      if (!afterSurvey.improvementFeedback) {
+        trace.mark("missing_improvement_feedback");
+        return jsonWithCors(request, { message: "Vui lòng nhập nội dung cần cải thiện" }, { status: 400 });
+      }
+
+      if (afterSurvey.discoveryChannels.length === 0) {
+        trace.mark("missing_discovery_channels");
+        return jsonWithCors(request, { message: "Vui lòng chọn nguồn biết đến Beauty Summit" }, { status: 400 });
+      }
+
+      if (afterSurvey.discoveryChannels.includes("Khác") && !afterSurvey.discoveryChannelsOther) {
+        trace.mark("missing_discovery_channels_other");
+        return jsonWithCors(request, { message: "Vui lòng nhập nguồn khác cho câu 7" }, { status: 400 });
+      }
+
+      if (receiveUpdates === null) {
+        trace.mark("missing_receive_updates");
+        return jsonWithCors(request, { message: "Vui lòng chọn có/không nhận thông tin sớm" }, { status: 400 });
+      }
     }
 
     const hasAccess = await trace.step("access_check", () => hasMiniAppUserAccess(identity.zid, identity.phone));
@@ -392,7 +597,8 @@ export async function POST(request: NextRequest) {
         saveKhaoSat({
           ...identity,
           missionId,
-          camNhan,
+          camNhan: afterSurvey.improvementFeedback || camNhan,
+          afterSurvey,
         }),
       );
     }

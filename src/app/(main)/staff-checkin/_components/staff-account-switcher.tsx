@@ -22,7 +22,7 @@ export function StaffAccountSwitcher() {
   };
 
   if (isLoading) {
-    return <div className="bg-muted size-9 animate-pulse rounded-lg" />;
+    return <div className="bg-muted size-9 animate-pulse rounded-[8px]" />;
   }
 
   if (!user) {
@@ -49,7 +49,7 @@ export function StaffAccountSwitcher() {
           <div className="grid flex-1 text-left text-sm leading-tight">
             <span className="truncate font-semibold">{displayName}</span>
             <span className="text-muted-foreground truncate text-xs">{user.email}</span>
-            <span className="text-primary mt-1 text-xs font-bold">Role: Lễ tân</span>
+            <span className="text-primary mt-1 text-xs font-bold">Role: Staff</span>
           </div>
         </div>
         <DropdownMenuSeparator />

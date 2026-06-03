@@ -1,7 +1,6 @@
-type MiniAppDay2InvoiceMissionSuffix = "d2-4";
 type MiniAppDay2UploadMissionSuffix = "d2-5";
 
-const DAY2_INVOICE_MISSION_SUFFIXES = new Set<MiniAppDay2InvoiceMissionSuffix>(["d2-4"]);
+const DAY2_INVOICE_MISSION_SUFFIXES = new Set<string>();
 
 const DAY2_UPLOAD_REQUIRED_IMAGE_COUNT = new Map<MiniAppDay2UploadMissionSuffix, number>([
   ["d2-5", 1],
@@ -26,9 +25,7 @@ function missionIdToSuffix(missionId: string): string {
 }
 
 export function isMiniAppDay2InvoiceMissionId(missionId: string): boolean {
-  return DAY2_INVOICE_MISSION_SUFFIXES.has(
-    missionIdToSuffix(missionId) as MiniAppDay2InvoiceMissionSuffix,
-  );
+  return DAY2_INVOICE_MISSION_SUFFIXES.has(missionIdToSuffix(missionId));
 }
 
 export function isMiniAppDay2UploadMissionId(missionId: string): boolean {

@@ -128,7 +128,7 @@ export async function POST(request: NextRequest) {
 
       if (action !== "submit-day1-image" && action !== "submit-day2-image") {
         trace.mark("unsupported_form_action");
-        return jsonWithCors(request, { message: "Action is not supported" }, { status: 400 });
+        return jsonWithCors(request, { message: "Hành động này không được hỗ trợ" }, { status: 400 });
       }
 
       if (!identity.zid || !identity.phone) {
@@ -147,8 +147,8 @@ export async function POST(request: NextRequest) {
           request,
           {
             message: isDay1ImageAction
-              ? "Nhiem vu upload ngay 1 khong hop le"
-              : "Nhiem vu upload ngay 2 khong hop le",
+              ? "Nhiệm vụ upload không hợp lệ"
+              : "Nhiệm vụ upload không hợp lệ",
           },
           { status: 400 },
         );
@@ -156,7 +156,7 @@ export async function POST(request: NextRequest) {
 
       if (files.length === 0) {
         trace.mark("missing_image_file");
-        return jsonWithCors(request, { message: "Vui long chon anh hop le" }, { status: 400 });
+        return jsonWithCors(request, { message: "Vui lòn chọn ảnh hợp lệ" }, { status: 400 });
       }
 
       const requiredImageCount = isDay1ImageAction
@@ -166,7 +166,7 @@ export async function POST(request: NextRequest) {
         trace.mark("missing_required_image_count");
         return jsonWithCors(
           request,
-          { message: `Vui long chon du ${requiredImageCount} anh de hoan thanh nhiem vu` },
+          { message: `Vui lòng chọn đủ ${requiredImageCount} ảnh để hoàn thành nhiệm vụ` },
           { status: 400 },
         );
       }
@@ -175,7 +175,7 @@ export async function POST(request: NextRequest) {
         trace.mark("too_many_day1_images");
         return jsonWithCors(
           request,
-          { message: `Vui long chi tai len ${requiredImageCount} anh moi lan` },
+          { message: `Vui lòng chỉ tải lên ${requiredImageCount} ảnh mỗi lần` },
           { status: 400 },
         );
       }
@@ -189,7 +189,7 @@ export async function POST(request: NextRequest) {
           trace.mark(isDay1ImageAction ? "day1_image_too_large" : "day2_image_too_large");
           return jsonWithCors(
             request,
-            { message: "Moi anh tai len toi da 5MB" },
+            { message: "Ảnh tải lên tối đa 5MB" },
             { status: 400 },
           );
         }
@@ -198,7 +198,7 @@ export async function POST(request: NextRequest) {
       const hasAccess = await trace.step("access_check", () => hasMiniAppUserAccess(identity.zid, identity.phone));
       if (!hasAccess) {
         trace.mark("access_denied");
-        return jsonWithCors(request, { message: "Mini app account is not authorized" }, { status: 403 });
+        return jsonWithCors(request, { message: "Tài khoản ứng dụng mini chưa được ủy quyền." }, { status: 403 });
       }
 
       const currentState = await trace.step("ensure_reward_state", () =>
@@ -281,19 +281,19 @@ export async function POST(request: NextRequest) {
 
     if (!identity.zid || !identity.phone) {
       trace.mark("invalid_identity");
-      return jsonWithCors(request, { message: "id and phone are required" }, { status: 400 });
+      return jsonWithCors(request, { message: "id và điện thoại là bắt buộc" }, { status: 400 });
     }
 
     const hasAccess = await trace.step("access_check", () => hasMiniAppUserAccess(identity.zid, identity.phone));
     if (!hasAccess) {
       trace.mark("access_denied");
-      return jsonWithCors(request, { message: "Mini app account is not authorized" }, { status: 403 });
+      return jsonWithCors(request, { message: "Tài khoản ứng dụng mini chưa được ủy quyền." }, { status: 403 });
     }
 
     if (action === "redeem-day1-giftcode" || action === "redeem-giftcode") {
       if (!isMiniAppDay1GiftCodeMissionId(missionId)) {
         trace.mark("invalid_day1_giftcode_mission");
-        return jsonWithCors(request, { message: "Nhiem vu giftcode khong hop le" }, { status: 400 });
+        return jsonWithCors(request, { message: "Nhiệm vụ không hợp lệ" }, { status: 400 });
       }
 
       const giftCode = parseString(body.giftCode);
@@ -325,14 +325,14 @@ export async function POST(request: NextRequest) {
     if (action === "verify-day2-invoice") {
       if (!isMiniAppDay2InvoiceMissionId(missionId)) {
         trace.mark("invalid_day2_invoice_mission");
-        return jsonWithCors(request, { message: "Nhiem vu hoa don ngay 2 khong hop le" }, { status: 400 });
+        return jsonWithCors(request, { message: "Nhiệm vụ hợp lệ" }, { status: 400 });
       }
 
       const missionTitle = parseString(body.missionTitle);
       const invoiceCode = parseString(body.invoiceCode);
       if (!invoiceCode) {
         trace.mark("missing_invoice_code");
-        return jsonWithCors(request, { message: "Vui long nhap ma hoa don" }, { status: 400 });
+        return jsonWithCors(request, { message: "Vui lòng nhập mã hóa đơn" }, { status: 400 });
       }
 
       const currentState = await trace.step("ensure_reward_state", () =>
@@ -375,7 +375,7 @@ export async function POST(request: NextRequest) {
         trace.mark("invoice_not_verified");
         return jsonWithCors(
           request,
-          { message: verification.message || "Ma hoa don khong hop le hoac chua du dieu kien" },
+          { message: verification.message || "Mã hóa đơn không hợp lệ hoặc chưa đủ điều kiện" },
           { status: 400 },
         );
       }
@@ -406,10 +406,10 @@ export async function POST(request: NextRequest) {
     }
 
     trace.mark("unsupported_json_action");
-    return jsonWithCors(request, { message: "Action is not supported" }, { status: 400 });
+    return jsonWithCors(request, { message: "Hành động này không được hỗ trợ" }, { status: 400 });
   } catch (error) {
     console.error("Mini app mission actions error:", error);
-    const message = error instanceof Error ? error.message : "Unable to process mission action";
+    const message = error instanceof Error ? error.message : "Không thể xử lý hành động nhiệm vụ";
     return jsonWithCors(request, { message }, { status: 500 });
   }
 }

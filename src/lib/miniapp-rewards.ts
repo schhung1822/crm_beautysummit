@@ -4,9 +4,11 @@ import { randomBytes, randomUUID } from "node:crypto";
 import type { PoolConnection, ResultSetHeader, RowDataPacket } from "mysql2/promise";
 
 import { createApiTrace, maskPhoneForLogs, shortIdForLogs } from "@/lib/api-observability";
+import { assertAwardGateOpen } from "@/lib/award-settings";
 import { getDB } from "@/lib/db";
 import { normalizeStoredImageUrl } from "@/lib/image-storage";
 import {
+  buildMiniAppSharedRegularBoothLockMissionId,
   getMiniAppRepeatableGiftCodeMissionBonuses,
   getMiniAppRepeatableGiftCodeMissionLimit,
   isMiniAppDay1GiftCodeMissionId,
@@ -113,6 +115,29 @@ type MiniAppGiftCodeMissionCountRow = RowDataPacket & {
   redemption_count: number | null;
 };
 
+type TableColumnRow = RowDataPacket & {
+  Field: string;
+};
+
+type MiniAppGiftRecordInput = {
+  identity: RewardIdentity;
+  orderCode?: string;
+  giftType: "voucher" | "free_voucher" | "milestone";
+  giftId: string;
+  giftName: string;
+  giftBrand?: string;
+  giftCode?: string | null;
+  pointsCost?: number | null;
+  milestonePct?: number | null;
+  note?: string;
+};
+
+type MiniAppBoothCheckinInput = {
+  identity: RewardIdentity;
+  orderCode?: string;
+  giftCode: string;
+};
+
 type MiniAppGiftCodeRedemptionIndexRow = RowDataPacket & {
   Key_name: string;
 };
@@ -188,14 +213,9 @@ const MINIAPP_MISSION_CATALOG_SEED: readonly MiniAppMissionCatalogSeed[] = [
   { suffix: "d1-vote", tiers: MINIAPP_MISSION_TIERS, points: 15, phase: "day2" },
   { suffix: "d2-7", tiers: MINIAPP_MISSION_TIERS, points: 0, phase: "day2" },
   { suffix: "d2-3", tiers: MINIAPP_MISSION_TIERS, points: 10, phase: "day2" },
-  { suffix: "d2-4", tiers: MINIAPP_MISSION_TIERS, points: 50, phase: "day2" },
   { suffix: "d2-5", tiers: MINIAPP_MISSION_TIERS, points: 50, phase: "day2" },
   { suffix: "d2-6", tiers: MINIAPP_MISSION_TIERS, points: 50, phase: "day2" },
-  { suffix: "d2-2", tiers: MINIAPP_MISSION_TIERS, points: 10, phase: "after", survey: true },
-  { suffix: "a-2", tiers: MINIAPP_MISSION_TIERS, points: 50, phase: "after" },
-  { suffix: "a-3", tiers: MINIAPP_MISSION_TIERS, points: 30, phase: "after" },
-  { suffix: "a-4", tiers: MINIAPP_MISSION_TIERS, points: 30, phase: "after" },
-  { suffix: "a-5", tiers: MINIAPP_MISSION_TIERS, points: 30, phase: "after" },
+  { suffix: "d2-2", tiers: MINIAPP_MISSION_TIERS, points: 10, phase: "day2", survey: true },
 ] as const;
 
 const MINIAPP_DEFAULT_ENTRY_POINTS: Record<MiniAppRewardTicketTier, number> = {
@@ -211,9 +231,15 @@ const LEGACY_MISSION_SUFFIX_ALIASES: Record<string, string> = {
 };
 
 const VALID_MILESTONES = new Set([30, 50, 100]);
+const MILESTONE_GIFT_META: Record<number, { title: string; brand: string; codePrefix: string }> = {
+  30: { title: "Voucher 150k", brand: "Beauty Summit", codePrefix: "BS150" },
+  50: { title: "Voucher 500k", brand: "Beauty Summit", codePrefix: "BS500" },
+  100: { title: "Voucher 1 triệu", brand: "Beauty Summit", codePrefix: "BS1TR" },
+};
 const ACCESS_CACHE_TTL_MS = Math.max(1000, Number(process.env.MINIAPP_ACCESS_CACHE_TTL_MS) || 10000);
 const VOUCHER_CACHE_TTL_MS = Math.max(1000, Number(process.env.MINIAPP_VOUCHER_CACHE_TTL_MS) || 15000);
 const MINIAPP_GIFTCODE_REDEMPTION_TABLE = "miniapp_giftcode_redemption";
+const MINIAPP_CHECKIN_BOOTH_TABLE = "checkin_booth";
 const MINIAPP_GIFTCODE_BONUS_PREFIX = "BONUS::";
 const MINIAPP_GIFTCODE_BONUS_LIKE_PATTERN = `${MINIAPP_GIFTCODE_BONUS_PREFIX}%`;
 
@@ -376,6 +402,192 @@ function parseBooleanFlag(value: unknown): boolean {
 
 function uniqueStringArray(values: string[]): string[] {
   return Array.from(new Set(values.map((value) => parseString(value)).filter(Boolean)));
+}
+
+async function ensureGiftsTable(executor: SqlExecutor = getDB()): Promise<void> {
+  await executor.query(`
+    CREATE TABLE IF NOT EXISTS gifts (
+      id INT UNSIGNED NOT NULL AUTO_INCREMENT,
+      created_at TIMESTAMP NULL DEFAULT NULL,
+      updated_at TIMESTAMP NULL DEFAULT NULL,
+      created_by VARCHAR(255) NULL,
+      updated_by VARCHAR(255) NULL,
+      nc_order DECIMAL(10,2) NULL,
+      zid VARCHAR(255) NOT NULL,
+      phone TEXT NULL,
+      name TEXT NULL,
+      avatar TEXT NULL,
+      order_code VARCHAR(255) NULL,
+      gift_type VARCHAR(64) NOT NULL,
+      gift_id VARCHAR(255) NOT NULL,
+      gift_name TEXT NULL,
+      gift_brand TEXT NULL,
+      gift_code VARCHAR(255) NULL,
+      points_cost INT NULL,
+      milestone_pct INT NULL,
+      status VARCHAR(64) NULL DEFAULT 'pending_pickup',
+      note TEXT NULL,
+      create_time DATETIME NULL DEFAULT CURRENT_TIMESTAMP,
+      update_time DATETIME NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+      PRIMARY KEY (id),
+      UNIQUE KEY gifts_zid_type_id_unique (zid, gift_type, gift_id),
+      KEY gifts_phone_idx (phone(32)),
+      KEY gifts_order_code_idx (order_code),
+      KEY gifts_gift_type_idx (gift_type)
+    ) DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+  `);
+}
+
+async function getTableColumnSet(tableName: string, executor: SqlExecutor = getDB()): Promise<Set<string>> {
+  const [rows] = await executor.query<TableColumnRow[]>(`SHOW COLUMNS FROM \`${tableName}\``);
+  return new Set(rows.map((row) => parseString(row.Field)));
+}
+
+function pickExistingColumn(columns: Set<string>, candidates: string[]): string | null {
+  return candidates.find((candidate) => columns.has(candidate)) ?? null;
+}
+
+async function recordMiniAppGift(input: MiniAppGiftRecordInput): Promise<void> {
+  const db = getDB();
+  await ensureGiftsTable(db);
+
+  const columns = await getTableColumnSet("gifts", db);
+  const now = new Date();
+  const values: Array<[string, unknown]> = [];
+  const identity = input.identity;
+  const assign = (column: string | null, value: unknown): void => {
+    if (column) {
+      values.push([column, value]);
+    }
+  };
+
+  const [[orderRow]] = await db.query<Array<RowDataPacket & { next_order: number }>>(
+    "SELECT COALESCE(MAX(nc_order), 0) + 1 AS next_order FROM gifts",
+  );
+
+  assign(columns.has("created_at") ? "created_at" : null, now);
+  assign(columns.has("updated_at") ? "updated_at" : null, now);
+  assign(columns.has("created_by") ? "created_by" : null, "miniapp");
+  assign(columns.has("updated_by") ? "updated_by" : null, "miniapp");
+  assign(columns.has("nc_order") ? "nc_order" : null, Number(orderRow?.next_order) || 1);
+  assign(columns.has("zid") ? "zid" : null, parseString(identity.zid));
+  assign(columns.has("phone") ? "phone" : null, toDatabasePhone(identity.phone) ?? "");
+  assign(columns.has("name") ? "name" : null, parseString(identity.name));
+  assign(columns.has("avatar") ? "avatar" : null, parseString(identity.avatar));
+  assign(pickExistingColumn(columns, ["order_code", "ordercode", "ma_ve"]), parseString(input.orderCode));
+  assign(pickExistingColumn(columns, ["gift_type", "type", "loai_qua"]), input.giftType);
+  assign(pickExistingColumn(columns, ["gift_id", "voucher_id", "qua_id"]), input.giftId);
+  assign(pickExistingColumn(columns, ["gift_name", "name", "ten_qua", "title"]), input.giftName);
+  assign(pickExistingColumn(columns, ["gift_brand", "brand", "nhan_hang"]), parseString(input.giftBrand));
+  assign(pickExistingColumn(columns, ["gift_code", "code", "ma_qua", "voucher_code"]), parseString(input.giftCode));
+  assign(pickExistingColumn(columns, ["points_cost", "cost", "diem_doi"]), input.pointsCost ?? null);
+  assign(pickExistingColumn(columns, ["milestone_pct", "milestone", "moc_tien_do"]), input.milestonePct ?? null);
+  assign(pickExistingColumn(columns, ["status", "trang_thai"]), "pending_pickup");
+  assign(
+    pickExistingColumn(columns, ["note", "ghi_chu", "huong_dan"]),
+    input.note || "Tới quầy đổi quà và mở QR code cho nhân viên quét để nhận quà.",
+  );
+  assign(columns.has("create_time") ? "create_time" : null, now);
+  assign(columns.has("update_time") ? "update_time" : null, now);
+
+  const insertColumns = values.map(([column]) => `\`${column}\``).join(", ");
+  const placeholders = values.map(() => "?").join(", ");
+  const params = values.map(([, value]) => value);
+  const updateColumns = values
+    .map(([column]) => column)
+    .filter((column) => !["created_at", "created_by", "create_time", "nc_order", "zid", "gift_type", "gift_id"].includes(column));
+  const updateSql =
+    updateColumns.length > 0
+      ? updateColumns.map((column) => `\`${column}\` = VALUES(\`${column}\`)`).join(",\n      ")
+      : "`gift_id` = `gift_id`";
+
+  await db.query(
+    `
+    INSERT INTO gifts
+      (${insertColumns})
+    VALUES (${placeholders})
+    ON DUPLICATE KEY UPDATE
+      ${updateSql}
+    `,
+    params,
+  );
+}
+
+async function ensureMiniAppCheckinBoothTable(executor: SqlExecutor = getDB()): Promise<void> {
+  await executor.query(`
+    CREATE TABLE IF NOT EXISTS \`${MINIAPP_CHECKIN_BOOTH_TABLE}\` (
+      id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+      zid VARCHAR(191) NOT NULL,
+      ordercode VARCHAR(191) NULL,
+      checkin_code VARCHAR(191) NOT NULL,
+      time_checkin DATETIME NULL,
+      PRIMARY KEY (id),
+      UNIQUE KEY checkin_booth_user_code_unique (zid, checkin_code),
+      KEY checkin_booth_ordercode_idx (ordercode)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+  `);
+}
+
+function getBoothTypeForMission(missionId: string): "regular" | "extra" | null {
+  const normalizedMissionId = normalizeMissionId(missionId).toLowerCase();
+
+  if (/-d1-2$/.test(normalizedMissionId) || /-d2-7$/.test(normalizedMissionId)) {
+    return "regular";
+  }
+
+  if (/-d1-7$/.test(normalizedMissionId)) {
+    return "extra";
+  }
+
+  return null;
+}
+
+async function recordMiniAppBoothCheckin(
+  executor: SqlExecutor,
+  input: MiniAppBoothCheckinInput,
+): Promise<void> {
+  await ensureMiniAppCheckinBoothTable(executor);
+
+  const columns = await getTableColumnSet(MINIAPP_CHECKIN_BOOTH_TABLE, executor);
+  const now = new Date();
+  const values: Array<[string, unknown]> = [];
+  const identity = input.identity;
+  const assign = (column: string | null, value: unknown): void => {
+    if (column) {
+      values.push([column, value]);
+    }
+  };
+
+  assign(columns.has("zid") ? "zid" : null, parseString(identity.zid));
+  assign(columns.has("ordercode") ? "ordercode" : null, parseString(input.orderCode));
+  assign(columns.has("checkin_code") ? "checkin_code" : null, input.giftCode);
+  assign(columns.has("time_checkin") ? "time_checkin" : null, now);
+
+  if (values.length === 0) {
+    return;
+  }
+
+  const insertColumns = values.map(([column]) => `\`${column}\``).join(", ");
+  const placeholders = values.map(() => "?").join(", ");
+  const params = values.map(([, value]) => value);
+  const updateColumns = values
+    .map(([column]) => column)
+    .filter((column) => !["zid", "checkin_code"].includes(column));
+  const updateSql =
+    updateColumns.length > 0
+      ? updateColumns.map((column) => `\`${column}\` = VALUES(\`${column}\`)`).join(",\n      ")
+      : "`checkin_code` = `checkin_code`";
+
+  await executor.query(
+    `
+    INSERT INTO \`${MINIAPP_CHECKIN_BOOTH_TABLE}\`
+      (${insertColumns})
+    VALUES (${placeholders})
+    ON DUPLICATE KEY UPDATE
+      ${updateSql}
+    `,
+    params,
+  );
 }
 
 function uniqueMissionIdArray(values: string[]): string[] {
@@ -797,7 +1009,7 @@ async function listGiftCodeMissionCountsByUser(zid: string): Promise<Record<stri
 
   return rows.reduce<Record<string, number>>((accumulator, row) => {
     const missionId = normalizeMissionId(row.mission_id);
-    if (!missionId) {
+    if (!missionId || !Object.prototype.hasOwnProperty.call(MISSION_POINT_MAP, missionId)) {
       return accumulator;
     }
 
@@ -1565,6 +1777,9 @@ export async function redeemMiniAppGiftCodeMission(
   const normalizedMissionId = normalizeMissionId(missionId);
   const normalizedGiftCode = normalizeMiniAppGiftCode(giftCode);
   const isRepeatableMission = isMiniAppRepeatableGiftCodeMissionId(normalizedMissionId);
+  const sharedRegularBoothLockMissionId =
+    buildMiniAppSharedRegularBoothLockMissionId(normalizedMissionId);
+  const boothType = getBoothTypeForMission(normalizedMissionId);
   const repeatableMissionLimit = getMiniAppRepeatableGiftCodeMissionLimit(normalizedMissionId);
   const repeatableMissionBonuses = getMiniAppRepeatableGiftCodeMissionBonuses(normalizedMissionId);
 
@@ -1573,22 +1788,22 @@ export async function redeemMiniAppGiftCodeMission(
   }
 
   if (!normalizedGiftCode) {
-    throw new Error("Giftcode khong duoc de trong");
+    throw new Error("QR code khong duoc de trong");
   }
 
   const giftCodeEntry = resolveMiniAppDay1GiftCodeEntry(normalizedGiftCode, normalizedMissionId);
   if (!giftCodeEntry) {
-    throw new Error("Giftcode khong hop le hoac khong ap dung cho nhiem vu nay");
+    throw new Error("QR code không hợp lệ hoặc đã được sử dụng cho nhiệm vụ này");
   }
 
   const baseAwardedPoints = Math.max(parseNumber(giftCodeEntry.points), 0);
   if (baseAwardedPoints <= 0 && repeatableMissionBonuses.length === 0) {
-    throw new Error("Giftcode chua duoc cau hinh diem thuong");
+    throw new Error("QR code này không thể sử dụng");
   }
 
   const current = await ensureMiniAppRewardState(identity, { orderCode: options?.orderCode });
   if (!isRepeatableMission && current.completedIds.includes(normalizedMissionId)) {
-    throw new Error("Nhiem vu nay da duoc hoan thanh");
+    throw new Error("Nhiệm vụ này đã được hoàn thành");
   }
 
   await ensureMiniAppGiftCodeRedemptionTable();
@@ -1601,23 +1816,34 @@ export async function redeemMiniAppGiftCodeMission(
   if (existingMissionGiftCodeRedemption) {
     throw new Error(
       isRepeatableMission
-        ? "Ban da quet gian hang nay trong ngay"
-        : "Tai khoan cua ban da su dung giftcode nay",
+        ? "Bạn đã quét gian hàng này trước đó"
+        : "Tài khoản của bạn đã sử dụng QR này",
     );
+  }
+
+  if (sharedRegularBoothLockMissionId) {
+    const existingSharedRegularBoothLock = await findGiftCodeRedemptionByUserMissionGiftCode(
+      identity.zid,
+      sharedRegularBoothLockMissionId,
+      normalizedGiftCode,
+    );
+    if (existingSharedRegularBoothLock) {
+      throw new Error("Bạn đã quét gian hàng này trước đó");
+    }
   }
 
   const existingMissionRedemption = isRepeatableMission
     ? null
     : await findGiftCodeRedemptionByUserMission(identity.zid, normalizedMissionId);
   if (existingMissionRedemption) {
-    throw new Error("Nhiem vu nay da duoc ghi nhan giftcode");
+    throw new Error("Nhiệm vụ này đã ghi nhận QR code này");
   }
 
   const currentMissionRedemptionCount = isRepeatableMission
     ? await countGiftCodeRedemptionsByUserMission(identity.zid, normalizedMissionId)
     : 0;
   if (isRepeatableMission && currentMissionRedemptionCount >= repeatableMissionLimit) {
-    throw new Error(`Ban da dat gioi han ${repeatableMissionLimit} gian hang trong ngay`);
+    throw new Error(`Bạn đã đạt giới hạn ${repeatableMissionLimit} gian hàng của nhiệm vụ`);
   }
 
   const db = getDB();
@@ -1638,8 +1864,8 @@ export async function redeemMiniAppGiftCodeMission(
     if (transactionExistingMissionGiftCode) {
       throw new Error(
         isRepeatableMission
-          ? "Ban da quet gian hang nay trong ngay"
-          : "Tai khoan cua ban da su dung giftcode nay",
+          ? "Bạn đã quét gian hàng này trước đó"
+          : "Bạn đã nhận thưởng từ QR code này trước đó",
       );
     }
 
@@ -1669,6 +1895,28 @@ export async function redeemMiniAppGiftCodeMission(
         orderCode: options?.orderCode,
         identity,
       });
+
+      if (boothType) {
+        await recordMiniAppBoothCheckin(connection, {
+          identity,
+          orderCode: options?.orderCode,
+          giftCode: normalizedGiftCode,
+        });
+      }
+
+      if (sharedRegularBoothLockMissionId) {
+        const sharedRegularBoothLockInserted = await insertGiftCodeRedemptionIfAbsent(connection, {
+          giftCode: normalizedGiftCode,
+          missionId: sharedRegularBoothLockMissionId,
+          points: 0,
+          orderCode: options?.orderCode,
+          identity,
+        });
+
+        if (!sharedRegularBoothLockInserted) {
+          throw new Error("Bạn đã quét gian hàng này trước đó");
+        }
+      }
 
       const nextMissionRedemptionCount = transactionMissionRedemptionCount + 1;
       const reachedBonus = repeatableMissionBonuses.find(
@@ -1723,8 +1971,8 @@ export async function redeemMiniAppGiftCodeMission(
     if (String((error as { code?: string } | null)?.code ?? "") === "ER_DUP_ENTRY") {
       throw new Error(
         isRepeatableMission
-          ? "Giftcode nay da duoc quet trong ngay hoac ban da dat gioi han gian hang"
-          : "Giftcode nay da duoc tai khoan cua ban su dung hoac nhiem vu da duoc ghi nhan",
+          ? "QR code đã được quét hoặc bạn đã đạt giới hạn quét gian hàng"
+          : "QR code này đã được bạn quét trước đó",
       );
     }
 
@@ -1769,6 +2017,8 @@ export async function updateMiniAppVote(
     throw new Error("categoryId and brandId are required");
   }
 
+  await trace.step("award_gate_check", () => assertAwardGateOpen());
+
   const current = await trace.step("ensure_reward_state", () =>
     ensureMiniAppRewardState(identity, { orderCode }),
   );
@@ -1785,12 +2035,23 @@ export async function updateMiniAppVote(
     throw new Error("Vote brand is not supported");
   }
 
-  const nextVotes = { ...current.votes };
-  if (nextVotes[normalizedCategoryId] === normalizedBrandId) {
-    delete nextVotes[normalizedCategoryId];
-  } else {
-    nextVotes[normalizedCategoryId] = normalizedBrandId;
+  const existingBrandId = parseString(current.votes[normalizedCategoryId]);
+  if (existingBrandId) {
+    if (existingBrandId === normalizedBrandId) {
+      trace.done({
+        selectedBrandId: shortIdForLogs(existingBrandId),
+        activeVoteCount: Object.keys(current.votes).length,
+        mode: "reuse_existing_vote",
+      });
+      return buildRewardStatePayloadWithCounts(current);
+    }
+
+    trace.mark("category_already_voted");
+    throw new Error("Bạn đã bình chọn cho hạng mục này");
   }
+
+  const nextVotes = { ...current.votes };
+  nextVotes[normalizedCategoryId] = normalizedBrandId;
 
   await trace.step("sync_vote_record", () =>
     syncMiniAppVoteRecord(identity, parseString(orderCode), candidateBrandIds, nextVotes[normalizedCategoryId] ?? null),
@@ -1820,6 +2081,16 @@ export async function claimMiniAppVoucher(
 
   const current = await ensureMiniAppRewardState(identity, options);
   if (current.claimedFreeVoucherIds.includes(voucher.id)) {
+    await recordMiniAppGift({
+      identity,
+      orderCode: options?.orderCode,
+      giftType: "free_voucher",
+      giftId: voucher.id,
+      giftName: voucher.discount,
+      giftBrand: voucher.brand,
+      giftCode: voucher.code,
+      pointsCost: 0,
+    });
     return buildRewardStatePayloadWithCounts(current);
   }
 
@@ -1827,6 +2098,16 @@ export async function claimMiniAppVoucher(
     claimedFreeVoucherIds: [...current.claimedFreeVoucherIds, voucher.id],
   });
   await saveMiniAppRewardState(nextState);
+  await recordMiniAppGift({
+    identity,
+    orderCode: options?.orderCode,
+    giftType: "free_voucher",
+    giftId: voucher.id,
+    giftName: voucher.discount,
+    giftBrand: voucher.brand,
+    giftCode: voucher.code,
+    pointsCost: 0,
+  });
   return buildRewardStatePayloadWithCounts(nextState);
 }
 
@@ -1844,6 +2125,16 @@ export async function redeemMiniAppVoucher(
 
   const current = await ensureMiniAppRewardState(identity, options);
   if (current.redeemedVoucherIds.includes(voucher.id)) {
+    await recordMiniAppGift({
+      identity,
+      orderCode: options?.orderCode,
+      giftType: "voucher",
+      giftId: voucher.id,
+      giftName: voucher.discount,
+      giftBrand: voucher.brand,
+      giftCode: voucher.code,
+      pointsCost: voucher.isGrand ? 0 : Number(voucher.cost ?? 0),
+    });
     return buildRewardStatePayloadWithCounts(current);
   }
 
@@ -1866,6 +2157,16 @@ export async function redeemMiniAppVoucher(
     spentPoints: nextSpentPoints,
   });
   await saveMiniAppRewardState(nextState);
+  await recordMiniAppGift({
+    identity,
+    orderCode: options?.orderCode,
+    giftType: "voucher",
+    giftId: voucher.id,
+    giftName: voucher.discount,
+    giftBrand: voucher.brand,
+    giftCode: voucher.code,
+    pointsCost: voucher.isGrand ? 0 : voucherCost,
+  });
   return buildRewardStatePayloadWithCounts(nextState);
 }
 
@@ -1882,7 +2183,26 @@ export async function claimMiniAppMilestone(
   }
 
   const current = await ensureMiniAppRewardState(identity, options);
+  const milestoneMeta = MILESTONE_GIFT_META[normalizedPct] ?? {
+    title: `Mốc ${normalizedPct}%`,
+    brand: "Beauty Summit",
+    codePrefix: `BS${normalizedPct}`,
+  };
+  const normalizedOrderCode = parseString(options?.orderCode).toUpperCase();
+  const milestoneGiftCode = normalizedOrderCode ? `${milestoneMeta.codePrefix}-${normalizedOrderCode}` : null;
+
   if (current.claimedMilestonePcts.includes(normalizedPct)) {
+    await recordMiniAppGift({
+      identity,
+      orderCode: options?.orderCode,
+      giftType: "milestone",
+      giftId: `milestone-${normalizedPct}`,
+      giftName: milestoneMeta.title,
+      giftBrand: milestoneMeta.brand,
+      giftCode: milestoneGiftCode,
+      pointsCost: 0,
+      milestonePct: normalizedPct,
+    });
     return buildRewardStatePayloadWithCounts(current);
   }
 
@@ -1890,6 +2210,17 @@ export async function claimMiniAppMilestone(
     claimedMilestonePcts: [...current.claimedMilestonePcts, normalizedPct],
   });
   await saveMiniAppRewardState(nextState);
+  await recordMiniAppGift({
+    identity,
+    orderCode: options?.orderCode,
+    giftType: "milestone",
+    giftId: `milestone-${normalizedPct}`,
+    giftName: milestoneMeta.title,
+    giftBrand: milestoneMeta.brand,
+    giftCode: milestoneGiftCode,
+    pointsCost: 0,
+    milestonePct: normalizedPct,
+  });
   return buildRewardStatePayloadWithCounts(nextState);
 }
 
@@ -2041,4 +2372,3 @@ export async function deleteMiniAppVoucher(voucherId: string): Promise<number> {
   clearMiniAppVoucherCache();
   return result.affectedRows;
 }
-

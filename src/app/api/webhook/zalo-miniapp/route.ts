@@ -107,7 +107,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(
       {
         ok: true,
-        message: "Consent revoked and related data removed",
+        message: "Đồng ý thu hồi và xóa dữ liệu liên quan đến người dùng",
         deleted,
       },
       { status: 200 },

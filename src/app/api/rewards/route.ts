@@ -2,6 +2,7 @@
 import { NextRequest, NextResponse } from "next/server";
 
 import { createApiTrace, maskPhoneForLogs, shortIdForLogs } from "@/lib/api-observability";
+import { getAwardGateState } from "@/lib/award-settings";
 import { applyCorsHeaders, buildCorsHeaders } from "@/lib/cors";
 import {
   claimMiniAppMilestone,
@@ -71,19 +72,19 @@ export async function POST(request: NextRequest) {
 
     if (!identity.zid || !identity.phone) {
       trace.mark("invalid_request");
-      return jsonWithCors(request, { message: "id and phone are required" }, { status: 400 });
+      return jsonWithCors(request, { message: "id và điện thoại là bắt buộc" }, { status: 400 });
     }
 
     const hasAccess = await trace.step("access_check", () => hasMiniAppUserAccess(identity.zid, identity.phone));
     if (!hasAccess) {
       trace.mark("access_denied");
-      return jsonWithCors(request, { message: "Mini app account is not authorized" }, { status: 403 });
+      return jsonWithCors(request, { message: "Tài khoản Mini app không được ủy quyền" }, { status: 403 });
     }
 
     if (action === "load") {
       const orderCode = requireString(body.orderCode);
-      const [rewards, voteCategories] = await trace.step("load_bundle", () =>
-        Promise.all([loadMiniAppRewards(identity, { orderCode }), listVoteCategories()]),
+      const [rewards, voteCategories, voteGate] = await trace.step("load_bundle", () =>
+        Promise.all([loadMiniAppRewards(identity, { orderCode }), listVoteCategories(), getAwardGateState()]),
       );
       trace.done({
         bpointVoucherCount: rewards.vouchers.bpoint.length,
@@ -96,6 +97,7 @@ export async function POST(request: NextRequest) {
           data: {
             ...rewards,
             voteCategories,
+            voteGate,
           },
         },
         { status: 200 },
@@ -106,7 +108,7 @@ export async function POST(request: NextRequest) {
       const missionId = requireString(body.missionId);
       if (!missionId) {
         trace.mark("missing_mission_id");
-        return jsonWithCors(request, { message: "missionId is required" }, { status: 400 });
+        return jsonWithCors(request, { message: "Bắt buộc có với mã định danh" }, { status: 400 });
       }
 
       const state = await trace.step("complete_mission", () =>
@@ -126,7 +128,7 @@ export async function POST(request: NextRequest) {
       const voucherId = requireString(body.voucherId);
       if (!voucherId) {
         trace.mark("missing_voucher_id");
-        return jsonWithCors(request, { message: "voucherId is required" }, { status: 400 });
+        return jsonWithCors(request, { message: "Mã voucher là bắt buộc" }, { status: 400 });
       }
 
       const state = await trace.step("claim_voucher", () =>
@@ -144,7 +146,7 @@ export async function POST(request: NextRequest) {
       const voucherId = requireString(body.voucherId);
       if (!voucherId) {
         trace.mark("missing_voucher_id");
-        return jsonWithCors(request, { message: "voucherId is required" }, { status: 400 });
+        return jsonWithCors(request, { message: "Mã voucher là bắt buộc" }, { status: 400 });
       }
 
       const state = await trace.step("redeem_voucher", () =>
@@ -195,10 +197,10 @@ export async function POST(request: NextRequest) {
     }
 
     trace.mark("unsupported_action");
-    return jsonWithCors(request, { message: "Action is not supported" }, { status: 400 });
+    return jsonWithCors(request, { message: "Hành động này không được hỗ trợ." }, { status: 400 });
   } catch (error) {
     console.error("Mini app rewards error:", error);
-    const message = error instanceof Error ? error.message : "Unable to update rewards";
+    const message = error instanceof Error ? error.message : "Không thể cập nhật phần thưởng";
     return jsonWithCors(request, { message }, { status: 500 });
   }
 }

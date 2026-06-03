@@ -33,7 +33,7 @@ export async function POST(request: NextRequest) {
     const name = normalizeMiniAppName(body.name);
 
     if (!zid || !phone || !avatar) {
-      return jsonWithCors(request, { message: "id, phone va avatar la bat buoc" }, { status: 400 });
+      return jsonWithCors(request, { message: "id, điện thoại là bắt buộc" }, { status: 400 });
     }
 
     const trace = createApiTrace("auth/zalo-miniapp", {
@@ -72,7 +72,7 @@ export async function POST(request: NextRequest) {
     return jsonWithCors(
       request,
       {
-        message: "Dong bo tai khoan mini app thanh cong",
+        message: "Kết nối miniapp thành công",
         user: {
           userId: userRecord.id,
           zid: userRecord.zid,
@@ -87,6 +87,6 @@ export async function POST(request: NextRequest) {
     );
   } catch (error) {
     console.error("Zalo mini app auth error:", error);
-    return jsonWithCors(request, { message: "Co loi xay ra khi dong bo tai khoan mini app" }, { status: 500 });
+    return jsonWithCors(request, { message: "Có lỗi xảy ra khi đồng bộ tài khoản" }, { status: 500 });
   }
 }

@@ -5,7 +5,7 @@ import type { ResultSetHeader, RowDataPacket } from "mysql2/promise";
 
 import { createApiTrace } from "@/lib/api-observability";
 import { getDB } from "@/lib/db";
-import { isDataImageUrl, normalizeStoredImageUrl } from "@/lib/image-storage";
+import { normalizeStoredImageUrl } from "@/lib/image-storage";
 
 type VoteOptionRow = RowDataPacket & {
   id: number;
@@ -166,13 +166,8 @@ async function queryVoteOptionRows(): Promise<VoteOptionRow[]> {
       let nextLogoUrl = currentLogoUrl;
       let nextLink = currentLink;
 
-      if (isDataImageUrl(currentLogoUrl)) {
-        nextLogoUrl = await normalizeStoredImageUrl(currentLogoUrl, "vote-logo");
-      }
-
-      if (isDataImageUrl(currentLink)) {
-        nextLink = await normalizeStoredImageUrl(currentLink, "vote-product");
-      }
+      nextLogoUrl = await normalizeStoredImageUrl(currentLogoUrl, "vote-logo");
+      nextLink = await normalizeStoredImageUrl(currentLink, "vote-product");
 
       if (nextLogoUrl === currentLogoUrl && nextLink === currentLink) {
         return row;

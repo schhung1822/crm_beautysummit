@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 
 import { createApiTrace, maskPhoneForLogs, shortIdForLogs } from "@/lib/api-observability";
+import { getAwardGateState } from "@/lib/award-settings";
 import { applyCorsHeaders, buildCorsHeaders } from "@/lib/cors";
 import { loadMiniAppRewards } from "@/lib/miniapp-rewards";
 import { mapMiniAppTicketRow, queryMiniAppTicketRowsByPhone } from "@/lib/miniapp-tickets";
@@ -16,7 +17,7 @@ const MINIAPP_CHECKIN_LOCATION_LABEL = "VEC Đông Anh - Cổng chính";
 async function getActiveCheckinLocations() {
   const db = getDB();
   const [rows] = await db.query(
-    "SELECT id, name, allowed_tiers AS allowedTiers, image_url AS imageUrl, prerequisite, is_active AS isActive, event_date AS eventDate FROM checkin_locations WHERE is_active = 1 ORDER BY nc_order ASC, id ASC"
+    "SELECT id, location_code AS locationCode, name, allowed_tiers AS allowedTiers, image_url AS imageUrl, prerequisite, is_active AS isActive, event_date AS eventDate FROM checkin_locations WHERE is_active = 1 ORDER BY nc_order ASC, id ASC"
   );
   const sanitizedRows = await Promise.all(
     (rows as any[]).map(async (row) => {
@@ -45,6 +46,7 @@ async function getActiveCheckinLocations() {
 
   return sanitizedRows.map((r) => ({
     id: String(r.id),
+    locationCode: r.locationCode ? String(r.locationCode) : null,
     name: r.name,
     allowedTiers: String(r.allowedTiers || "")
       .split(",")
@@ -132,7 +134,7 @@ async function handleBootstrap(
     }),
   );
 
-  const [ticketRows, rewards, voteCategories, checkinZones, eventDay1] = await trace.step("load_bundle", () =>
+  const [ticketRows, rewards, voteCategories, voteGate, checkinZones, eventDay1] = await trace.step("load_bundle", () =>
     Promise.all([
       queryMiniAppTicketRowsByPhone(phone),
       loadMiniAppRewards({
@@ -144,6 +146,7 @@ async function handleBootstrap(
         orderCode: String(body.orderCode ?? "").trim(),
       }),
       listVoteCategories(),
+      getAwardGateState(),
       getActiveCheckinLocations(),
       getEventDay1Date(),
     ]),
@@ -169,6 +172,7 @@ async function handleBootstrap(
         rewards: {
           ...rewards,
           voteCategories,
+          voteGate,
         },
       },
     },

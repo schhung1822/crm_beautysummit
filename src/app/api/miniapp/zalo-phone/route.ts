@@ -16,11 +16,6 @@ type ZaloPhoneGraphResponse = {
   message?: string;
 };
 
-type ZaloPhoneLookupResult = {
-  message: string;
-  phone: string | null;
-};
-
 const getZaloMiniAppSecretKeyCandidates = (): string[] => {
   const candidates = [
     process.env.ZALO_MINIAPP_SECRET_KEY,
@@ -35,44 +30,6 @@ const getZaloMiniAppSecretKeyCandidates = (): string[] => {
 
 const jsonWithCors = (request: NextRequest, body: unknown, init?: ResponseInit): NextResponse =>
   applyCorsHeaders(request, NextResponse.json(body, init), ["GET", "POST", "OPTIONS"]);
-
-async function readGraphResponse(response: Response): Promise<ZaloPhoneGraphResponse | null> {
-  try {
-    return (await response.json()) as ZaloPhoneGraphResponse;
-  } catch {
-    return null;
-  }
-}
-
-async function lookupPhoneBySecretKey(
-  accessToken: string,
-  code: string,
-  secretKey: string,
-): Promise<ZaloPhoneLookupResult> {
-  const response = await fetch("https://graph.zalo.me/v2.0/me/info", {
-    method: "GET",
-    headers: {
-      access_token: accessToken,
-      code,
-      secret_key: secretKey,
-    },
-    cache: "no-store",
-  });
-
-  const graphPayload = await readGraphResponse(response);
-  const phoneNumber = String(graphPayload?.data?.number ?? "").trim();
-  if (response.ok && graphPayload?.error === 0 && phoneNumber) {
-    return {
-      message: "",
-      phone: phoneNumber,
-    };
-  }
-
-  return {
-    message: graphPayload?.message ?? "Unable to resolve Zalo phone number",
-    phone: null,
-  };
-}
 
 const resolveZaloPhone = async (
   request: NextRequest,
@@ -101,12 +58,30 @@ const resolveZaloPhone = async (
   let lastMessage = "Unable to resolve Zalo phone number";
 
   for (const secretKey of secretKeyCandidates) {
-    const lookupResult = await lookupPhoneBySecretKey(accessToken, code, secretKey);
-    if (lookupResult.phone) {
-      return jsonWithCors(request, { data: { phone: lookupResult.phone } }, { status: 200 });
+    const response = await fetch("https://graph.zalo.me/v2.0/me/info", {
+      method: "GET",
+      headers: {
+        access_token: accessToken,
+        code,
+        secret_key: secretKey,
+      },
+      cache: "no-store",
+    });
+
+    let graphPayload: ZaloPhoneGraphResponse | null = null;
+
+    try {
+      graphPayload = (await response.json()) as ZaloPhoneGraphResponse;
+    } catch {
+      graphPayload = null;
     }
 
-    lastMessage = lookupResult.message;
+    const phoneNumber = String(graphPayload?.data?.number ?? "").trim();
+    if (response.ok && graphPayload?.error === 0 && phoneNumber) {
+      return jsonWithCors(request, { data: { phone: phoneNumber } }, { status: 200 });
+    }
+
+    lastMessage = graphPayload?.message || "Unable to resolve Zalo phone number";
   }
 
   return jsonWithCors(request, { message: lastMessage }, { status: 502 });

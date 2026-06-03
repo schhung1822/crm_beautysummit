@@ -6,10 +6,10 @@ import path from "node:path";
 import { NextRequest, NextResponse } from "next/server";
 
 import { applyCorsHeaders } from "@/lib/cors";
+import { buildManagedImageUrl } from "@/lib/image-storage";
 
 export const runtime = "nodejs";
 
-const DEFAULT_PUBLIC_ORIGIN = "https://beautysummit.eventhub.vn";
 const MAX_IMAGE_BYTES = 8 * 1024 * 1024;
 const MIME_EXTENSION_MAP: Record<string, string> = {
   "image/jpeg": "jpg",
@@ -21,14 +21,10 @@ const jsonWithCors = (request: NextRequest, body: unknown, init?: ResponseInit):
   applyCorsHeaders(request, NextResponse.json(body, init), ["POST", "OPTIONS"]);
 
 const resolvePublicOrigin = (request: NextRequest): string =>
-  (
-    process.env.MINIAPP_PUBLIC_BASE_URL ??
-    process.env.NEXT_PUBLIC_APP_URL ??
-    DEFAULT_PUBLIC_ORIGIN ??
-    request.nextUrl.origin
-  ).replace(/\/+$/, "");
-
-const buildInvitationImagePath = (fileName: string): string => `/images/invitation/${encodeURIComponent(fileName)}`;
+  (process.env.MINIAPP_PUBLIC_BASE_URL ?? process.env.NEXT_PUBLIC_APP_URL ?? request.nextUrl.origin).replace(
+    /\/+$/,
+    "",
+  );
 
 export async function OPTIONS(request: NextRequest) {
   return applyCorsHeaders(request, new NextResponse(null, { status: 204 }), ["POST", "OPTIONS"]);
@@ -52,26 +48,26 @@ export async function POST(request: NextRequest) {
       return jsonWithCors(request, { error: "Invitation image is too large" }, { status: 400 });
     }
 
-    const uploadDir = path.join(process.cwd(), "public", "images", "invitation");
+    const uploadDir = path.join(process.cwd(), "public", "images");
     if (!existsSync(uploadDir)) {
       await mkdir(uploadDir, { recursive: true });
     }
 
     const filename = `invitation-card-${Date.now()}-${randomUUID().replace(/-/g, "").slice(0, 10)}.${extension}`;
     const filePath = path.join(uploadDir, filename);
-    await writeFile(filePath, Buffer.from(await file.arrayBuffer()));
+    const buffer = Buffer.from(await file.arrayBuffer());
+    await writeFile(filePath, buffer);
 
-    const imagePath = buildInvitationImagePath(filename);
-    const imageUrl = new URL(imagePath, resolvePublicOrigin(request)).href;
+    const pathUrl = buildManagedImageUrl(filename);
+    const url = new URL(pathUrl, resolvePublicOrigin(request)).href;
 
     return jsonWithCors(request, {
       data: {
-        path: imagePath,
-        url: imageUrl,
+        path: pathUrl,
+        url,
       },
     });
   } catch (error) {
-    console.error("Invitation card upload error:", error);
     const message = error instanceof Error ? error.message : "Unable to upload invitation image";
     return jsonWithCors(request, { error: message }, { status: 500 });
   }

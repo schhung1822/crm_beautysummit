@@ -7,6 +7,7 @@ import {
 // Shared giftcodes are maintained in miniapp-shared-giftcodes.ts.
 
 type MiniAppGiftCodeMissionSuffix = "d1-2" | "d1-3" | "d1-4" | "d1-7" | "d2-6" | "d2-7";
+type MiniAppSharedRegularBoothMissionSuffix = "d1-2" | "d2-7";
 type MiniAppUploadMissionSuffix = "d1-6";
 type MiniAppRepeatableGiftCodeMissionBonus = {
   threshold: number;
@@ -21,6 +22,10 @@ const GIFTCODE_MISSION_SUFFIXES = new Set<MiniAppGiftCodeMissionSuffix>([
   "d1-4",
   "d1-7",
   "d2-6",
+  "d2-7",
+]);
+const SHARED_REGULAR_BOOTH_MISSION_SUFFIXES = new Set<MiniAppSharedRegularBoothMissionSuffix>([
+  "d1-2",
   "d2-7",
 ]);
 
@@ -81,6 +86,27 @@ export function isMiniAppRepeatableGiftCodeMissionId(missionId: string): boolean
   return REPEATABLE_GIFTCODE_MISSION_LIMITS.has(
     missionIdToSuffix(missionId) as MiniAppGiftCodeMissionSuffix,
   );
+}
+
+export function isMiniAppSharedRegularBoothMissionId(missionId: string): boolean {
+  return SHARED_REGULAR_BOOTH_MISSION_SUFFIXES.has(
+    missionIdToSuffix(missionId) as MiniAppSharedRegularBoothMissionSuffix,
+  );
+}
+
+export function buildMiniAppSharedRegularBoothLockMissionId(missionId: string): string {
+  if (!isMiniAppSharedRegularBoothMissionId(missionId)) {
+    return "";
+  }
+
+  const normalizedMissionId = parseString(missionId);
+  const separatorIndex = normalizedMissionId.indexOf("-");
+  if (separatorIndex < 0) {
+    return "";
+  }
+
+  const missionTier = parseString(normalizedMissionId.slice(0, separatorIndex)).toUpperCase();
+  return missionTier ? `${missionTier}-regular-booth-lock` : "";
 }
 
 export function getMiniAppRepeatableGiftCodeMissionLimit(missionId: string): number {

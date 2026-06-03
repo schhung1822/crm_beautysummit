@@ -62,7 +62,7 @@ export default function AccountPageClient({ initialMembers }: { initialMembers: 
       const data = await response.json();
 
       if (response.ok) {
-        toast.success(data.message || "Táº¡o tÃ i khoáº£n thÃ nh cÃ´ng");
+        toast.success(data.message || "Tạo tài khoản thành công");
         // Reset form
         setCreateForm({
           username: "",
@@ -74,10 +74,10 @@ export default function AccountPageClient({ initialMembers }: { initialMembers: 
         });
         router.refresh();
       } else {
-        toast.error(data.message || "CÃ³ lá»—i xáº£y ra");
+        toast.error(data.message || "Có lỗi xảy ra");
       }
     } catch (error) {
-      toast.error("KhÃ´ng thá»ƒ káº¿t ná»‘i Ä‘áº¿n server");
+      toast.error("Không tìm thấy tài khoản nào?");
     } finally {
       setIsLoading(false);
     }
@@ -232,7 +232,7 @@ export default function AccountPageClient({ initialMembers }: { initialMembers: 
                       <Input
                         id="confirmPassword"
                         type="password"
-                        placeholder="Nháº­p láº¡i máº­t kháº©u má»›i"
+                        placeholder="Nhập lại mật khẩu mới"
                         value={passwordForm.confirmPassword}
                         onChange={(e) => setPasswordForm({ ...passwordForm, confirmPassword: e.target.value })}
                         required

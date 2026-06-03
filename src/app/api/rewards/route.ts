@@ -48,6 +48,38 @@ function requireString(value: unknown): string {
   return String(value ?? "").trim();
 }
 
+const EVENT_DAY1_DATE_KEY = "2026-06-19";
+const EVENT_DAY2_DATE_KEY = "2026-06-20";
+const EVENT_TIME_ZONE = "Asia/Ho_Chi_Minh";
+
+function getVietnamDateKey(date = new Date()): string {
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    day: "2-digit",
+    month: "2-digit",
+    timeZone: EVENT_TIME_ZONE,
+    year: "numeric",
+  }).formatToParts(date);
+  const value = (type: Intl.DateTimeFormatPartTypes): string =>
+    parts.find((part) => part.type === type)?.value ?? "";
+
+  return `${value("year")}-${value("month")}-${value("day")}`;
+}
+
+function getMissionActionLockMessage(missionId: string): string {
+  const normalizedMissionId = missionId.trim().toLowerCase();
+  const today = getVietnamDateKey();
+
+  if (/-d1-vote$/.test(normalizedMissionId) || /-d2-/.test(normalizedMissionId)) {
+    return today === EVENT_DAY2_DATE_KEY ? "" : "Nhiệm vụ ngày 2 chỉ có thể thực hiện vào ngày 20.06.2026";
+  }
+
+  if (/-d1-/.test(normalizedMissionId)) {
+    return today === EVENT_DAY1_DATE_KEY ? "" : "Nhiệm vụ ngày 1 chỉ có thể thực hiện vào ngày 19.06.2026";
+  }
+
+  return "";
+}
+
 export async function OPTIONS(request: NextRequest) {
   return new NextResponse(null, {
     status: 204,
@@ -109,6 +141,12 @@ export async function POST(request: NextRequest) {
       if (!missionId) {
         trace.mark("missing_mission_id");
         return jsonWithCors(request, { message: "Bắt buộc có với mã định danh" }, { status: 400 });
+      }
+
+      const actionLockMessage = getMissionActionLockMessage(missionId);
+      if (actionLockMessage) {
+        trace.mark("mission_date_locked");
+        return jsonWithCors(request, { message: actionLockMessage }, { status: 403 });
       }
 
       const state = await trace.step("complete_mission", () =>
@@ -185,6 +223,12 @@ export async function POST(request: NextRequest) {
       if (!categoryId || !brandId) {
         trace.mark("missing_vote_fields");
         return jsonWithCors(request, { message: "categoryId and brandId are required" }, { status: 400 });
+      }
+
+      const actionLockMessage = getMissionActionLockMessage("RUBY-d1-vote");
+      if (actionLockMessage) {
+        trace.mark("mission_date_locked");
+        return jsonWithCors(request, { message: actionLockMessage }, { status: 403 });
       }
 
       const state = await trace.step("toggle_vote", () =>

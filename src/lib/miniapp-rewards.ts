@@ -878,6 +878,7 @@ async function persistRewardState(executor: SqlExecutor, nextState: StoredReward
     `
     UPDATE miniapp_user_reward_state
     SET
+      zid = ?,
       phone = ?,
       name = ?,
       avatar = ?,
@@ -897,6 +898,7 @@ async function persistRewardState(executor: SqlExecutor, nextState: StoredReward
     LIMIT 1
     `,
     [
+      nextState.zid,
       nextState.phone,
       nextState.name,
       nextState.avatar,
@@ -1304,9 +1306,10 @@ async function syncMiniAppVoteRecord(
   );
 }
 
-async function findRewardStateRow(zid: string): Promise<StoredRewardState | null> {
+async function findRewardStateRow(zid: string, phone?: string): Promise<StoredRewardState | null> {
   const db = getDB();
   await ensureRewardStateOrderCodeColumn(db);
+  const normalizedPhone = toDatabasePhone(phone) ?? "";
   const [rows] = await db.query<MiniAppRewardStateRow[]>(
     `
     SELECT
@@ -1333,7 +1336,44 @@ async function findRewardStateRow(zid: string): Promise<StoredRewardState | null
     [zid],
   );
 
-  return rows.length > 0 ? mapRewardStateRow(rows[0]) : null;
+  if (rows.length > 0) {
+    return mapRewardStateRow(rows[0]);
+  }
+
+  if (!normalizedPhone) {
+    return null;
+  }
+
+  const [phoneRows] = await db.query<MiniAppRewardStateRow[]>(
+    `
+    SELECT
+      id,
+      zid,
+      phone,
+      name,
+      avatar,
+      ordercode,
+      completed_mission_ids,
+      claimed_free_voucher_ids,
+      redeemed_voucher_ids,
+      claimed_milestone_pcts,
+      votes_json,
+      spent_points,
+      total_points,
+      available_points,
+      create_time,
+      update_time
+    FROM miniapp_user_reward_state
+    WHERE phone = ?
+      AND ordercode IS NOT NULL
+      AND TRIM(ordercode) <> ''
+    ORDER BY update_time DESC, id DESC
+    LIMIT 1
+    `,
+    [normalizedPhone],
+  );
+
+  return phoneRows.length > 0 ? mapRewardStateRow(phoneRows[0]) : null;
 }
 
 export async function hasMiniAppUserAccess(zid: string, phone: string): Promise<boolean> {
@@ -1518,9 +1558,12 @@ export async function ensureMiniAppRewardState(
     hasName: Boolean(name),
     hasAvatar: Boolean(avatar),
   });
-  const existingState = await trace.step("find_reward_state", () => findRewardStateRow(zid));
+  const existingState = await trace.step("find_reward_state", () => findRewardStateRow(zid, phone));
+  const requestedOrderCode = normalizeOrderCode(options?.orderCode);
+  const stateOrderCode = normalizeOrderCode(existingState?.orderCode);
+  const resolvedOrderCode = stateOrderCode || requestedOrderCode || undefined;
   const entryPoints = await trace.step("resolve_entry_points", () =>
-    resolveIdentityEntryPoints(phone, existingState?.orderCode || undefined),
+    resolveIdentityEntryPoints(phone, resolvedOrderCode),
   );
 
   if (!existingState) {
@@ -1589,15 +1632,15 @@ export async function ensureMiniAppRewardState(
   }
 
   const shouldUpdateIdentity =
+    (zid.length > 0 && existingState.zid !== zid) ||
     (phone.length > 0 && existingState.phone !== phone) ||
     (name.length > 0 && existingState.name !== name) ||
     (avatar.length > 0 && existingState.avatar !== avatar);
-  const nextOrderCode = existingState.orderCode || null;
+  const nextOrderCode = stateOrderCode || null;
   const currentBasePoints = computeStoredBasePoints(existingState);
-  const shouldResetUnselectedEntryPoints = !nextOrderCode && currentBasePoints > 0;
   const shouldTopUpEntryPoints = entryPoints > computeStoredBasePoints(existingState);
 
-  if (!shouldUpdateIdentity && !shouldTopUpEntryPoints && !shouldResetUnselectedEntryPoints) {
+  if (!shouldUpdateIdentity && !shouldTopUpEntryPoints) {
     trace.done({
       mode: "reuse",
       completedMissionCount: existingState.completedIds.length,
@@ -1616,11 +1659,10 @@ export async function ensureMiniAppRewardState(
       orderCode: nextOrderCode,
     },
     {
-      ...(shouldResetUnselectedEntryPoints
-        ? { basePoints: 0 }
-        : { minimumBasePoints: entryPoints }),
+      minimumBasePoints: entryPoints,
     },
   );
+  nextState.zid = zid || nextState.zid;
   await trace.step("save_reward_state", () => saveMiniAppRewardState(nextState));
 
   trace.done({

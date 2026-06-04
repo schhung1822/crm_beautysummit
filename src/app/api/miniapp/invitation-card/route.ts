@@ -69,11 +69,15 @@ export async function POST(request: NextRequest) {
     await writeFile(filePath, buffer);
 
     const pathUrl = buildManagedImageUrl(filename);
-    const url = new URL(pathUrl, resolvePublicOrigin(request)).href;
+    const assetPath = `/api/upload?file=${encodeURIComponent(filename)}`;
+    const url = new URL(assetPath, resolvePublicOrigin(request)).href;
+    const staticUrl = new URL(pathUrl, resolvePublicOrigin(request)).href;
 
     return jsonWithCors(request, {
       data: {
+        assetPath,
         path: pathUrl,
+        staticUrl,
         url,
       },
     });

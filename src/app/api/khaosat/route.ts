@@ -140,6 +140,7 @@ function isBeforeSurveyMission(missionId: string): boolean {
 
 const EVENT_DAY1_DATE_KEY = "2026-06-19";
 const EVENT_DAY2_DATE_KEY = "2026-06-20";
+const BEFORE_EVENT_EARLY_MISSION_CLOSE_DATE_KEY = "2026-06-14";
 const EVENT_TIME_ZONE = "Asia/Ho_Chi_Minh";
 
 function getVietnamDateKey(date = new Date()): string {
@@ -159,12 +160,16 @@ function getMissionActionLockMessage(missionId: string): string {
   const normalizedMissionId = missionId.trim().toLowerCase();
   const today = getVietnamDateKey();
 
+  if (/-b[2-4]$/.test(normalizedMissionId) && today >= BEFORE_EVENT_EARLY_MISSION_CLOSE_DATE_KEY) {
+    return "Nhiem vu nay can hoan thanh truoc ngay 14.06.2026 va hien da dong";
+  }
+
   if (/-d1-vote$/.test(normalizedMissionId) || /-d2-/.test(normalizedMissionId)) {
-    return today === EVENT_DAY2_DATE_KEY ? "" : "Nhiệm vụ ngày 2 chỉ có thể thực hiện vào ngày 20.06.2026";
+    return today >= EVENT_DAY2_DATE_KEY ? "" : "Nhiệm vụ ngày 2 bắt đầu vào ngày 20.06.2026";
   }
 
   if (/-d1-/.test(normalizedMissionId)) {
-    return today === EVENT_DAY1_DATE_KEY ? "" : "Nhiệm vụ ngày 1 chỉ có thể thực hiện vào ngày 19.06.2026";
+    return today >= EVENT_DAY1_DATE_KEY ? "" : "Nhiệm vụ ngày 1 bắt đầu vào ngày 19.06.2026";
   }
 
   return "";

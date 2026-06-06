@@ -23,6 +23,11 @@ type KhaoSatPayload = {
   missionId?: string;
   camNhan?: string;
   feedback?: string;
+  cau1?: unknown;
+  cau2?: unknown;
+  cau3?: unknown;
+  cau4?: unknown;
+  cau5?: unknown;
   occupation?: string;
   scale?: string;
   interest?: string;
@@ -41,6 +46,12 @@ type KhaoSatPayload = {
 };
 
 type BeforeSurveyPayload = {
+  mode: "current" | "legacy";
+  cau1: string[];
+  cau2: string;
+  cau3: string[];
+  cau4: string[];
+  cau5: string[];
   occupation: string;
   scale: string;
   interest: string;
@@ -200,6 +211,7 @@ async function ensureKhaoSatTable(): Promise<void> {
       avatar TEXT NULL,
       mission_id VARCHAR(64) NOT NULL,
       cam_nhan LONGTEXT NOT NULL,
+      date_time DATETIME NULL,
       create_time DATETIME NULL DEFAULT CURRENT_TIMESTAMP,
       update_time DATETIME NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
       PRIMARY KEY (id),
@@ -211,6 +223,7 @@ async function ensureKhaoSatTable(): Promise<void> {
 
   await ensureTableColumns("khaosat", [
     ["order_code", "VARCHAR(191) NULL"],
+    ["date_time", "DATETIME NULL"],
     ["nghe_nghiep", "TEXT NULL"],
     ["quy_mo", "TEXT NULL"],
     ["moi_quan_tam", "LONGTEXT NULL"],
@@ -248,10 +261,16 @@ async function ensureKhaoSatBeforeTable(): Promise<void> {
       name TEXT NULL,
       avatar TEXT NULL,
       mission_id VARCHAR(64) NOT NULL,
+      date_time DATETIME NULL,
+      cau_1 LONGTEXT NULL,
+      cau_2 LONGTEXT NULL,
+      cau_3 LONGTEXT NULL,
+      cau_4 LONGTEXT NULL,
+      cau_5 LONGTEXT NULL,
       nghe_nghiep TEXT NULL,
       quy_mo TEXT NULL,
       moi_quan_tam LONGTEXT NULL,
-      ly_do_tham_du_json LONGTEXT NOT NULL,
+      ly_do_tham_du_json LONGTEXT NULL,
       create_time DATETIME NULL DEFAULT CURRENT_TIMESTAMP,
       update_time DATETIME NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
       PRIMARY KEY (id),
@@ -263,6 +282,12 @@ async function ensureKhaoSatBeforeTable(): Promise<void> {
 
   await ensureTableColumns("khaosat_before", [
     ["order_code", "VARCHAR(191) NULL"],
+    ["date_time", "DATETIME NULL"],
+    ["cau_1", "LONGTEXT NULL"],
+    ["cau_2", "LONGTEXT NULL"],
+    ["cau_3", "LONGTEXT NULL"],
+    ["cau_4", "LONGTEXT NULL"],
+    ["cau_5", "LONGTEXT NULL"],
     ["survey_json", "LONGTEXT NULL"],
   ]);
 }
@@ -304,39 +329,62 @@ async function saveKhaoSat(body: {
   assign(pickExistingColumn(columns, ["order_code", "ordercode", "ma_ve"]), requireString(body.orderCode));
   assign(columns.has("mission_id") ? "mission_id" : null, body.missionId);
   assign(columns.has("cam_nhan") ? "cam_nhan" : null, body.camNhan);
+  assign(columns.has("date_time") ? "date_time" : null, now);
   assign(columns.has("create_time") ? "create_time" : null, now);
   assign(columns.has("update_time") ? "update_time" : null, now);
 
   if (body.beforeSurvey) {
-    assign(
-      pickExistingColumn(columns, ["nghe_nghiep", "occupation", "job_title", "cau_1", "cau1", "q1"]),
-      body.beforeSurvey.occupation,
-    );
-    assign(
-      pickExistingColumn(columns, ["quy_mo", "scale", "business_scale", "cau_2", "cau2", "q2"]),
-      body.beforeSurvey.scale,
-    );
-    assign(
-      pickExistingColumn(columns, ["moi_quan_tam", "interest", "interests", "cau_3", "cau3", "q3"]),
-      body.beforeSurvey.interest,
-    );
-    assign(
-      pickExistingColumn(columns, [
-        "ly_do_tham_du_json",
-        "attendance_reasons_json",
-        "ly_do_tham_du",
-        "attendance_reasons",
-        "cau_4_json",
-        "cau_4",
-        "cau4",
-        "q4",
-      ]),
-      JSON.stringify(body.beforeSurvey.attendanceReasons),
-    );
+    if (body.beforeSurvey.mode === "current") {
+      assign(
+        pickExistingColumn(columns, ["cau_1", "cau1", "q1"]),
+        JSON.stringify(body.beforeSurvey.cau1),
+      );
+      assign(
+        pickExistingColumn(columns, ["cau_2", "cau2", "q2"]),
+        body.beforeSurvey.cau2,
+      );
+      assign(
+        pickExistingColumn(columns, ["cau_3", "cau3", "q3"]),
+        JSON.stringify(body.beforeSurvey.cau3),
+      );
+      assign(
+        pickExistingColumn(columns, ["cau_4_json", "cau_4", "cau4", "q4"]),
+        JSON.stringify(body.beforeSurvey.cau4),
+      );
+      assign(
+        pickExistingColumn(columns, ["cau_5", "cau5", "q5"]),
+        JSON.stringify(body.beforeSurvey.cau5),
+      );
+    } else {
+      assign(
+        pickExistingColumn(columns, ["nghe_nghiep", "occupation", "job_title"]),
+        body.beforeSurvey.occupation,
+      );
+      assign(
+        pickExistingColumn(columns, ["quy_mo", "scale", "business_scale"]),
+        body.beforeSurvey.scale,
+      );
+      assign(
+        pickExistingColumn(columns, ["moi_quan_tam", "interest", "interests"]),
+        body.beforeSurvey.interest,
+      );
+      assign(
+        pickExistingColumn(columns, [
+          "ly_do_tham_du_json",
+          "attendance_reasons_json",
+          "ly_do_tham_du",
+          "attendance_reasons",
+        ]),
+        JSON.stringify(body.beforeSurvey.attendanceReasons),
+      );
+    }
     assign(
       pickExistingColumn(columns, ["survey_json", "payload_json"]),
       JSON.stringify(body.beforeSurvey),
     );
+    if (body.beforeSurvey.mode === "current" && columns.has("ly_do_tham_du_json")) {
+      assign("ly_do_tham_du_json", JSON.stringify(body.beforeSurvey.cau4));
+    }
   }
 
   if (body.afterSurvey) {
@@ -489,6 +537,7 @@ async function saveKhaoSatBefore(body: {
   assign(columns.has("avatar") ? "avatar" : null, body.avatar);
   assign(pickExistingColumn(columns, ["order_code", "ordercode", "ma_ve"]), requireString(body.orderCode));
   assign(columns.has("mission_id") ? "mission_id" : null, body.missionId);
+  assign(columns.has("date_time") ? "date_time" : null, now);
   assign(columns.has("create_time") ? "create_time" : null, now);
   assign(columns.has("update_time") ? "update_time" : null, now);
 
@@ -499,29 +548,53 @@ async function saveKhaoSatBefore(body: {
     assign("nc_order", Number(orderRow?.next_order) || 1);
   }
 
-  assign(
-    pickExistingColumn(columns, ["nghe_nghiep", "occupation", "job_title"]),
-    body.beforeSurvey.occupation,
-  );
-  assign(
-    pickExistingColumn(columns, ["quy_mo", "scale", "business_scale"]),
-    body.beforeSurvey.scale,
-  );
-  assign(
-    pickExistingColumn(columns, ["moi_quan_tam", "interest", "interests"]),
-    body.beforeSurvey.interest,
-  );
-  assign(
-    pickExistingColumn(columns, [
-      "ly_do_tham_du_json",
-      "attendance_reasons_json",
-      "ly_do_tham_du",
-      "attendance_reasons",
-      "survey_json",
-      "payload_json",
-    ]),
-    JSON.stringify(body.beforeSurvey.attendanceReasons),
-  );
+  if (body.beforeSurvey.mode === "current") {
+    assign(
+      pickExistingColumn(columns, ["cau_1", "cau1", "q1"]),
+      JSON.stringify(body.beforeSurvey.cau1),
+    );
+    assign(
+      pickExistingColumn(columns, ["cau_2", "cau2", "q2"]),
+      body.beforeSurvey.cau2,
+    );
+    assign(
+      pickExistingColumn(columns, ["cau_3", "cau3", "q3"]),
+      JSON.stringify(body.beforeSurvey.cau3),
+    );
+    assign(
+      pickExistingColumn(columns, ["cau_4", "cau4", "q4"]),
+      JSON.stringify(body.beforeSurvey.cau4),
+    );
+    assign(
+      pickExistingColumn(columns, ["cau_5", "cau5", "q5"]),
+      JSON.stringify(body.beforeSurvey.cau5),
+    );
+    if (columns.has("ly_do_tham_du_json")) {
+      assign("ly_do_tham_du_json", JSON.stringify(body.beforeSurvey.cau4));
+    }
+  } else {
+    assign(
+      pickExistingColumn(columns, ["nghe_nghiep", "occupation", "job_title"]),
+      body.beforeSurvey.occupation,
+    );
+    assign(
+      pickExistingColumn(columns, ["quy_mo", "scale", "business_scale"]),
+      body.beforeSurvey.scale,
+    );
+    assign(
+      pickExistingColumn(columns, ["moi_quan_tam", "interest", "interests"]),
+      body.beforeSurvey.interest,
+    );
+    assign(
+      pickExistingColumn(columns, [
+        "ly_do_tham_du_json",
+        "attendance_reasons_json",
+        "ly_do_tham_du",
+        "attendance_reasons",
+      ]),
+      JSON.stringify(body.beforeSurvey.attendanceReasons),
+    );
+  }
   assign(
     pickExistingColumn(columns, ["survey_json", "payload_json"]),
     JSON.stringify(body.beforeSurvey),
@@ -567,11 +640,27 @@ export async function POST(request: NextRequest) {
     const missionId = normalizeMissionId(body.missionId);
     const beforeSurveyMission = isBeforeSurveyMission(missionId);
     const camNhan = requireString(body.camNhan ?? body.feedback);
+    const cau1 = parseStringArray(body.cau1);
+    const cau2 = requireString(body.cau2);
+    const cau3 = parseStringArray(body.cau3);
+    const cau4 = parseStringArray(body.cau4);
+    const cau5 = parseStringArray(body.cau5);
+    const occupation = requireString(body.occupation);
+    const scale = requireString(body.scale);
+    const interest = requireString(body.interest);
+    const attendanceReasons = parseStringArray(body.attendanceReasons);
+    const hasCurrentBeforeSurvey = cau1.length > 0 || cau2 || cau3.length > 0 || cau4.length > 0 || cau5.length > 0;
     const beforeSurvey: BeforeSurveyPayload = {
-      occupation: requireString(body.occupation),
-      scale: requireString(body.scale),
-      interest: requireString(body.interest),
-      attendanceReasons: parseStringArray(body.attendanceReasons),
+      mode: hasCurrentBeforeSurvey ? "current" : "legacy",
+      cau1,
+      cau2,
+      cau3,
+      cau4,
+      cau5,
+      occupation,
+      scale,
+      interest,
+      attendanceReasons,
     };
     const receiveUpdates = parseBooleanNumber(body.receiveUpdates);
     const afterSurvey: AfterSurveyPayload = {
@@ -610,28 +699,55 @@ export async function POST(request: NextRequest) {
     }
 
     if (beforeSurveyMission) {
-      if (!beforeSurvey.occupation) {
-        trace.mark("missing_occupation");
-        return jsonWithCors(request, { message: "Vui lòng nhập nghề nghiệp" }, { status: 400 });
-      }
+      if (beforeSurvey.mode === "current") {
+        if (beforeSurvey.cau1.length === 0 || beforeSurvey.cau1.length > 2) {
+          trace.mark("invalid_cau_1");
+          return jsonWithCors(request, { message: "Vui lòng chọn tối đa 2 đáp án cho câu 1" }, { status: 400 });
+        }
 
-      if (!beforeSurvey.scale) {
-        trace.mark("missing_scale");
-        return jsonWithCors(request, { message: "Vui lòng nhập quy mô" }, { status: 400 });
-      }
+        if (!beforeSurvey.cau2) {
+          trace.mark("missing_cau_2");
+          return jsonWithCors(request, { message: "Vui lòng chọn đáp án cho câu 2" }, { status: 400 });
+        }
 
-      if (!beforeSurvey.interest) {
-        trace.mark("missing_interest");
-        return jsonWithCors(request, { message: "Vui lòng nhập mối quan tâm" }, { status: 400 });
-      }
+        if (beforeSurvey.cau3.length === 0 || beforeSurvey.cau3.length > 2) {
+          trace.mark("invalid_cau_3");
+          return jsonWithCors(request, { message: "Vui lòng chọn tối đa 2 đáp án cho câu 3" }, { status: 400 });
+        }
 
-      if (beforeSurvey.attendanceReasons.length !== 2) {
-        trace.mark("invalid_attendance_reasons");
-        return jsonWithCors(
-          request,
-          { message: "Vui lòng chọn đúng 2 lý do tham dự Beauty Summit" },
-          { status: 400 },
-        );
+        if (beforeSurvey.cau4.length === 0 || beforeSurvey.cau4.length > 3) {
+          trace.mark("invalid_cau_4");
+          return jsonWithCors(request, { message: "Vui lòng chọn tối đa 3 đáp án cho câu 4" }, { status: 400 });
+        }
+
+        if (beforeSurvey.cau5.length === 0 || beforeSurvey.cau5.length > 3) {
+          trace.mark("invalid_cau_5");
+          return jsonWithCors(request, { message: "Vui lòng chọn tối đa 3 đáp án cho câu 5" }, { status: 400 });
+        }
+      } else {
+        if (!beforeSurvey.occupation) {
+          trace.mark("missing_occupation");
+          return jsonWithCors(request, { message: "Vui lòng nhập nghề nghiệp" }, { status: 400 });
+        }
+
+        if (!beforeSurvey.scale) {
+          trace.mark("missing_scale");
+          return jsonWithCors(request, { message: "Vui lòng nhập quy mô" }, { status: 400 });
+        }
+
+        if (!beforeSurvey.interest) {
+          trace.mark("missing_interest");
+          return jsonWithCors(request, { message: "Vui lòng nhập mối quan tâm" }, { status: 400 });
+        }
+
+        if (beforeSurvey.attendanceReasons.length !== 2) {
+          trace.mark("invalid_attendance_reasons");
+          return jsonWithCors(
+            request,
+            { message: "Vui lòng chọn đúng 2 lý do tham dự Beauty Summit" },
+            { status: 400 },
+          );
+        }
       }
     } else {
       if (afterSurvey.satisfactionRating < 1 || afterSurvey.satisfactionRating > 5) {

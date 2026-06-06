@@ -203,7 +203,7 @@ const MINIAPP_MISSION_CATALOG_SEED: readonly MiniAppMissionCatalogSeed[] = [
   { suffix: "b2", tiers: MINIAPP_MISSION_TIERS, points: 10, phase: "before" },
   { suffix: "b3", tiers: MINIAPP_MISSION_TIERS, points: 10, phase: "before" },
   { suffix: "b4", tiers: MINIAPP_MISSION_TIERS, points: 15, phase: "before" },
-  { suffix: "b5", tiers: MINIAPP_MISSION_TIERS, points: 30, phase: "before", survey: true },
+  { suffix: "b5", tiers: MINIAPP_MISSION_TIERS, points: 40, phase: "before", survey: true },
   { suffix: "b6", tiers: MINIAPP_MISSION_TIERS, points: 15, phase: "before" },
   { suffix: "d1-1", tiers: MINIAPP_MISSION_TIERS, points: 20, phase: "day1" },
   { suffix: "d1-2", tiers: MINIAPP_MISSION_TIERS, points: 0, phase: "day1" },

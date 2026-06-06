@@ -46,6 +46,7 @@ export const sidebarItems: NavGroup[] = [
     items: [
       { title: "Tổng quan", url: "/dashboard/default", icon: LayoutDashboard },
       { title: "CRM", url: "/dashboard/crm", icon: ChartBar },
+      { title: "Miniapp", url: "/dashboard/miniapp", icon: PackageIcon },
     ],
   },
   {

@@ -1,4 +1,4 @@
-import { ReactNode } from "react";
+import { ReactNode, Suspense } from "react";
 
 import { LayoutControls } from "@/app/(main)/dashboard/_components/sidebar/layout-controls";
 import { ThemeSwitcher } from "@/app/(main)/dashboard/_components/sidebar/theme-switcher";
@@ -15,6 +15,7 @@ import {
 } from "@/types/preferences/layout";
 
 import { StaffAccountSwitcher } from "./_components/staff-account-switcher";
+import { StaffAreaHeader } from "./_components/staff-area-header";
 
 export default async function Layout({ children }: Readonly<{ children: ReactNode }>) {
   const [sidebarVariant, sidebarCollapsible, contentLayout, navbarStyle] = await Promise.all([
@@ -35,7 +36,9 @@ export default async function Layout({ children }: Readonly<{ children: ReactNod
     <div className="bg-muted/20 flex min-h-screen w-full flex-col">
       <header className="bg-background sticky top-0 z-50 flex h-14 shrink-0 items-center gap-2 border-b px-4 lg:px-6">
         <div className="flex w-full items-center justify-between">
-          <div className="flex items-center gap-2 font-semibold">Khu vực soát vé</div>
+          <Suspense fallback={<div className="text-foreground truncate font-semibold">Khu vực soát vé</div>}>
+            <StaffAreaHeader />
+          </Suspense>
           <div className="flex items-center gap-2">
             <LayoutControls {...layoutPreferences} />
             <ThemeSwitcher />

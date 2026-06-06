@@ -11,6 +11,7 @@ import {
   CheckCircle2,
   CircleAlert,
   Copy,
+  Gift,
   Keyboard,
   MapPin,
   QrCode,
@@ -21,6 +22,7 @@ import {
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Dialog,
   DialogClose,
@@ -31,7 +33,12 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { type StaffCheckinTier, type StaffCheckinZone } from "@/lib/staff-checkin";
+import {
+  normalizeTicketCode,
+  parseStaffQrPayload,
+  type StaffCheckinTier,
+  type StaffCheckinZone,
+} from "@/lib/staff-checkin";
 import { cn } from "@/lib/utils";
 
 const QrScanner = dynamic(async () => (await import("@yudiel/react-qr-scanner")).Scanner, {
@@ -82,6 +89,25 @@ type StaffCheckinResponse = {
     history?: StaffHistoryItem[];
     stats?: StaffCheckinSnapshot["stats"];
   };
+  message?: string;
+};
+
+type StaffGiftItem = {
+  id: number;
+  giftName: string;
+  status: 0 | 1;
+  statusLabel: string;
+};
+
+type StaffGiftLookup = {
+  ordercode: string;
+  voucher: string;
+  customerName: string;
+  gifts: StaffGiftItem[];
+};
+
+type StaffGiftResponse = {
+  data?: StaffGiftLookup;
   message?: string;
 };
 
@@ -213,6 +239,19 @@ function getResultTheme(status: "success" | "repeat" | "denied" | "error") {
   };
 }
 
+function getGiftDialogTheme() {
+  return {
+    iconClass: "bg-[#730C87] text-white shadow-[0_0_28px_rgba(115,12,135,0.72)]",
+    borderClass:
+      "border-[#9d2bb3]/70 bg-[radial-gradient(circle_at_top_left,rgba(115,12,135,0.46),transparent_44%),radial-gradient(circle_at_bottom_right,rgba(196,30,127,0.28),transparent_42%),linear-gradient(135deg,#210328,#120116_52%,#050106)] text-white shadow-[#730C87]/35",
+    titleClass: "from-[#ffe6ff] via-[#e9a5ff] to-[#c94ee0]",
+    accentClass: "bg-gradient-to-r from-transparent via-[#c94ee0] to-transparent",
+    panelClass: "border-[#c94ee0]/35 bg-[#730C87]/20",
+    buttonClass: "bg-[#730C87] text-white hover:bg-[#8f19a6]",
+    dotClass: "bg-[#c94ee0]",
+  };
+}
+
 function getStatusLabel(status: "success" | "repeat" | "denied" | "error") {
   if (status === "success") {
     return "Check-in thành công";
@@ -275,7 +314,12 @@ async function extractQrValueFromFile(file: File) {
   }
 }
 
-export default function StaffCheckinClient() {
+function getOrderCodeFromInput(value: string) {
+  const parsedPayload = parseStaffQrPayload(value);
+  return normalizeTicketCode(parsedPayload.ticketCode ?? value);
+}
+
+export default function StaffCheckinClient({ areaMode = "checkin" }: { areaMode?: "checkin" | "gift" }) {
   const [zones, setZones] = React.useState<StaffCheckinZone[]>([]);
   const [activeZone, setActiveZone] = React.useState<string>("");
   const [mode, setMode] = React.useState<"scan" | "manual">("scan");
@@ -299,13 +343,22 @@ export default function StaffCheckinClient() {
     ticketCode?: string;
     time: string;
   } | null>(null);
+  const [giftLookup, setGiftLookup] = React.useState<StaffGiftLookup | null>(null);
+  const [giftSubmitting, setGiftSubmitting] = React.useState<boolean>(false);
+  const [giftSelectedIds, setGiftSelectedIds] = React.useState<Set<number>>(() => new Set());
 
   const imageInputRef = React.useRef<HTMLInputElement | null>(null);
+  const giftImageInputRef = React.useRef<HTMLInputElement | null>(null);
   const lastScanRef = React.useRef<{ value: string; at: number } | null>(null);
 
   const zone = zones.find((item) => item.id === activeZone) ?? zones[0];
   const visibleHistory = history.filter((item) => String(item.zoneId) === String(zone?.id ?? ""));
-  const busy = submitting || imageScanning;
+  const busy = submitting || imageScanning || giftSubmitting;
+  const redeemableSelectedIds = React.useMemo(() => {
+    if (!giftLookup) return [];
+    const pendingIds = new Set(giftLookup.gifts.filter((item) => item.status !== 1).map((item) => item.id));
+    return Array.from(giftSelectedIds).filter((id) => pendingIds.has(id));
+  }, [giftLookup, giftSelectedIds]);
 
   const loadSnapshot = React.useCallback(async () => {
     setLoadingSnapshot(true);
@@ -423,6 +476,82 @@ export default function StaffCheckinClient() {
     [activeZone, submitting],
   );
 
+  const submitGiftLookup = React.useCallback(
+    async (rawCode: string) => {
+      if (giftSubmitting) {
+        return;
+      }
+
+      const ordercode = getOrderCodeFromInput(rawCode);
+      if (!ordercode) {
+        toast.error("Vui lòng nhập mã vé hoặc quét QR");
+        return;
+      }
+
+      setGiftSubmitting(true);
+      setGiftSelectedIds(new Set());
+
+      try {
+        const response = await fetch(`/api/staff-gifts?ordercode=${encodeURIComponent(ordercode)}`, {
+          method: "GET",
+          credentials: "include",
+        });
+        const payload = (await response.json()) as StaffGiftResponse;
+
+        if (!response.ok || !payload.data) {
+          throw new Error(payload.message ?? "Không thể tải dữ liệu đổi quà");
+        }
+
+        setGiftLookup(payload.data);
+        if (payload.data.gifts.length === 0) {
+          toast.message("Không tìm thấy phần quà cho mã vé này");
+        }
+      } catch (error) {
+        console.error("Staff gift lookup error:", error);
+        toast.error(error instanceof Error ? error.message : "Không thể tải dữ liệu đổi quà");
+      } finally {
+        setGiftSubmitting(false);
+      }
+    },
+    [giftSubmitting],
+  );
+
+  const confirmGiftRedeem = React.useCallback(async () => {
+    if (!giftLookup || redeemableSelectedIds.length === 0 || giftSubmitting) {
+      return;
+    }
+
+    setGiftSubmitting(true);
+
+    try {
+      const response = await fetch("/api/staff-gifts", {
+        method: "PATCH",
+        credentials: "include",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          ordercode: giftLookup.ordercode,
+          giftIds: redeemableSelectedIds,
+        }),
+      });
+      const payload = (await response.json()) as StaffGiftResponse;
+
+      if (!response.ok || !payload.data) {
+        throw new Error(payload.message ?? "Không thể xác nhận đổi quà");
+      }
+
+      setGiftLookup(payload.data);
+      setGiftSelectedIds(new Set());
+      toast.success(payload.message ?? "Đổi quà thành công");
+    } catch (error) {
+      console.error("Staff gift redeem error:", error);
+      toast.error(error instanceof Error ? error.message : "Không thể xác nhận đổi quà");
+    } finally {
+      setGiftSubmitting(false);
+    }
+  }, [giftLookup, giftSubmitting, redeemableSelectedIds]);
+
   const handleScan = React.useCallback(
     async (detectedCodes: IDetectedBarcode[]) => {
       if (!scannerEnabled || busy || result) {
@@ -445,6 +574,29 @@ export default function StaffCheckinClient() {
     [busy, result, scannerEnabled, submitCheckin],
   );
 
+  const handleGiftScan = React.useCallback(
+    async (detectedCodes: IDetectedBarcode[]) => {
+      if (!scannerEnabled || busy) {
+        return;
+      }
+
+      const nextValue = detectedCodes[0]?.rawValue?.trim();
+      if (!nextValue) {
+        return;
+      }
+
+      const now = Date.now();
+      if (lastScanRef.current && lastScanRef.current.value === nextValue && now - lastScanRef.current.at < 2500) {
+        return;
+      }
+
+      lastScanRef.current = { value: nextValue, at: now };
+      await submitGiftLookup(nextValue);
+      setScannerEnabled(false);
+    },
+    [busy, scannerEnabled, submitGiftLookup],
+  );
+
   const handleManualSubmit = async () => {
     const nextCode = manualCode.trim().toUpperCase();
     if (!nextCode) {
@@ -452,6 +604,16 @@ export default function StaffCheckinClient() {
     }
 
     await submitCheckin({ code: nextCode });
+    setManualCode("");
+  };
+
+  const handleGiftManualSubmit = async () => {
+    const nextCode = manualCode.trim().toUpperCase();
+    if (!nextCode) {
+      return;
+    }
+
+    await submitGiftLookup(nextCode);
     setManualCode("");
   };
 
@@ -483,6 +645,362 @@ export default function StaffCheckinClient() {
       setImageScanning(false);
     }
   };
+
+  const handleGiftImageSelect = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+
+    if (!file || busy) {
+      return;
+    }
+
+    setSelectedImageName(file.name);
+    setImageScanning(true);
+
+    try {
+      const payload = await extractQrValueFromFile(file);
+      if (!payload) {
+        throw new Error("Không tìm thấy mã QR trong ảnh");
+      }
+
+      await submitGiftLookup(payload);
+    } catch (error) {
+      console.error("Staff gift image scan error:", error);
+      toast.error(error instanceof Error ? error.message : "Không thể đọc mã QR từ ảnh");
+    } finally {
+      setImageScanning(false);
+    }
+  };
+
+  if (areaMode === "gift") {
+    return (
+      <div className="mx-auto flex w-full max-w-[760px] flex-col gap-6">
+        <input
+          ref={giftImageInputRef}
+          type="file"
+          accept="image/*"
+          className="hidden"
+          onChange={(event) => {
+            void handleGiftImageSelect(event);
+          }}
+        />
+
+        <div className="text-foreground overflow-hidden">
+          <div className="text-muted-foreground mb-3 text-sm font-medium">Tìm phần quà theo mã vé</div>
+
+          <div className="bg-muted mb-5 grid grid-cols-2 gap-2 rounded-[12px] p-1">
+            <button
+              type="button"
+              onClick={() => {
+                setMode("scan");
+                setScannerEnabled(false);
+              }}
+              className={cn(
+                "flex h-12 items-center justify-center gap-2 rounded-[12px] text-[16px] font-bold transition",
+                mode === "scan" ? "bg-primary text-primary-foreground" : "text-muted-foreground",
+              )}
+            >
+              <ScanLine className="h-5 w-5" />
+              Quét QR
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setMode("manual");
+                setScannerEnabled(false);
+              }}
+              className={cn(
+                "flex h-12 items-center justify-center gap-2 rounded-[12px] text-[16px] font-bold transition",
+                mode === "manual" ? "bg-primary text-primary-foreground" : "text-muted-foreground",
+              )}
+            >
+              <Keyboard className="h-5 w-5" />
+              Nhập mã vé
+            </button>
+          </div>
+
+          {mode === "scan" ? (
+            <div className="mb-4 flex flex-col items-center">
+              <div className="border-border bg-card relative w-full max-w-[88vw] overflow-hidden rounded-[20px] border p-4">
+                <div className="border-border bg-muted relative aspect-square rounded-[18px] border">
+                  {scannerEnabled ? (
+                    <QrScanner
+                      paused={busy}
+                      onScan={handleGiftScan}
+                      onError={(error) => {
+                        console.error("Staff gift scanner error:", error);
+                      }}
+                      scanDelay={800}
+                      allowMultiple={false}
+                      styles={{
+                        container: {
+                          width: "100%",
+                          height: "100%",
+                        },
+                        video: {
+                          width: "100%",
+                          height: "100%",
+                          objectFit: "cover",
+                        },
+                      }}
+                    >
+                      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle,rgba(255,255,255,0.06)_0%,rgba(0,0,0,0.55)_100%)]" />
+                      <div className="pointer-events-none absolute inset-x-8 top-1/2 h-[2px] -translate-y-1/2 bg-[linear-gradient(90deg,transparent,#ff4ab6,transparent)] shadow-[0_0_24px_rgba(255,74,182,0.45)]" />
+                    </QrScanner>
+                  ) : (
+                    <div className="flex h-full flex-col items-center justify-center gap-3">
+                      <div className="border-border bg-card flex h-16 w-16 items-center justify-center rounded-[18px] border">
+                        <Gift className="text-muted-foreground/40 h-8 w-8" />
+                      </div>
+                      <div className="text-muted-foreground/60 text-[13px]">Hướng camera vào mã QR</div>
+                      {selectedImageName ? (
+                        <div className="text-muted-foreground/70 max-w-[80%] truncate text-[11px]">
+                          Ảnh vừa chọn: {selectedImageName}
+                        </div>
+                      ) : null}
+                    </div>
+                  )}
+
+                  {[
+                    "left-8 top-8 border-l-[4px] border-t-[4px] rounded-tl-[14px]",
+                    "right-8 top-8 border-r-[4px] border-t-[4px] rounded-tr-[14px]",
+                    "bottom-8 left-8 border-b-[4px] border-l-[4px] rounded-bl-[14px]",
+                    "bottom-8 right-8 border-b-[4px] border-r-[4px] rounded-br-[14px]",
+                  ].map((className) => (
+                    <div
+                      key={className}
+                      className={cn("pointer-events-none absolute h-12 w-12 border-white/28", className)}
+                    />
+                  ))}
+                </div>
+              </div>
+
+              <Button
+                type="button"
+                disabled={busy}
+                onClick={() => setScannerEnabled((current) => !current)}
+                className={cn(
+                  "mt-4 h-12 w-full rounded-[12px] text-[17px] font-bold",
+                  scannerEnabled
+                    ? "bg-muted text-muted-foreground hover:bg-muted/80"
+                    : "bg-primary text-primary-foreground hover:opacity-95",
+                )}
+              >
+                {busy ? "Đang xử lý..." : scannerEnabled ? "Dừng quét QR" : "Bắt đầu quét QR"}
+              </Button>
+
+              <button
+                type="button"
+                disabled={busy}
+                onClick={() => giftImageInputRef.current?.click()}
+                className="border-border bg-card text-muted-foreground hover:bg-muted mt-3 flex h-12 w-full items-center justify-center gap-2 rounded-[12px] border text-sm font-semibold transition disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                <Upload className="h-4 w-4" />
+                {imageScanning ? "Đang đọc ảnh..." : "Chọn ảnh từ máy để quét"}
+              </button>
+            </div>
+          ) : (
+            <div className="border-border bg-card mb-4 rounded-[12px] border p-4">
+              <div className="text-foreground mb-3 text-sm font-semibold">Nhập mã vé khách hàng</div>
+              <Input
+                value={manualCode}
+                onChange={(event) => setManualCode(event.target.value.toUpperCase())}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter") {
+                    event.preventDefault();
+                    void handleGiftManualSubmit();
+                  }
+                }}
+                placeholder="DHDEMO2026"
+                className="border-border bg-background text-foreground placeholder:text-muted-foreground/40 h-14 rounded-[14px] text-center text-lg font-semibold tracking-[0.18em]"
+              />
+              <Button
+                type="button"
+                disabled={!manualCode.trim() || busy}
+                onClick={() => {
+                  void handleGiftManualSubmit();
+                }}
+                className="bg-primary text-primary-foreground disabled:bg-muted disabled:text-muted-foreground/50 mt-4 h-14 w-full rounded-[14px] text-[17px] font-bold hover:opacity-95"
+              >
+                {busy ? "Đang xử lý..." : "Tìm phần quà"}
+              </Button>
+            </div>
+          )}
+
+          <Dialog
+            open={Boolean(giftLookup)}
+            onOpenChange={(open) => {
+              if (!open) {
+                setGiftLookup(null);
+                setGiftSelectedIds(new Set());
+              }
+            }}
+          >
+            <DialogContent
+              className={cn("group overflow-hidden p-0 shadow-2xl sm:max-w-[460px]", getGiftDialogTheme().borderClass)}
+            >
+              {giftLookup ? (
+                <>
+                  <div className="pointer-events-none absolute inset-0 overflow-hidden">
+                    <span
+                      className={cn(
+                        "absolute top-[18%] left-[14%] h-3 w-3 rounded-full blur-md transition-transform duration-500 group-hover:scale-150",
+                        getGiftDialogTheme().dotClass,
+                      )}
+                    />
+                    <span
+                      className={cn(
+                        "absolute right-[22%] bottom-[18%] h-4 w-4 rounded-full opacity-80 blur-lg transition-transform duration-500 group-hover:scale-125",
+                        getGiftDialogTheme().dotClass,
+                      )}
+                    />
+                    <span
+                      className={cn(
+                        "absolute top-0 left-0 h-1 w-1/3 transition-all duration-500 group-hover:w-full",
+                        getGiftDialogTheme().accentClass,
+                      )}
+                    />
+                  </div>
+
+                  <DialogHeader className="relative z-10 space-y-0 px-6 pt-6 text-left">
+                    <div className="flex items-start gap-3 pr-8">
+                      <div
+                        className={cn(
+                          "flex h-12 w-12 shrink-0 items-center justify-center rounded-xl transition-transform duration-300 group-hover:scale-105",
+                          getGiftDialogTheme().iconClass,
+                        )}
+                      >
+                        <Gift className="h-5 w-5" />
+                      </div>
+                      <div className="min-w-0">
+                        <DialogTitle
+                          className={cn(
+                            "bg-gradient-to-r bg-clip-text text-xl font-black text-transparent drop-shadow-sm",
+                            getGiftDialogTheme().titleClass,
+                          )}
+                        >
+                          Thông tin đổi quà
+                        </DialogTitle>
+                        <DialogDescription className="mt-1 line-clamp-2 text-sm text-white/70">
+                          {giftLookup.gifts.length > 0
+                            ? `Mã vé ${giftLookup.ordercode} có ${giftLookup.gifts.length} phần quà`
+                            : `Không tìm thấy phần quà cho mã vé ${giftLookup.ordercode}`}
+                        </DialogDescription>
+                      </div>
+                    </div>
+                  </DialogHeader>
+
+                  <div className="relative z-10 px-6 py-5">
+                    <div
+                      className={cn(
+                        "mb-3 grid gap-2 rounded-xl border p-3 backdrop-blur-sm",
+                        getGiftDialogTheme().panelClass,
+                      )}
+                    >
+                      {[
+                        { label: "Mã vé", value: giftLookup.ordercode, mono: true },
+                        { label: "Tên khách hàng", value: giftLookup.customerName || "--" },
+                      ].map((item) => (
+                        <div
+                          key={item.label}
+                          className="flex items-center justify-between gap-3 rounded-lg bg-white/10 px-3 py-2 ring-1 ring-white/10"
+                        >
+                          <div className="text-xs font-semibold text-white/55 uppercase">{item.label}</div>
+                          <div
+                            className={cn(
+                              "min-w-0 truncate text-right text-sm font-bold text-white",
+                              item.mono ? "font-mono" : "",
+                            )}
+                          >
+                            {item.value}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+
+                    {giftLookup.gifts.length === 0 ? (
+                      <div className="rounded-xl border border-white/10 bg-white/10 px-4 py-8 text-center text-sm font-semibold text-white/70">
+                        Không có phần quà để xác nhận.
+                      </div>
+                    ) : (
+                      <div className="flex max-h-[360px] flex-col gap-2 overflow-y-auto pr-1">
+                        {giftLookup.gifts.map((item) => {
+                          const redeemed = item.status === 1;
+                          const selected = giftSelectedIds.has(item.id);
+
+                          return (
+                            <label
+                              key={item.id}
+                              className={cn(
+                                "flex cursor-pointer items-center gap-3 rounded-xl border border-white/10 bg-white/10 px-3 py-3 transition",
+                                redeemed ? "opacity-65" : "hover:bg-white/15",
+                              )}
+                            >
+                              <Checkbox
+                                checked={selected}
+                                disabled={redeemed || busy}
+                                onCheckedChange={(checked) => {
+                                  setGiftSelectedIds((previous) => {
+                                    const next = new Set(previous);
+                                    if (checked) {
+                                      next.add(item.id);
+                                    } else {
+                                      next.delete(item.id);
+                                    }
+                                    return next;
+                                  });
+                                }}
+                              />
+                              <div className="min-w-0 flex-1">
+                                <div className="truncate text-sm font-bold text-white">{item.giftName || "--"}</div>
+                              </div>
+                              <div
+                                className={cn(
+                                  "shrink-0 rounded-full border px-2 py-1 text-[11px] font-bold",
+                                  redeemed
+                                    ? "border-emerald-300/40 bg-emerald-400/15 text-emerald-100"
+                                    : "border-amber-300/40 bg-amber-400/15 text-amber-100",
+                                )}
+                              >
+                                {redeemed ? "Đã đổi" : "Chưa đổi"}
+                              </div>
+                            </label>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+
+                  <DialogFooter className="relative z-10 grid grid-cols-2 gap-2 border-t border-white/10 px-6 py-4 sm:flex">
+                    <DialogClose asChild>
+                      <Button
+                        type="button"
+                        variant="secondary"
+                        className="h-10 rounded-md font-bold"
+                        disabled={giftSubmitting}
+                      >
+                        Đóng
+                      </Button>
+                    </DialogClose>
+                    <Button
+                      type="button"
+                      disabled={redeemableSelectedIds.length === 0 || busy}
+                      onClick={() => {
+                        void confirmGiftRedeem();
+                      }}
+                      className={cn("h-10 rounded-md font-bold", getGiftDialogTheme().buttonClass)}
+                    >
+                      {busy ? "Đang xác nhận..." : `Xác nhận đổi ${redeemableSelectedIds.length || ""}`.trim()}
+                    </Button>
+                  </DialogFooter>
+                </>
+              ) : null}
+            </DialogContent>
+          </Dialog>
+        </div>
+      </div>
+    );
+  }
 
   if (!zone) {
     return (

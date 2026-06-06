@@ -334,28 +334,7 @@ async function saveKhaoSat(body: {
   assign(columns.has("update_time") ? "update_time" : null, now);
 
   if (body.beforeSurvey) {
-    if (body.beforeSurvey.mode === "current") {
-      assign(
-        pickExistingColumn(columns, ["cau_1", "cau1", "q1"]),
-        JSON.stringify(body.beforeSurvey.cau1),
-      );
-      assign(
-        pickExistingColumn(columns, ["cau_2", "cau2", "q2"]),
-        body.beforeSurvey.cau2,
-      );
-      assign(
-        pickExistingColumn(columns, ["cau_3", "cau3", "q3"]),
-        JSON.stringify(body.beforeSurvey.cau3),
-      );
-      assign(
-        pickExistingColumn(columns, ["cau_4_json", "cau_4", "cau4", "q4"]),
-        JSON.stringify(body.beforeSurvey.cau4),
-      );
-      assign(
-        pickExistingColumn(columns, ["cau_5", "cau5", "q5"]),
-        JSON.stringify(body.beforeSurvey.cau5),
-      );
-    } else {
+    if (body.beforeSurvey.mode === "legacy") {
       assign(
         pickExistingColumn(columns, ["nghe_nghiep", "occupation", "job_title"]),
         body.beforeSurvey.occupation,

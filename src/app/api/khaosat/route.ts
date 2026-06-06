@@ -262,11 +262,11 @@ async function ensureKhaoSatBeforeTable(): Promise<void> {
       avatar TEXT NULL,
       mission_id VARCHAR(64) NOT NULL,
       date_time DATETIME NULL,
-      cau_1 LONGTEXT NULL,
-      cau_2 LONGTEXT NULL,
-      cau_3 LONGTEXT NULL,
-      cau_4 LONGTEXT NULL,
-      cau_5 LONGTEXT NULL,
+      cau_1b LONGTEXT NULL,
+      cau_2b LONGTEXT NULL,
+      cau_3b LONGTEXT NULL,
+      cau_4b LONGTEXT NULL,
+      cau_5b LONGTEXT NULL,
       nghe_nghiep TEXT NULL,
       quy_mo TEXT NULL,
       moi_quan_tam LONGTEXT NULL,
@@ -283,11 +283,11 @@ async function ensureKhaoSatBeforeTable(): Promise<void> {
   await ensureTableColumns("khaosat_before", [
     ["order_code", "VARCHAR(191) NULL"],
     ["date_time", "DATETIME NULL"],
-    ["cau_1", "LONGTEXT NULL"],
-    ["cau_2", "LONGTEXT NULL"],
-    ["cau_3", "LONGTEXT NULL"],
-    ["cau_4", "LONGTEXT NULL"],
-    ["cau_5", "LONGTEXT NULL"],
+    ["cau_1b", "LONGTEXT NULL"],
+    ["cau_2b", "LONGTEXT NULL"],
+    ["cau_3b", "LONGTEXT NULL"],
+    ["cau_4b", "LONGTEXT NULL"],
+    ["cau_5b", "LONGTEXT NULL"],
     ["survey_json", "LONGTEXT NULL"],
   ]);
 }
@@ -494,7 +494,7 @@ async function ensureTableColumns(tableName: string, definitions: Array<[string,
   const columns = await getTableColumnSet(tableName);
 
   for (const [column, definition] of definitions) {
-    if (columns.has(column)) {
+    if (findExistingColumn(columns, column)) {
       continue;
     }
 
@@ -503,8 +503,24 @@ async function ensureTableColumns(tableName: string, definitions: Array<[string,
   }
 }
 
+function findExistingColumn(columns: Set<string>, candidate: string): string | null {
+  if (columns.has(candidate)) {
+    return candidate;
+  }
+
+  const normalizedCandidate = candidate.toLowerCase();
+  return Array.from(columns).find((column) => column.toLowerCase() === normalizedCandidate) ?? null;
+}
+
 function pickExistingColumn(columns: Set<string>, candidates: string[]): string | null {
-  return candidates.find((candidate) => columns.has(candidate)) ?? null;
+  for (const candidate of candidates) {
+    const column = findExistingColumn(columns, candidate);
+    if (column) {
+      return column;
+    }
+  }
+
+  return null;
 }
 
 async function saveKhaoSatBefore(body: {
@@ -550,23 +566,23 @@ async function saveKhaoSatBefore(body: {
 
   if (body.beforeSurvey.mode === "current") {
     assign(
-      pickExistingColumn(columns, ["cau_1", "cau1", "q1"]),
+      pickExistingColumn(columns, ["cau_1b", "cau_1B", "cau_1", "cau1", "q1"]),
       JSON.stringify(body.beforeSurvey.cau1),
     );
     assign(
-      pickExistingColumn(columns, ["cau_2", "cau2", "q2"]),
+      pickExistingColumn(columns, ["cau_2b", "cau_2B", "cau_2", "cau2", "q2"]),
       body.beforeSurvey.cau2,
     );
     assign(
-      pickExistingColumn(columns, ["cau_3", "cau3", "q3"]),
+      pickExistingColumn(columns, ["cau_3b", "cau_3B", "cau_3", "cau3", "q3"]),
       JSON.stringify(body.beforeSurvey.cau3),
     );
     assign(
-      pickExistingColumn(columns, ["cau_4", "cau4", "q4"]),
+      pickExistingColumn(columns, ["cau_4b", "cau_4B", "cau_4", "cau4", "q4"]),
       JSON.stringify(body.beforeSurvey.cau4),
     );
     assign(
-      pickExistingColumn(columns, ["cau_5", "cau5", "q5"]),
+      pickExistingColumn(columns, ["cau_5b", "cau_5B", "cau_5", "cau5", "q5"]),
       JSON.stringify(body.beforeSurvey.cau5),
     );
     if (columns.has("ly_do_tham_du_json")) {

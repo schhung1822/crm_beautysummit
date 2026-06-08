@@ -355,7 +355,7 @@ export default function MiniappDashboardClient({ data }: { data: MiniappDashboar
             {data.topBooths.length === 0 ? (
               <EmptyList />
             ) : (
-              <div className="flex max-h-[420px] flex-col gap-2 overflow-y-auto pr-1">
+              <div className="flex max-h-[420px] flex-col gap-2 overflow-y-auto pr-1 nice-scroll">
                 {data.topBooths.map((row, index) => (
                   <div
                     key={`${row.label}-${index}`}
@@ -386,7 +386,7 @@ export default function MiniappDashboardClient({ data }: { data: MiniappDashboar
             {data.topCustomers.length === 0 ? (
               <EmptyList />
             ) : (
-              <div className="flex max-h-[420px] flex-col gap-2 overflow-y-auto pr-1">
+              <div className="flex max-h-[420px] flex-col gap-2 overflow-y-auto pr-1 nice-scroll">
                 {data.topCustomers.map((row, index) => (
                   <div
                     key={`${row.ordercode || row.phone || row.name}-${index}`}

@@ -62,9 +62,7 @@ function buildTierRows(channels: Channel[]): TierRow[] {
       existing.revenue += Number(ch.money) || 0;
     }
 
-    // Vé tặng: voucher field có giá trị thực
-    const hasVoucher = String(ch.voucher ?? "").trim() !== "";
-    if (hasVoucher) existing.gifted += 1;
+    if (Number(ch.is_gift ?? 0) === 1) existing.gifted += 1;
 
     map.set(tier, existing);
   }

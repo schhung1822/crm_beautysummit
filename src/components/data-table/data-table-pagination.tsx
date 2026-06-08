@@ -3,10 +3,9 @@
 import * as React from "react";
 
 import { Table } from "@tanstack/react-table";
-import { ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from "lucide-react";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
@@ -17,32 +16,23 @@ interface DataTablePaginationProps<TData> {
 export function DataTablePagination<TData>({ table }: DataTablePaginationProps<TData>) {
   const { pageIndex, pageSize } = table.getState().pagination;
   const pageCount = table.getPageCount();
-  const [pageInput, setPageInput] = React.useState(() => String(pageCount === 0 ? 0 : pageIndex + 1));
-  const [isFocused, setIsFocused] = React.useState(false);
+  const safePageIndex = pageCount === 0 ? 0 : Math.min(pageIndex, pageCount - 1);
+  const currentPage = pageCount === 0 ? 0 : safePageIndex + 1;
+  const canPrev = safePageIndex > 0;
+  const canNext = pageCount > 0 && safePageIndex < pageCount - 1;
 
-  React.useEffect(() => {
-    if (!isFocused) {
-      setPageInput(String(pageCount === 0 ? 0 : pageIndex + 1));
-    }
-  }, [pageCount, pageIndex, isFocused]);
-
-  const commitPageInput = React.useCallback(() => {
-    if (pageCount === 0) {
-      setPageInput("0");
+  function handlePageSizeChange(value: string) {
+    const nextPageSize = Number(value);
+    if (!Number.isFinite(nextPageSize) || nextPageSize <= 0) {
       return;
     }
 
-    const parsed = Number(pageInput);
-    if (!Number.isFinite(parsed) || parsed < 1 || parsed > pageCount) {
-      const nextPageNumber = Math.min(Math.max(Math.trunc(parsed), 1), pageCount);
-      table.setPageIndex(Number.isFinite(parsed) ? nextPageNumber - 1 : pageIndex);
-      setPageInput(String(Number.isFinite(parsed) ? nextPageNumber : pageIndex + 1));
-      return;
-    }
-
-    table.setPageIndex(parsed - 1);
-    setPageInput(String(parsed));
-  }, [pageCount, pageIndex, pageInput, table]);
+    table.setPagination((previous) => ({
+      ...previous,
+      pageIndex: 0,
+      pageSize: nextPageSize,
+    }));
+  }
 
   return (
     <div className="flex items-center justify-between px-4">
@@ -56,9 +46,7 @@ export function DataTablePagination<TData>({ table }: DataTablePaginationProps<T
           </Label>
           <Select
             value={String(pageSize)}
-            onValueChange={(value) => {
-              table.setPageSize(Number(value));
-            }}
+            onValueChange={handlePageSizeChange}
           >
             <SelectTrigger size="sm" className="w-20" id="rows-per-page">
               <SelectValue placeholder={String(pageSize)} />
@@ -74,46 +62,16 @@ export function DataTablePagination<TData>({ table }: DataTablePaginationProps<T
         </div>
 
         <div className="flex w-fit items-center justify-center gap-2 text-sm font-medium">
-          <span>Trang</span>
-          <Input
-            value={pageInput}
-            inputMode="numeric"
-            pattern="[0-9]*"
-            className="h-8 w-16 text-center"
-            onFocus={() => setIsFocused(true)}
-            onChange={(event) => {
-              setPageInput(event.target.value.replace(/[^\d]/g, ""));
-            }}
-            onBlur={() => {
-              setIsFocused(false);
-              commitPageInput();
-            }}
-            onKeyDown={(event) => {
-              if (event.key === "Enter") {
-                event.preventDefault();
-                commitPageInput();
-              }
-            }}
-          />
-          <span>/ {pageCount}</span>
+          <span>Trang {currentPage} / {pageCount}</span>
         </div>
 
         <div className="ml-auto flex items-center gap-2 lg:ml-0">
           <Button
             variant="outline"
-            className="hidden h-8 w-8 p-0 lg:flex"
-            onClick={() => table.setPageIndex(0)}
-            disabled={!table.getCanPreviousPage()}
-          >
-            <span className="sr-only">Trang dau</span>
-            <ChevronsLeft />
-          </Button>
-          <Button
-            variant="outline"
             className="size-8"
             size="icon"
-            onClick={() => table.previousPage()}
-            disabled={!table.getCanPreviousPage()}
+            onClick={() => table.setPageIndex(Math.max(safePageIndex - 1, 0))}
+            disabled={!canPrev}
           >
             <span className="sr-only">Trang truoc</span>
             <ChevronLeft />
@@ -122,21 +80,11 @@ export function DataTablePagination<TData>({ table }: DataTablePaginationProps<T
             variant="outline"
             className="size-8"
             size="icon"
-            onClick={() => table.nextPage()}
-            disabled={!table.getCanNextPage()}
+            onClick={() => table.setPageIndex(Math.min(safePageIndex + 1, Math.max(pageCount - 1, 0)))}
+            disabled={!canNext}
           >
             <span className="sr-only">Trang tiep</span>
             <ChevronRight />
-          </Button>
-          <Button
-            variant="outline"
-            className="hidden size-8 lg:flex"
-            size="icon"
-            onClick={() => table.setPageIndex(table.getPageCount() - 1)}
-            disabled={!table.getCanNextPage()}
-          >
-            <span className="sr-only">Trang cuoi</span>
-            <ChevronsRight />
           </Button>
         </div>
       </div>

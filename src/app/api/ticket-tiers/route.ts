@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
 
+import { getCurrentUser } from "@/lib/auth";
+import { logHistoryEdit } from "@/lib/history-edit";
 import { createTicketTier, deleteTicketTier, listTicketTiers, updateTicketTier } from "@/lib/ticket-tiers";
 
 type TicketTierPayload = {
@@ -39,8 +41,20 @@ export async function GET() {
 
 export async function POST(request: Request) {
   try {
+    const currentUser = await getCurrentUser();
     const body = (await request.json()) as TicketTierPayload;
     const data = await createTicketTier(normalizePayload(body));
+    await logHistoryEdit({
+      actor: currentUser,
+      action: "create",
+      tableName: "ticket",
+      recordId: data?.id ?? null,
+      endpoint: "/api/ticket-tiers",
+      method: "POST",
+      afterData: data,
+      changedData: body,
+      description: "Create ticket tier",
+    });
     return NextResponse.json({ data }, { status: 201 });
   } catch (error) {
     return NextResponse.json(
@@ -52,6 +66,7 @@ export async function POST(request: Request) {
 
 export async function PUT(request: Request) {
   try {
+    const currentUser = await getCurrentUser();
     const body = (await request.json()) as TicketTierPayload;
     const id = Number(body.id);
     if (!Number.isFinite(id) || id <= 0) {
@@ -59,6 +74,17 @@ export async function PUT(request: Request) {
     }
 
     const data = await updateTicketTier(id, normalizePayload(body));
+    await logHistoryEdit({
+      actor: currentUser,
+      action: "update",
+      tableName: "ticket",
+      recordId: id,
+      endpoint: "/api/ticket-tiers",
+      method: "PUT",
+      afterData: data,
+      changedData: body,
+      description: "Update ticket tier",
+    });
     return NextResponse.json({ data });
   } catch (error) {
     return NextResponse.json(
@@ -70,6 +96,7 @@ export async function PUT(request: Request) {
 
 export async function DELETE(request: Request) {
   try {
+    const currentUser = await getCurrentUser();
     const body = (await request.json()) as TicketTierPayload;
     const id = Number(body.id);
     if (!Number.isFinite(id) || id <= 0) {
@@ -77,6 +104,16 @@ export async function DELETE(request: Request) {
     }
 
     const deleted = await deleteTicketTier(id);
+    await logHistoryEdit({
+      actor: currentUser,
+      action: "delete",
+      tableName: "ticket",
+      recordId: id,
+      endpoint: "/api/ticket-tiers",
+      method: "DELETE",
+      changedData: { id },
+      description: "Delete ticket tier",
+    });
     return NextResponse.json({ deleted });
   } catch (error) {
     return NextResponse.json(

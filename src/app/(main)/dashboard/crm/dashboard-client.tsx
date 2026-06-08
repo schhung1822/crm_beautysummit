@@ -478,7 +478,7 @@ export default function DashboardClient({ events }: { events: any }) {
             <div className="grid grid-cols-1 gap-[20px] md:grid-cols-2">
               <div className={panelClass}>
                 <SectionTitle color={C.purple}>Top 10 bình chọn</SectionTitle>
-                <div className="flex max-h-[360px] flex-col gap-2 overflow-y-auto pr-1.5">
+                <div className="flex max-h-[360px] flex-col gap-2 overflow-y-auto pr-1.5 nice-scroll">
                   {(() => {
                     const maxVotes = Math.max(1, ...topVotes.map((row: any) => Number(row.votes ?? 0)));
                     const podium = [

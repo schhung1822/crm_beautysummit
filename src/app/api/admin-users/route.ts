@@ -2,6 +2,7 @@
 import { NextRequest, NextResponse } from "next/server";
 
 import { getCurrentUser } from "@/lib/auth";
+import { logHistoryEdit } from "@/lib/history-edit";
 import { hashPassword } from "@/lib/password";
 import { toDatabasePhone, toDisplayPhone } from "@/lib/phone";
 import { prisma } from "@/lib/prisma";
@@ -143,7 +144,7 @@ export async function GET(request: NextRequest) {
   }
 }
 
-async function updateAdminUser(actorName: string, body: AdminUserPayload) {
+async function updateAdminUser(currentUser: Awaited<ReturnType<typeof getCurrentUser>>, actorName: string, body: AdminUserPayload) {
   const payload = parsePayload(body);
 
   if (!Number.isInteger(payload.id) || payload.id <= 0) {
@@ -209,10 +210,23 @@ async function updateAdminUser(actorName: string, body: AdminUserPayload) {
     },
   });
 
+  await logHistoryEdit({
+    actor: currentUser,
+    action: "update",
+    tableName: "users",
+    recordId: payload.id,
+    endpoint: "/api/admin-users",
+    method: "PUT",
+    beforeData: existing,
+    afterData: updated,
+    changedData: { ...payload, password: payload.password ? "[changed]" : null },
+    description: "Update admin user",
+  });
+
   return NextResponse.json({ data: toResponseUser(updated) });
 }
 
-async function deleteAdminUsers(currentUserId: number | null, ids: number[]) {
+async function deleteAdminUsers(currentUser: Awaited<ReturnType<typeof getCurrentUser>>, currentUserId: number | null, ids: number[]) {
   const normalizedIds = [...new Set(ids.filter((id) => Number.isInteger(id) && id > 0))];
 
   if (!normalizedIds.length) {
@@ -223,10 +237,28 @@ async function deleteAdminUsers(currentUserId: number | null, ids: number[]) {
     return NextResponse.json({ message: "Không thể xóa tài khoản đang đăng nhập" }, { status: 400 });
   }
 
+  const beforeUsers = await prisma.user.findMany({
+    where: {
+      id: { in: normalizedIds },
+    },
+  });
+
   const result = await prisma.user.deleteMany({
     where: {
       id: { in: normalizedIds },
     },
+  });
+
+  await logHistoryEdit({
+    actor: currentUser,
+    action: "delete",
+    tableName: "users",
+    recordId: normalizedIds.join(","),
+    endpoint: "/api/admin-users",
+    method: "DELETE",
+    beforeData: beforeUsers,
+    changedData: { ids: normalizedIds },
+    description: "Delete admin users",
   });
 
   return NextResponse.json({ ok: true, deleted: result.count });
@@ -243,7 +275,7 @@ export async function PUT(request: NextRequest) {
     const body = (await request.json()) as AdminUserPayload;
     const actorName = currentUser?.username ?? "system";
 
-    return updateAdminUser(actorName, body);
+    return updateAdminUser(currentUser, actorName, body);
   } catch (error) {
     return NextResponse.json(
       { message: error instanceof Error ? error.message : "Không thể cập nhật tài khoản" },
@@ -265,7 +297,7 @@ export async function DELETE(request: NextRequest) {
       Number(value),
     );
 
-    return deleteAdminUsers(currentUser?.userId ?? null, ids);
+    return deleteAdminUsers(currentUser, currentUser?.userId ?? null, ids);
   } catch (error) {
     return NextResponse.json(
       { message: error instanceof Error ? error.message : "Không thể xóa tài khoản" },

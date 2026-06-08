@@ -5,6 +5,7 @@ import type { ResultSetHeader, RowDataPacket } from "mysql2";
 
 import { getCurrentUser } from "@/lib/auth";
 import { getDB } from "@/lib/db";
+import { logHistoryEdit } from "@/lib/history-edit";
 import { normalizePhoneDigits, toDatabasePhone } from "@/lib/phone";
 import { buildCheckinStatusLabel, normalizeCheckinFlag } from "@/lib/ticket-orders";
 
@@ -651,6 +652,18 @@ export async function POST(req: Request) {
       transferAmount: resolvePaymentAmount(preparedPayload.money, preparedPayload.money_VAT) * quantity,
     });
 
+    await logHistoryEdit({
+      actor: currentUser,
+      action: "create",
+      tableName: "orders",
+      recordId: orderCodes.join(","),
+      endpoint: "/api/orders",
+      method: "POST",
+      afterData: { orderCodes, orderId, payload: preparedPayload },
+      changedData: body,
+      description: "Create ticket order",
+    });
+
     return NextResponse.json({ ok: true, orderCodes, orderId });
   } catch (error) {
     return NextResponse.json({ error: toErrorMessage(error) }, { status: 500 });
@@ -660,6 +673,7 @@ export async function POST(req: Request) {
 export async function PUT(req: Request) {
   try {
     const body = (await req.json()) as Record<string, unknown>;
+    const currentUser = await getCurrentUser();
     const originalOrderCode = toNullableString(body.originalOrderCode ?? body.original_ordercode);
 
     if (!originalOrderCode) {
@@ -686,6 +700,19 @@ export async function PUT(req: Request) {
       });
     }
 
+    await logHistoryEdit({
+      actor: currentUser,
+      action: "update",
+      tableName: "orders",
+      recordId: ordercode,
+      endpoint: "/api/orders",
+      method: "PUT",
+      beforeData: existingOrder,
+      afterData: { ordercode, payload },
+      changedData: body,
+      description: "Update ticket order",
+    });
+
     return NextResponse.json({
       ok: true,
       ordercode,
@@ -699,6 +726,7 @@ export async function PUT(req: Request) {
 export async function DELETE(req: Request) {
   try {
     const body = (await req.json()) as { orderCodes?: unknown[] };
+    const currentUser = await getCurrentUser();
     const orderCodesRaw = Array.isArray(body.orderCodes) ? body.orderCodes : [];
     const orderCodes = orderCodesRaw
       .map((value) => toNullableString(value))
@@ -708,7 +736,20 @@ export async function DELETE(req: Request) {
       return NextResponse.json({ error: "No order records selected for deletion" }, { status: 400 });
     }
 
+    const beforeOrders = await Promise.all(orderCodes.map((orderCode) => findOrderByCode(orderCode)));
     const deleted = await deleteTicketOrders(orderCodes);
+    await logHistoryEdit({
+      actor: currentUser,
+      action: "delete",
+      tableName: "orders",
+      recordId: orderCodes.join(","),
+      endpoint: "/api/orders",
+      method: "DELETE",
+      beforeData: beforeOrders.filter(Boolean),
+      changedData: { orderCodes },
+      description: "Delete ticket orders",
+    });
+
     return NextResponse.json({ ok: true, deleted });
   } catch (error) {
     return NextResponse.json({ error: toErrorMessage(error) }, { status: 500 });

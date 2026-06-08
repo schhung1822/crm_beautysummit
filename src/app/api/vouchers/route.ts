@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
 
+import { getCurrentUser } from "@/lib/auth";
+import { logHistoryEdit } from "@/lib/history-edit";
 import {
   createMiniAppVoucher,
   deleteMiniAppVoucher,
@@ -48,8 +50,20 @@ export async function GET() {
 
 export async function POST(request: Request) {
   try {
+    const currentUser = await getCurrentUser();
     const body = (await request.json()) as VoucherPayload;
     const voucher = await createMiniAppVoucher(normalizePayload(body));
+    await logHistoryEdit({
+      actor: currentUser,
+      action: "create",
+      tableName: "miniapp_vouchers",
+      recordId: voucher.id,
+      endpoint: "/api/vouchers",
+      method: "POST",
+      afterData: voucher,
+      changedData: body,
+      description: "Create miniapp voucher",
+    });
     return NextResponse.json({ data: voucher }, { status: 201 });
   } catch (error) {
     return NextResponse.json(
@@ -61,6 +75,7 @@ export async function POST(request: Request) {
 
 export async function PUT(request: Request) {
   try {
+    const currentUser = await getCurrentUser();
     const body = (await request.json()) as VoucherPayload;
     const voucherId = String(body.voucherId ?? "").trim();
     if (!voucherId) {
@@ -68,6 +83,17 @@ export async function PUT(request: Request) {
     }
 
     const voucher = await updateMiniAppVoucher(voucherId, normalizePayload(body));
+    await logHistoryEdit({
+      actor: currentUser,
+      action: "update",
+      tableName: "miniapp_vouchers",
+      recordId: voucherId,
+      endpoint: "/api/vouchers",
+      method: "PUT",
+      afterData: voucher,
+      changedData: body,
+      description: "Update miniapp voucher",
+    });
     return NextResponse.json({ data: voucher });
   } catch (error) {
     return NextResponse.json(
@@ -79,6 +105,7 @@ export async function PUT(request: Request) {
 
 export async function DELETE(request: Request) {
   try {
+    const currentUser = await getCurrentUser();
     const body = (await request.json()) as VoucherPayload;
     const voucherId = String(body.voucherId ?? "").trim();
     if (!voucherId) {
@@ -86,6 +113,16 @@ export async function DELETE(request: Request) {
     }
 
     const deleted = await deleteMiniAppVoucher(voucherId);
+    await logHistoryEdit({
+      actor: currentUser,
+      action: "delete",
+      tableName: "miniapp_vouchers",
+      recordId: voucherId,
+      endpoint: "/api/vouchers",
+      method: "DELETE",
+      changedData: { voucherId },
+      description: "Delete miniapp voucher",
+    });
     return NextResponse.json({ deleted });
   } catch (error) {
     return NextResponse.json(

@@ -5,6 +5,7 @@ import { z } from "zod";
 import { getCurrentUser } from "@/lib/auth";
 import { getDB } from "@/lib/db";
 import { getEventDay1Date } from "@/lib/event-settings";
+import { logHistoryEdit } from "@/lib/history-edit";
 
 const BodySchema = z.object({
   id: z.number().optional(),
@@ -71,6 +72,16 @@ export async function POST(req: NextRequest) {
         "UPDATE checkin_locations SET name = ?, allowed_tiers = ?, image_url = ?, prerequisite = ?, nc_order = ?, is_active = ?, event_date = ? WHERE id = ?",
         [body.name, body.allowed_tiers, body.image_url || null, body.prerequisite || null, body.nc_order || 0, body.is_active, body.event_date || null, body.id]
       );
+      await logHistoryEdit({
+        actor: user,
+        action: "update",
+        tableName: "checkin_locations",
+        recordId: body.id,
+        endpoint: "/api/checkin-locations",
+        method: "POST",
+        changedData: body,
+        description: "Update checkin location",
+      });
       return NextResponse.json({ message: "Updated" });
     } else {
       const [existing] = await db.query(
@@ -85,6 +96,17 @@ export async function POST(req: NextRequest) {
         "INSERT INTO checkin_locations (name, allowed_tiers, image_url, prerequisite, nc_order, is_active, event_date) VALUES (?, ?, ?, ?, ?, ?, ?)",
         [body.name, body.allowed_tiers, body.image_url || null, body.prerequisite || null, body.nc_order || 0, body.is_active, body.event_date || null]
       );
+      await logHistoryEdit({
+        actor: user,
+        action: "create",
+        tableName: "checkin_locations",
+        recordId: (result as any).insertId,
+        endpoint: "/api/checkin-locations",
+        method: "POST",
+        afterData: { id: (result as any).insertId, ...body },
+        changedData: body,
+        description: "Create checkin location",
+      });
       return NextResponse.json({ message: "Created", insertId: (result as any).insertId });
     }
   } catch (error: any) {

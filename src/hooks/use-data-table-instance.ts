@@ -3,6 +3,7 @@ import * as React from "react";
 import {
   ColumnDef,
   ColumnFiltersState,
+  PaginationState,
   SortingState,
   VisibilityState,
   getCoreRowModel,
@@ -36,6 +37,10 @@ export function useDataTableInstance<TData, TValue>({
     () => (enableRowSelection ? {} : { select: false }) as VisibilityState,
   );
   const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>([]);
+  const [pagination, setPagination] = React.useState<PaginationState>(() => ({
+    pageIndex: defaultPageIndex,
+    pageSize: defaultPageSize,
+  }));
   const [sorting, setSorting] = React.useState<SortingState>([]);
 
   const table = useReactTable({
@@ -46,12 +51,7 @@ export function useDataTableInstance<TData, TValue>({
       columnVisibility,
       rowSelection,
       columnFilters,
-    },
-    initialState: {
-      pagination: {
-        pageIndex: defaultPageIndex,
-        pageSize: defaultPageSize,
-      },
+      pagination,
     },
     enableRowSelection,
     enableMultiRowSelection: enableRowSelection,
@@ -62,6 +62,7 @@ export function useDataTableInstance<TData, TValue>({
     onSortingChange: setSorting,
     onColumnFiltersChange: setColumnFilters,
     onColumnVisibilityChange: setColumnVisibility,
+    onPaginationChange: setPagination,
     getCoreRowModel: getCoreRowModel(),
     getFilteredRowModel: getFilteredRowModel(),
     getPaginationRowModel: getPaginationRowModel(),
@@ -73,6 +74,12 @@ export function useDataTableInstance<TData, TValue>({
   // Clean up row selection when data changes (rows removed by filter/delete)
   const getRowIdStable = getRowId;
   React.useEffect(() => {
+    setPagination((prev) => {
+      const pageCount = Math.max(1, Math.ceil(data.length / prev.pageSize));
+      const nextPageIndex = Math.min(prev.pageIndex, pageCount - 1);
+      return nextPageIndex === prev.pageIndex ? prev : { ...prev, pageIndex: nextPageIndex };
+    });
+
     if (!enableRowSelection) return;
 
     const nextRowIds = new Set(

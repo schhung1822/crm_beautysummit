@@ -2,8 +2,10 @@ import { NextResponse } from "next/server";
 
 import type { ResultSetHeader } from "mysql2/promise";
 
+import { getCurrentUser } from "@/lib/auth";
 import { mapCustomerRow, type CustomerRow } from "@/lib/customers";
 import { getDB } from "@/lib/db";
+import { logHistoryEdit } from "@/lib/history-edit";
 import { toDatabasePhone } from "@/lib/phone";
 
 type CustomerPayload = {
@@ -141,6 +143,7 @@ async function syncOrdersFromCustomer(customerId: string, payload: Record<string
 
 export async function PUT(request: Request) {
   try {
+    const currentUser = await getCurrentUser();
     const body = (await request.json()) as CustomerPayload;
     const customerId = String(body.customerId ?? "").trim();
     if (!customerId) {
@@ -155,6 +158,7 @@ export async function PUT(request: Request) {
       career: toNullableString(body.career),
     };
 
+    const beforeCustomer = await findCustomerById(customerId);
     const db = getDB();
     await db.query(
       `
@@ -179,6 +183,19 @@ export async function PUT(request: Request) {
       return NextResponse.json({ message: "Customer not found" }, { status: 404 });
     }
 
+    await logHistoryEdit({
+      actor: currentUser,
+      action: "update",
+      tableName: "customer",
+      recordId: customerId,
+      endpoint: "/api/customers",
+      method: "PUT",
+      beforeData: beforeCustomer,
+      afterData: updatedCustomer,
+      changedData: payload,
+      description: "Update customer",
+    });
+
     return NextResponse.json({ data: mapCustomerRow(updatedCustomer) });
   } catch (error) {
     return NextResponse.json(
@@ -190,6 +207,7 @@ export async function PUT(request: Request) {
 
 export async function POST(request: Request) {
   try {
+    const currentUser = await getCurrentUser();
     const body = (await request.json()) as CustomerPayload;
     const action = String(body.action ?? "")
       .trim()
@@ -205,6 +223,18 @@ export async function POST(request: Request) {
       return NextResponse.json({ message: "Customer not found" }, { status: 404 });
     }
 
+    await logHistoryEdit({
+      actor: currentUser,
+      action: "create",
+      tableName: "customer",
+      recordId: duplicatedCustomer.customer_ID,
+      endpoint: "/api/customers",
+      method: "POST",
+      afterData: duplicatedCustomer,
+      changedData: { action, sourceCustomerId: customerId },
+      description: "Duplicate customer",
+    });
+
     return NextResponse.json({ data: mapCustomerRow(duplicatedCustomer) });
   } catch (error) {
     return NextResponse.json(
@@ -216,6 +246,7 @@ export async function POST(request: Request) {
 
 export async function DELETE(request: Request) {
   try {
+    const currentUser = await getCurrentUser();
     const body = (await request.json()) as CustomerPayload;
     const customerIds = [
       ...new Set(
@@ -230,6 +261,7 @@ export async function DELETE(request: Request) {
       return NextResponse.json({ message: "customerId is required" }, { status: 400 });
     }
 
+    const beforeCustomers = await Promise.all(customerIds.map((customerId) => findCustomerById(customerId)));
     const db = getDB();
     const placeholders = customerIds.map(() => "?").join(", ");
     await db.query(
@@ -252,6 +284,18 @@ export async function DELETE(request: Request) {
     if (result.affectedRows === 0) {
       return NextResponse.json({ message: "Customer not found" }, { status: 404 });
     }
+
+    await logHistoryEdit({
+      actor: currentUser,
+      action: "delete",
+      tableName: "customer",
+      recordId: customerIds.join(","),
+      endpoint: "/api/customers",
+      method: "DELETE",
+      beforeData: beforeCustomers.filter(Boolean),
+      changedData: { customerIds },
+      description: "Delete customers",
+    });
 
     return NextResponse.json({ ok: true, deleted: result.affectedRows });
   } catch (error) {

@@ -4,6 +4,7 @@ import type { ResultSetHeader } from "mysql2";
 
 import { getCurrentUser } from "@/lib/auth";
 import { getDB } from "@/lib/db";
+import { logHistoryEdit } from "@/lib/history-edit";
 
 function toNullableString(value: unknown) {
   const normalized = typeof value === "string" ? value.trim() : value == null ? "" : String(value).trim();
@@ -41,6 +42,14 @@ export async function DELETE(request: NextRequest) {
 
     const placeholders = userIds.map(() => "?").join(", ");
     const db = getDB();
+    const [beforeRows] = await db.query(
+      `
+      SELECT *
+      FROM user_zaloOA
+      WHERE user_id IN (${placeholders})
+      `,
+      userIds,
+    );
     const [result] = await db.query<ResultSetHeader>(
       `
       DELETE FROM user_zaloOA
@@ -48,6 +57,18 @@ export async function DELETE(request: NextRequest) {
       `,
       userIds,
     );
+
+    await logHistoryEdit({
+      actor: currentUser,
+      action: "delete",
+      tableName: "user_zaloOA",
+      recordId: userIds.join(","),
+      endpoint: "/api/zalo-oa",
+      method: "DELETE",
+      beforeData: beforeRows,
+      changedData: { userIds },
+      description: "Delete Zalo OA users",
+    });
 
     return NextResponse.json({ ok: true, deleted: result.affectedRows });
   } catch (error) {

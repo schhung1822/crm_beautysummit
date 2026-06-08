@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
 
+import { getCurrentUser } from "@/lib/auth";
+import { logHistoryEdit } from "@/lib/history-edit";
 import { createVoteOption, deleteVoteOption, listVoteOptions, updateVoteOption } from "@/lib/vote-options";
 
 type VoteOptionPayload = {
@@ -37,8 +39,20 @@ export async function GET() {
 
 export async function POST(request: Request) {
   try {
+    const currentUser = await getCurrentUser();
     const body = (await request.json()) as VoteOptionPayload;
     const data = await createVoteOption(normalizePayload(body));
+    await logHistoryEdit({
+      actor: currentUser,
+      action: "create",
+      tableName: "vote_options",
+      recordId: data.id,
+      endpoint: "/api/vote-options",
+      method: "POST",
+      afterData: data,
+      changedData: body,
+      description: "Create vote option",
+    });
     return NextResponse.json({ data }, { status: 201 });
   } catch (error) {
     return NextResponse.json(
@@ -50,6 +64,7 @@ export async function POST(request: Request) {
 
 export async function PUT(request: Request) {
   try {
+    const currentUser = await getCurrentUser();
     const body = (await request.json()) as VoteOptionPayload;
     const id = Number(body.id);
     if (!Number.isFinite(id)) {
@@ -57,6 +72,17 @@ export async function PUT(request: Request) {
     }
 
     const data = await updateVoteOption(id, normalizePayload(body));
+    await logHistoryEdit({
+      actor: currentUser,
+      action: "update",
+      tableName: "vote_options",
+      recordId: id,
+      endpoint: "/api/vote-options",
+      method: "PUT",
+      afterData: data,
+      changedData: body,
+      description: "Update vote option",
+    });
     return NextResponse.json({ data });
   } catch (error) {
     return NextResponse.json(
@@ -68,6 +94,7 @@ export async function PUT(request: Request) {
 
 export async function DELETE(request: Request) {
   try {
+    const currentUser = await getCurrentUser();
     const body = (await request.json()) as VoteOptionPayload;
     const id = Number(body.id);
     if (!Number.isFinite(id)) {
@@ -75,6 +102,16 @@ export async function DELETE(request: Request) {
     }
 
     const deleted = await deleteVoteOption(id);
+    await logHistoryEdit({
+      actor: currentUser,
+      action: "delete",
+      tableName: "vote_options",
+      recordId: id,
+      endpoint: "/api/vote-options",
+      method: "DELETE",
+      changedData: { id },
+      description: "Delete vote option",
+    });
     return NextResponse.json({ deleted });
   } catch (error) {
     return NextResponse.json(

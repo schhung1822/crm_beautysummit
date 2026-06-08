@@ -17,10 +17,9 @@ import {
 import { restrictToVerticalAxis } from "@dnd-kit/modifiers";
 import { SortableContext, arrayMove, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { ColumnDef, flexRender, type Table as TanStackTable } from "@tanstack/react-table";
-import { ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from "lucide-react";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -165,34 +164,29 @@ export function DataTable<TData, TValue>({
 
   const selectedCount = table.getFilteredSelectedRowModel().rows.length;
   const totalFiltered = table.getFilteredRowModel().rows.length;
-  const canPrev = table.getCanPreviousPage();
-  const canNext = table.getCanNextPage();
+  const canPrev = safePageIndex > 0;
+  const canNext = pageCount > 0 && safePageIndex < pageCount - 1;
+  const currentPage = pageCount === 0 ? 0 : safePageIndex + 1;
 
-  const [pageInput, setPageInput] = React.useState(() => String(pageCount === 0 ? 0 : pageIndex + 1));
-  const [isFocused, setIsFocused] = React.useState(false);
-
-  React.useEffect(() => {
-    if (!isFocused) {
-      setPageInput(String(pageCount === 0 ? 0 : pageIndex + 1));
-    }
-  }, [pageCount, pageIndex, isFocused]);
-
-  function commitPageInput() {
-    if (pageCount === 0) {
-      setPageInput("0");
+  function handlePageSizeChange(value: string) {
+    const nextPageSize = Number(value);
+    if (!Number.isFinite(nextPageSize) || nextPageSize <= 0) {
       return;
     }
 
-    const parsed = Number(pageInput);
-    if (!Number.isFinite(parsed) || parsed < 1 || parsed > pageCount) {
-      const nextPageNumber = Math.min(Math.max(Math.trunc(parsed), 1), pageCount);
-      table.setPageIndex(Number.isFinite(parsed) ? nextPageNumber - 1 : pageIndex);
-      setPageInput(String(Number.isFinite(parsed) ? nextPageNumber : pageIndex + 1));
-      return;
-    }
+    table.setPagination((previous) => ({
+      ...previous,
+      pageIndex: 0,
+      pageSize: nextPageSize,
+    }));
+  }
 
-    table.setPageIndex(parsed - 1);
-    setPageInput(String(parsed));
+  function goToPreviousPage() {
+    table.setPageIndex(Math.max(safePageIndex - 1, 0));
+  }
+
+  function goToNextPage() {
+    table.setPageIndex(Math.min(safePageIndex + 1, Math.max(pageCount - 1, 0)));
   }
 
   function handleDragEnd(event: DragEndEvent) {
@@ -307,10 +301,7 @@ export function DataTable<TData, TValue>({
             </Label>
             <Select
               value={String(pageSize)}
-              onValueChange={(value) => {
-                table.setPageSize(Number(value));
-                table.setPageIndex(0);
-              }}
+              onValueChange={handlePageSizeChange}
             >
               <SelectTrigger size="sm" className="w-20" id="rows-per-page">
                 <SelectValue placeholder={String(pageSize)} />
@@ -326,49 +317,15 @@ export function DataTable<TData, TValue>({
           </div>
 
           <div className="flex w-fit items-center justify-center gap-2 text-sm font-medium">
-            <span>Trang</span>
-            <Input
-              value={pageInput}
-              inputMode="numeric"
-              pattern="[0-9]*"
-              className="h-8 w-16 text-center"
-              onFocus={() => setIsFocused(true)}
-              onChange={(event) => {
-                setPageInput(event.target.value.replace(/[^\d]/g, ""));
-              }}
-              onBlur={() => {
-                setIsFocused(false);
-                commitPageInput();
-              }}
-              onKeyDown={(event) => {
-                if (event.key === "Enter") {
-                  event.preventDefault();
-                  commitPageInput();
-                }
-              }}
-            />
-            <span>/ {pageCount}</span>
+            <span>Trang {currentPage} / {pageCount}</span>
           </div>
 
           <div className="ml-auto flex items-center gap-2 lg:ml-0">
             <Button
               variant="outline"
-              className="hidden h-8 w-8 p-0 lg:flex"
-              onClick={() => table.setPageIndex(0)}
-              disabled={!canPrev}
-            >
-              <span className="sr-only">Trang dau</span>
-              <ChevronsLeft className="size-4" />
-            </Button>
-            <Button
-              variant="outline"
               className="size-8"
               size="icon"
-              onClick={() => {
-                if (canPrev) {
-                  table.previousPage();
-                }
-              }}
+              onClick={goToPreviousPage}
               disabled={!canPrev}
             >
               <span className="sr-only">Trang truoc</span>
@@ -378,25 +335,11 @@ export function DataTable<TData, TValue>({
               variant="outline"
               className="size-8"
               size="icon"
-              onClick={() => {
-                if (canNext) {
-                  table.nextPage();
-                }
-              }}
+              onClick={goToNextPage}
               disabled={!canNext}
             >
               <span className="sr-only">Trang sau</span>
               <ChevronRight className="size-4" />
-            </Button>
-            <Button
-              variant="outline"
-              className="hidden size-8 lg:flex"
-              size="icon"
-              onClick={() => table.setPageIndex(pageCount - 1)}
-              disabled={!canNext}
-            >
-              <span className="sr-only">Trang cuoi</span>
-              <ChevronsRight className="size-4" />
             </Button>
           </div>
         </div>

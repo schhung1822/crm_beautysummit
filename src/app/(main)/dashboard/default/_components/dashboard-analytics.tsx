@@ -102,10 +102,13 @@ function DonutCard({ title, description, data }: DonutProps) {
                   contentStyle={{
                     fontSize: 12,
                     borderRadius: 8,
-                    background: "hsl(var(--card))",
-                    border: "1px solid hsl(var(--border))",
-                    color: "hsl(var(--foreground))",
+                    backgroundColor: "var(--popover)",
+                    border: "1px solid var(--border)",
+                    color: "var(--popover-foreground)",
+                    boxShadow: "var(--shadow-sm)",
                   }}
+                  itemStyle={{ color: "var(--popover-foreground)" }}
+                  labelStyle={{ color: "var(--popover-foreground)" }}
                 />
               </PieChart>
             </ResponsiveContainer>

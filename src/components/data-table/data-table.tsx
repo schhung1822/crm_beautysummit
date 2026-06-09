@@ -16,16 +16,12 @@ import {
 } from "@dnd-kit/core";
 import { restrictToVerticalAxis } from "@dnd-kit/modifiers";
 import { SortableContext, arrayMove, verticalListSortingStrategy } from "@dnd-kit/sortable";
-import { ColumnDef, flexRender, type Table as TanStackTable } from "@tanstack/react-table";
-import { ChevronLeft, ChevronRight } from "lucide-react";
-
-import { Button } from "@/components/ui/button";
-import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { ColumnDef, flexRender, type PaginationState, type Table as TanStackTable } from "@tanstack/react-table";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { cn } from "@/lib/utils";
 
 import { DraggableRow } from "./draggable-row";
+import { PaginationControls } from "./pagination-controls";
 
 interface DataTableProps<TData, TValue> {
   table: TanStackTable<TData>;
@@ -35,6 +31,13 @@ interface DataTableProps<TData, TValue> {
   className?: string;
   viewportClassName?: string;
   footerClassName?: string;
+  pagination?: {
+    onPageIndexChange: (pageIndex: number) => void;
+    onPageSizeChange: (pageSize: number) => void;
+    pageCount: number;
+    pageSizeOptions?: readonly number[];
+    state: PaginationState;
+  };
   stickyFooter?: boolean;
 }
 
@@ -149,13 +152,16 @@ export function DataTable<TData, TValue>({
   className,
   viewportClassName,
   footerClassName,
+  pagination,
   stickyFooter = false,
 }: DataTableProps<TData, TValue>) {
   const { pageIndex, pageSize } = table.getState().pagination;
 
   const pageRows = table.getRowModel().rows;
-  const pageCount = table.getPageCount();
-  const safePageIndex = pageCount === 0 ? 0 : Math.min(pageIndex, pageCount - 1);
+  const pageCount = pagination?.pageCount ?? table.getPageCount();
+  const footerPageIndex = pagination?.state.pageIndex ?? pageIndex;
+  const footerPageSize = pagination?.state.pageSize ?? pageSize;
+  const safePageIndex = pageCount === 0 ? 0 : Math.min(footerPageIndex, pageCount - 1);
   const dataIds: UniqueIdentifier[] = pageRows.map((row) => row.id as UniqueIdentifier);
   const selectionEnabled = table.options.enableRowSelection !== false;
 
@@ -168,25 +174,62 @@ export function DataTable<TData, TValue>({
   const canNext = pageCount > 0 && safePageIndex < pageCount - 1;
   const currentPage = pageCount === 0 ? 0 : safePageIndex + 1;
 
-  function handlePageSizeChange(value: string) {
-    const nextPageSize = Number(value);
+  function handlePageSizeChange(nextPageSize: number) {
     if (!Number.isFinite(nextPageSize) || nextPageSize <= 0) {
+      return;
+    }
+
+    if (pagination) {
+      pagination.onPageSizeChange(nextPageSize);
+      return;
+    }
+
+    table.setPagination((previous) => ({ ...previous, pageIndex: 0, pageSize: nextPageSize }));
+  }
+
+  function goToPreviousPage() {
+    const nextPageIndex = Math.max(safePageIndex - 1, 0);
+    if (pagination) {
+      pagination.onPageIndexChange(nextPageIndex);
       return;
     }
 
     table.setPagination((previous) => ({
       ...previous,
-      pageIndex: 0,
-      pageSize: nextPageSize,
+      pageIndex: nextPageIndex,
     }));
   }
 
-  function goToPreviousPage() {
-    table.setPageIndex(Math.max(safePageIndex - 1, 0));
+  function goToFirstPage() {
+    if (pagination) {
+      pagination.onPageIndexChange(0);
+      return;
+    }
+
+    table.setPagination((previous) => ({ ...previous, pageIndex: 0 }));
   }
 
   function goToNextPage() {
-    table.setPageIndex(Math.min(safePageIndex + 1, Math.max(pageCount - 1, 0)));
+    const nextPageIndex = Math.min(safePageIndex + 1, Math.max(pageCount - 1, 0));
+    if (pagination) {
+      pagination.onPageIndexChange(nextPageIndex);
+      return;
+    }
+
+    table.setPagination((previous) => ({
+      ...previous,
+      pageIndex: nextPageIndex,
+    }));
+  }
+
+  function goToLastPage() {
+    const lastPageIndex = Math.max(pageCount - 1, 0);
+    if (pagination) {
+      pagination.onPageIndexChange(lastPageIndex);
+      return;
+    }
+
+    table.setPagination((previous) => ({ ...previous, pageIndex: lastPageIndex }));
   }
 
   function handleDragEnd(event: DragEndEvent) {
@@ -294,55 +337,19 @@ export function DataTable<TData, TValue>({
           <div className="hidden flex-1 lg:flex" />
         )}
 
-        <div className="flex w-full items-center gap-8 lg:w-fit">
-          <div className="hidden items-center gap-2 lg:flex">
-            <Label htmlFor="rows-per-page" className="text-sm font-medium">
-              Số hàng mỗi trang
-            </Label>
-            <Select
-              value={String(pageSize)}
-              onValueChange={handlePageSizeChange}
-            >
-              <SelectTrigger size="sm" className="w-20" id="rows-per-page">
-                <SelectValue placeholder={String(pageSize)} />
-              </SelectTrigger>
-              <SelectContent side="top">
-                {[10, 20, 30, 40, 50].map((size) => (
-                  <SelectItem key={size} value={String(size)}>
-                    {size}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div className="flex w-fit items-center justify-center gap-2 text-sm font-medium">
-            <span>Trang {currentPage} / {pageCount}</span>
-          </div>
-
-          <div className="ml-auto flex items-center gap-2 lg:ml-0">
-            <Button
-              variant="outline"
-              className="size-8"
-              size="icon"
-              onClick={goToPreviousPage}
-              disabled={!canPrev}
-            >
-              <span className="sr-only">Trang truoc</span>
-              <ChevronLeft className="size-4" />
-            </Button>
-            <Button
-              variant="outline"
-              className="size-8"
-              size="icon"
-              onClick={goToNextPage}
-              disabled={!canNext}
-            >
-              <span className="sr-only">Trang sau</span>
-              <ChevronRight className="size-4" />
-            </Button>
-          </div>
-        </div>
+        <PaginationControls
+          canNextPage={canNext}
+          canPreviousPage={canPrev}
+          currentPage={currentPage}
+          onNextPage={goToNextPage}
+          onPageFirst={goToFirstPage}
+          onPageLast={goToLastPage}
+          onPageSizeChange={handlePageSizeChange}
+          onPreviousPage={goToPreviousPage}
+          pageCount={pageCount}
+          pageSize={footerPageSize}
+          pageSizeOptions={pagination?.pageSizeOptions}
+        />
       </div>
     </div>
   );

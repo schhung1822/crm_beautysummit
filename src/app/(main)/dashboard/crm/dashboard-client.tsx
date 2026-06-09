@@ -24,14 +24,14 @@ import { DatePicker } from "@/components/ui/date-picker";
 const C = {
   navy: "#1E1656",
   dark: "var(--background)",
-  pink: "#F0588C",
-  gold: "#B8860B",
-  goldLight: "#FFD700",
-  cyan: "#5BC8D8",
-  purple: "#9B7DB8",
+  pink: "#94A3B8",
+  gold: "#64748B",
+  goldLight: "#60A5FA",
+  cyan: "#60A5FA",
+  purple: "#64748B",
   green: "#22C55E",
   red: "#EF4444",
-  orange: "#F97316",
+  orange: "#94A3B8",
 };
 
 const panelClass = "rounded-xl border bg-card p-5 text-card-foreground shadow-sm";
@@ -48,28 +48,28 @@ const chartTooltipStyle = {
 const chartTooltipLabelStyle = { color: "var(--popover-foreground)" };
 
 const textColorClass: Record<string, string> = {
-  [C.pink]: "text-pink-600 dark:text-pink-400",
-  [C.gold]: "text-amber-700 dark:text-amber-400",
-  [C.goldLight]: "text-amber-500 dark:text-amber-300",
-  [C.cyan]: "text-cyan-600 dark:text-cyan-400",
-  [C.purple]: "text-violet-600 dark:text-violet-400",
-  [C.green]: "text-emerald-600 dark:text-emerald-400",
+  [C.pink]: "text-foreground",
+  [C.gold]: "text-foreground",
+  [C.goldLight]: "text-foreground",
+  [C.cyan]: "text-foreground",
+  [C.purple]: "text-foreground",
+  [C.green]: "text-foreground",
   [C.red]: "text-destructive",
-  [C.orange]: "text-orange-600 dark:text-orange-400",
+  [C.orange]: "text-foreground",
 };
 
 const bgColorClass: Record<string, string> = {
-  [C.pink]: "bg-pink-500",
-  [C.gold]: "bg-amber-600",
-  [C.goldLight]: "bg-amber-400",
-  [C.cyan]: "bg-cyan-500",
-  [C.purple]: "bg-violet-500",
-  [C.green]: "bg-emerald-500",
+  [C.pink]: "bg-muted-foreground",
+  [C.gold]: "bg-muted-foreground",
+  [C.goldLight]: "bg-primary",
+  [C.cyan]: "bg-primary",
+  [C.purple]: "bg-muted-foreground",
+  [C.green]: "bg-primary",
   [C.red]: "bg-destructive",
-  [C.orange]: "bg-orange-500",
-  "#6366F1": "bg-indigo-500",
-  "#10B981": "bg-emerald-500",
-  "#F59E0B": "bg-amber-500",
+  [C.orange]: "bg-muted-foreground",
+  "#6366F1": "bg-primary",
+  "#10B981": "bg-primary",
+  "#F59E0B": "bg-muted-foreground",
 };
 
 const getTextColor = (color?: string) => textColorClass[color ?? ""] ?? "text-inherit";
@@ -203,21 +203,21 @@ const buildConversionFunnelRows = (stats: any) => {
       stage: "Tổng đơn",
       value: totalOrders,
       pct: 100,
-      colorClass: "bg-indigo-500",
+      colorClass: "bg-primary",
       shapeClass: "h-[86px] w-[96%] min-w-60",
     },
     {
       stage: "Đã thanh toán",
       value: paid,
       pct: totalOrders > 0 ? Math.round((paid / totalOrders) * 1000) / 10 : 0,
-      colorClass: "bg-emerald-500",
+      colorClass: "bg-muted-foreground",
       shapeClass: "h-[86px] w-[96%] min-w-60 [clip-path:polygon(0_0,100%_0,78%_100%,22%_100%)]",
     },
     {
       stage: "Đã check-in",
       value: checkedIn,
       pct: paid > 0 ? Math.round((checkedIn / paid) * 1000) / 10 : 0,
-      colorClass: "bg-amber-500",
+      colorClass: "bg-muted-foreground/70",
       shapeClass: "h-[84px] w-[54%] min-w-36 [clip-path:polygon(0_0,100%_0,72%_100%,28%_100%)]",
     },
   ];
@@ -461,7 +461,7 @@ export default function DashboardClient({ events }: { events: any }) {
                   <div key={i} className="bg-muted/40 mb-4 rounded-lg border p-3.5">
                     <div className="mb-1 flex justify-between">
                       <span className="text-foreground text-[13px] font-bold">{m.phase}</span>
-                      <span className="text-xs font-bold text-emerald-600 dark:text-emerald-400">
+                      <span className="text-muted-foreground text-xs font-bold">
                         {m.avg}% trung bình
                       </span>
                     </div>
@@ -483,28 +483,27 @@ export default function DashboardClient({ events }: { events: any }) {
                     const maxVotes = Math.max(1, ...topVotes.map((row: any) => Number(row.votes ?? 0)));
                     const podium = [
                       {
-                        row: "bg-gradient-to-r from-amber-50 via-yellow-50/40 to-transparent dark:from-amber-950/40 dark:via-amber-950/10 dark:to-transparent",
-                        border: "border-amber-300/70 dark:border-amber-700/50",
-                        badge: "bg-gradient-to-br from-[#FFD700] to-[#B8860B] shadow-[0_4px_14px_rgba(255,215,0,0.45)]",
-                        bar: "bg-gradient-to-r from-[#FFD700] to-[#B8860B]",
-                        accent: "text-amber-700 dark:text-amber-400",
+                        row: "bg-muted/30",
+                        border: "border-border",
+                        badge: "bg-primary",
+                        bar: "bg-primary",
+                        accent: "text-foreground",
                         Icon: Crown,
                       },
                       {
-                        row: "bg-gradient-to-r from-slate-100 via-slate-50/40 to-transparent dark:from-slate-700/40 dark:via-slate-800/10 dark:to-transparent",
+                        row: "bg-muted/20",
                         border: "border-border",
-                        badge:
-                          "bg-gradient-to-br from-slate-300 to-slate-500 shadow-[0_4px_14px_rgba(148,163,184,0.4)]",
-                        bar: "bg-gradient-to-r from-slate-300 to-slate-500",
+                        badge: "bg-muted-foreground",
+                        bar: "bg-muted-foreground",
                         accent: "text-muted-foreground",
                         Icon: Medal,
                       },
                       {
-                        row: "bg-gradient-to-r from-orange-50 via-amber-50/40 to-transparent dark:from-orange-950/40 dark:via-amber-950/10 dark:to-transparent",
-                        border: "border-orange-300/70 dark:border-orange-800/50",
-                        badge: "bg-gradient-to-br from-[#d97706] to-[#7c2d12] shadow-[0_4px_14px_rgba(217,119,6,0.4)]",
-                        bar: "bg-gradient-to-r from-[#d97706] to-[#7c2d12]",
-                        accent: "text-orange-700 dark:text-orange-400",
+                        row: "bg-muted/20",
+                        border: "border-border",
+                        badge: "bg-muted-foreground",
+                        bar: "bg-muted-foreground",
+                        accent: "text-muted-foreground",
                         Icon: Medal,
                       },
                     ];
@@ -620,8 +619,8 @@ export default function DashboardClient({ events }: { events: any }) {
                     </div>
                   ))}
                 </div>
-                <div className="mt-3 rounded-lg border border-emerald-500/20 bg-emerald-500/10 p-2.5">
-                  <span className="text-xs font-bold text-emerald-600 dark:text-emerald-400">
+                <div className="mt-3 rounded-lg border bg-muted/30 p-2.5">
+                  <span className="text-muted-foreground text-xs font-bold">
                     Tổng convert từ 4 lần notify:{" "}
                     {notifyStats.reduce((a: number, n: any) => a + Number(n.converted ?? 0), 0).toLocaleString()} đăng
                     ký

@@ -2,6 +2,8 @@
 
 "use client";
 
+import { Cell, Pie, PieChart, ResponsiveContainer, Tooltip } from "recharts";
+
 type LabelCount = { label: string; count: number };
 
 export type MiniappDashboardData = {
@@ -44,18 +46,20 @@ export type MiniappDashboardData = {
 };
 
 const C = {
-  purple: "#730C87",
-  purpleLight: "#B026C8",
-  cyan: "#22D3EE",
+  purple: "#64748B",
+  purpleLight: "#60A5FA",
+  cyan: "#60A5FA",
   green: "#10B981",
-  pink: "#F0588C",
-  gold: "#F59E0B",
+  pink: "#94A3B8",
+  gold: "#64748B",
   red: "#EF4444",
-  indigo: "#6366F1",
+  indigo: "#64748B",
 };
 
 const panelClass = "rounded-xl border bg-card p-5 text-card-foreground shadow-sm";
 const metricClass = "text-3xl font-semibold leading-none tabular-nums";
+const DONUT_COLORS = ["#d5b48c", "#ffd978", "#60a5fa", "#94a3b8", "#34d399", "#a78bfa", "#f87171", "#fb923c"];
+
 function fmt(value: number) {
   return Number(value ?? 0).toLocaleString("vi-VN");
 }
@@ -91,7 +95,7 @@ function StatCard({
   return (
     <div className={`${panelClass} min-h-[120px] min-w-[150px] flex-1 px-[18px] py-5`}>
       <div className="text-muted-foreground mb-[6px] text-[11px] font-medium">{label}</div>
-      <div className={metricClass} style={{ color }}>
+      <div className={`${metricClass} text-foreground`}>
         {typeof value === "number" ? fmt(value) : value}
       </div>
       {sub ? <div className="text-muted-foreground mt-1 text-[12px]">{sub}</div> : null}
@@ -121,12 +125,12 @@ function ProgressRow({
       </div>
       <div className="bg-muted relative h-6 flex-1 overflow-hidden rounded-md">
         <div
-          className="h-full rounded-md transition-[width] duration-700"
-          style={{ width: `${rate}%`, backgroundColor: color }}
+          className="h-full rounded-md bg-primary transition-[width] duration-700"
+          style={{ width: `${rate}%` }}
         />
         <span className="absolute top-1 right-2 text-[10px] font-bold text-white">{fmt(value)}</span>
       </div>
-      <div className="w-14 text-right text-[11px] font-bold" style={{ color }}>
+      <div className="text-muted-foreground w-14 text-right text-[11px] font-bold">
         {suffix ?? `${rate}%`}
       </div>
     </div>
@@ -204,13 +208,13 @@ export default function MiniappDashboardClient({ data }: { data: MiniappDashboar
                 <div key={phase.phase} className="bg-muted/40 rounded-lg border p-3.5">
                   <div className="mb-1 flex justify-between gap-3">
                     <span className="text-foreground text-[13px] font-bold">{phase.phase}</span>
-                    <span className="text-xs font-bold text-emerald-600 dark:text-emerald-400">{phase.rate}%</span>
+                    <span className="text-muted-foreground text-xs font-bold">{phase.rate}%</span>
                   </div>
                   <div className="text-muted-foreground mb-2 text-[11px]">
                     {fmt(phase.completed)}/{fmt(phase.possible)} lượt hoàn thành · {phase.tasks} nhiệm vụ
                   </div>
                   <div className="bg-muted h-2 overflow-hidden rounded">
-                    <div className="h-full rounded bg-emerald-500" style={{ width: `${phase.rate}%` }} />
+                    <div className="h-full rounded bg-primary" style={{ width: `${phase.rate}%` }} />
                   </div>
                 </div>
               ))}
@@ -221,17 +225,17 @@ export default function MiniappDashboardClient({ data }: { data: MiniappDashboar
             <SectionTitle title="Hiệu quả đổi quà" color={C.purpleLight} />
             <div className="mb-4 grid grid-cols-3 gap-2">
               <div className="bg-muted/40 rounded-lg border p-3 text-center">
-                <div className="text-lg font-bold" style={{ color: C.purpleLight }}>
+                <div className="text-foreground text-lg font-bold">
                   {fmt(data.stats.giftsTotal)}
                 </div>
                 <div className="text-muted-foreground text-[10px]">Tổng quà</div>
               </div>
               <div className="bg-muted/40 rounded-lg border p-3 text-center">
-                <div className="text-lg font-bold text-emerald-500">{fmt(data.stats.giftsRedeemed)}</div>
+                <div className="text-foreground text-lg font-bold">{fmt(data.stats.giftsRedeemed)}</div>
                 <div className="text-muted-foreground text-[10px]">Đã đổi</div>
               </div>
               <div className="bg-muted/40 rounded-lg border p-3 text-center">
-                <div className="text-lg font-bold text-amber-500">{fmt(data.stats.giftsPending)}</div>
+                <div className="text-foreground text-lg font-bold">{fmt(data.stats.giftsPending)}</div>
                 <div className="text-muted-foreground text-[10px]">Chưa đổi</div>
               </div>
             </div>
@@ -252,8 +256,8 @@ export default function MiniappDashboardClient({ data }: { data: MiniappDashboar
                     </div>
                     <div className="bg-muted h-2 overflow-hidden rounded-full">
                       <div
-                        className="h-full rounded-full"
-                        style={{ width: `${pct(row.count, maxGift)}%`, backgroundColor: C.purpleLight }}
+                        className="h-full rounded-full bg-primary"
+                        style={{ width: `${pct(row.count, maxGift)}%` }}
                       />
                     </div>
                     <div className="text-muted-foreground mt-1 text-[10px]">
@@ -280,7 +284,7 @@ export default function MiniappDashboardClient({ data }: { data: MiniappDashboar
                   </div>
                   <div
                     className="bg-background rounded-full border px-3 py-1 text-right text-xs font-bold"
-                    style={{ color: C.purpleLight }}
+                    style={{ color: "var(--muted-foreground)" }}
                   >
                     {phase.tasks.length} nhiệm vụ
                   </div>
@@ -296,14 +300,14 @@ export default function MiniappDashboardClient({ data }: { data: MiniappDashboar
                         <span className="text-foreground line-clamp-2 min-w-0 text-sm leading-snug font-bold">
                           {task.label}
                         </span>
-                        <span className="shrink-0 text-[12px] font-bold" style={{ color: C.purpleLight }}>
+                        <span className="text-muted-foreground shrink-0 text-[12px] font-bold">
                           {task.rate}%
                         </span>
                       </div>
                       <div className="bg-muted h-2 overflow-hidden rounded-full">
                         <div
-                          className="h-full rounded-full"
-                          style={{ width: `${task.rate}%`, backgroundColor: C.purpleLight }}
+                          className="h-full rounded-full bg-primary"
+                          style={{ width: `${task.rate}%` }}
                         />
                       </div>
                       <div className="text-muted-foreground mt-2 flex justify-between text-[11px]">
@@ -334,14 +338,14 @@ export default function MiniappDashboardClient({ data }: { data: MiniappDashboar
                       <div className="min-w-0 truncate text-sm font-bold">
                         #{index + 1} {row.label}
                       </div>
-                      <div className="text-sm font-bold" style={{ color: C.gold }}>
+                      <div className="text-foreground text-sm font-bold">
                         {fmt(row.count)}
                       </div>
                     </div>
                     <div className="bg-muted h-2 overflow-hidden rounded-full">
                       <div
-                        className="h-full rounded-full"
-                        style={{ width: `${pct(row.count, maxVote)}%`, backgroundColor: C.gold }}
+                        className="h-full rounded-full bg-primary"
+                        style={{ width: `${pct(row.count, maxVote)}%` }}
                       />
                     </div>
                   </div>
@@ -365,14 +369,14 @@ export default function MiniappDashboardClient({ data }: { data: MiniappDashboar
                       <div className="min-w-0 truncate text-sm font-bold" title={row.label}>
                         #{index + 1} {row.label}
                       </div>
-                      <div className="text-sm font-bold" style={{ color: C.pink }}>
+                      <div className="text-foreground text-sm font-bold">
                         {fmt(row.count)}
                       </div>
                     </div>
                     <div className="bg-muted h-2 overflow-hidden rounded-full">
                       <div
-                        className="h-full rounded-full"
-                        style={{ width: `${pct(row.count, maxBooth)}%`, backgroundColor: C.pink }}
+                        className="h-full rounded-full bg-primary"
+                        style={{ width: `${pct(row.count, maxBooth)}%` }}
                       />
                     </div>
                   </div>
@@ -403,7 +407,7 @@ export default function MiniappDashboardClient({ data }: { data: MiniappDashboar
                         </div>
                       </div>
                       <div className="shrink-0 text-right">
-                        <div className="text-sm font-bold text-emerald-500">{row.completedCount} nhiệm vụ</div>
+                        <div className="text-foreground text-sm font-bold">{row.completedCount} nhiệm vụ</div>
                         <div className="text-muted-foreground mt-1 text-[11px]">{fmt(row.totalPoints)} điểm</div>
                       </div>
                     </div>
@@ -426,15 +430,15 @@ export default function MiniappDashboardClient({ data }: { data: MiniappDashboar
         <div className="grid grid-cols-1 gap-[20px] lg:grid-cols-3">
           <div className={panelClass}>
             <SectionTitle title="Nghề nghiệp" color={C.pink} />
-            <MiniBar rows={data.survey.jobs} color={C.pink} />
+            <MiniDonut rows={data.survey.jobs} />
           </div>
           <div className={panelClass}>
             <SectionTitle title="Quy mô cơ sở" color={C.cyan} />
-            <MiniBar rows={data.survey.sizes} color={C.cyan} />
+            <MiniDonut rows={data.survey.sizes} />
           </div>
           <div className={panelClass}>
             <SectionTitle title="Mối quan tâm" color={C.green} />
-            <MiniBar rows={data.survey.interests} color={C.green} />
+            <MiniDonut rows={data.survey.interests} />
           </div>
         </div>
       </div>
@@ -442,26 +446,75 @@ export default function MiniappDashboardClient({ data }: { data: MiniappDashboar
   );
 }
 
-function MiniBar({ rows, color }: { rows: LabelCount[]; color: string }) {
-  const max = Math.max(1, ...rows.map((row) => row.count));
-
+function MiniDonut({ rows }: { rows: LabelCount[] }) {
   if (rows.length === 0) {
     return <EmptyList />;
   }
 
+  const total = rows.reduce((sum, row) => sum + Number(row.count ?? 0), 0);
+  const chartRows = rows.slice(0, 8);
+  const hasValues = chartRows.some((row) => Number(row.count ?? 0) > 0);
+
   return (
-    <div className="flex flex-col gap-2">
-      {rows.map((row, index) => (
-        <div key={`${row.label}-${index}`} className="flex items-center gap-2">
-          <div className="text-muted-foreground w-28 shrink-0 truncate text-right text-[11px]" title={row.label}>
-            {truncate(row.label, 22)}
+    <div className="flex flex-col items-center">
+      <div className="h-[210px] w-full">
+        {hasValues ? (
+          <ResponsiveContainer width="100%" height="100%">
+            <PieChart>
+              <Pie
+                data={chartRows}
+                cx="50%"
+                cy="50%"
+                innerRadius={50}
+                outerRadius={78}
+                paddingAngle={2}
+                dataKey="count"
+                nameKey="label"
+                strokeWidth={0}
+              >
+                {chartRows.map((_, index) => (
+                  <Cell key={index} fill={DONUT_COLORS[index % DONUT_COLORS.length]} />
+                ))}
+              </Pie>
+              <Tooltip
+                formatter={(value: number, name: string) => [
+                  `${fmt(value)} (${total > 0 ? pct(value, total) : 0}%)`,
+                  name,
+                ]}
+                contentStyle={{
+                  backgroundColor: "var(--popover)",
+                  border: "1px solid var(--border)",
+                  borderRadius: 8,
+                  boxShadow: "var(--shadow-sm)",
+                  color: "var(--popover-foreground)",
+                  fontSize: 12,
+                }}
+                itemStyle={{ color: "var(--popover-foreground)" }}
+                labelStyle={{ color: "var(--popover-foreground)" }}
+              />
+            </PieChart>
+          </ResponsiveContainer>
+        ) : (
+          <EmptyList />
+        )}
+      </div>
+      <div className="mt-2 w-full space-y-1.5">
+        {chartRows.map((row, index) => (
+          <div key={`${row.label}-${index}`} className="flex items-center gap-2 text-xs">
+            <span
+              className="inline-block h-2 w-2 shrink-0 rounded-full"
+              style={{ backgroundColor: DONUT_COLORS[index % DONUT_COLORS.length] }}
+            />
+            <span className="text-muted-foreground min-w-0 flex-1 truncate" title={row.label}>
+              {truncate(row.label, 30)}
+            </span>
+            <span className="text-foreground tabular-nums font-semibold">{fmt(row.count)}</span>
+            <span className="text-muted-foreground/70 w-10 text-right tabular-nums">
+              {total > 0 ? pct(row.count, total).toFixed(0) : 0}%
+            </span>
           </div>
-          <div className="bg-muted h-5 flex-1 overflow-hidden rounded-md">
-            <div className="h-full rounded-md" style={{ width: `${pct(row.count, max)}%`, backgroundColor: color }} />
-          </div>
-          <div className="text-foreground w-10 text-right text-[11px] font-bold">{fmt(row.count)}</div>
-        </div>
-      ))}
+        ))}
+      </div>
     </div>
   );
 }

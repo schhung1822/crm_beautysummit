@@ -274,6 +274,33 @@ function OrdersDataTable({ data: initialData = [] }: { data?: Channel[] }) {
     getFacetedUniqueValues: getFacetedUniqueValues(),
   });
 
+  const pageCount = React.useMemo(
+    () => Math.max(1, Math.ceil(filteredData.length / pagination.pageSize)),
+    [filteredData.length, pagination.pageSize],
+  );
+
+  React.useEffect(() => {
+    setPagination((previous) => {
+      const nextPageIndex = Math.min(previous.pageIndex, pageCount - 1);
+      return nextPageIndex === previous.pageIndex ? previous : { ...previous, pageIndex: nextPageIndex };
+    });
+  }, [pageCount]);
+
+  const handlePageIndexChange = React.useCallback((pageIndex: number) => {
+    setPagination((previous) => {
+      const nextPageIndex = Math.min(Math.max(pageIndex, 0), Math.max(pageCount - 1, 0));
+      return nextPageIndex === previous.pageIndex ? previous : { ...previous, pageIndex: nextPageIndex };
+    });
+  }, [pageCount]);
+
+  const handlePageSizeChange = React.useCallback((pageSize: number) => {
+    if (!Number.isFinite(pageSize) || pageSize <= 0) {
+      return;
+    }
+
+    setPagination({ pageIndex: 0, pageSize });
+  }, []);
+
   const selectedItems = table.getSelectedRowModel().rows.map((r) => r.original);
 
   const handleDeleteSelected = async () => {
@@ -358,6 +385,12 @@ function OrdersDataTable({ data: initialData = [] }: { data?: Channel[] }) {
       <div className="min-h-0 min-w-0 max-w-full flex-1 basis-0 overflow-hidden">
         <SharedDataTable
           table={table} columns={columns} stickyFooter
+          pagination={{
+            onPageIndexChange: handlePageIndexChange,
+            onPageSizeChange: handlePageSizeChange,
+            pageCount,
+            state: pagination,
+          }}
           className="h-full min-h-0 min-w-0 max-w-full flex-1 basis-0 overflow-hidden nice-scroll"
           viewportClassName="min-h-0 min-w-0 max-w-full flex-1 basis-0 overflow-hidden"
           footerClassName="shrink-0 rounded-xl"

@@ -7,6 +7,7 @@ import { ImagePlus, Pencil, Plus, Search, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
 import { CreatableSearchSelect, type CreatableSearchSelectOption } from "@/components/creatable-search-select";
+import { PaginationControls } from "@/components/data-table/pagination-controls";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -255,6 +256,8 @@ export default function VoucherManager({ initialData }: VoucherManagerProps) {
   const visibleStart = filteredData.length === 0 ? 0 : pageStart + 1;
   const visibleEnd = Math.min(filteredData.length, pageEnd);
   const currentPage = filteredData.length === 0 ? 0 : safePageIndex + 1;
+  const canPreviousPage = safePageIndex > 0;
+  const canNextPage = filteredData.length > 0 && safePageIndex < pageCount - 1;
 
   React.useEffect(() => {
     setPageIndex(0);
@@ -587,7 +590,27 @@ export default function VoucherManager({ initialData }: VoucherManagerProps) {
           Hiển {visibleStart}-{visibleEnd} của {filteredData.length} voucher
         </div>
 
-        <div className="flex w-full items-center gap-8 lg:w-fit">
+        <PaginationControls
+          canNextPage={canNextPage}
+          canPreviousPage={canPreviousPage}
+          currentPage={currentPage}
+          idPrefix="voucher"
+          onNextPage={() => setPageIndex((current) => Math.min(current + 1, pageCount - 1))}
+          onPageFirst={() => setPageIndex(0)}
+          onPageLast={() => setPageIndex(Math.max(pageCount - 1, 0))}
+          onPageSizeChange={(nextPageSize) => {
+            if (!Number.isFinite(nextPageSize) || nextPageSize <= 0) {
+              return;
+            }
+            setPageSize(nextPageSize);
+            setPageIndex(0);
+          }}
+          onPreviousPage={() => setPageIndex((current) => Math.max(current - 1, 0))}
+          pageCount={pageCount}
+          pageSize={pageSize}
+          pageSizeOptions={PAGE_SIZE_OPTIONS}
+        />
+        <div className="hidden">
           <div className="hidden items-center gap-2 lg:flex">
             <Label htmlFor="voucher-rows-per-page" className="text-sm font-medium">
               Số hàng mỗi trang

@@ -27,6 +27,7 @@ export const channelSchema = z.object({
   status_checkin: z.string(),
   checkin_time: z.date().nullable(),
   order_id: z.string(),
+  ref: z.string(),
 });
 
 export type Channel = z.infer<typeof channelSchema>;

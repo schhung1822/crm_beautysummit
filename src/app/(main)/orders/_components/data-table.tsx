@@ -64,6 +64,7 @@ const ORDER_EXPORT_HEADERS = {
   is_gift: "Vé tặng",
   update_time: "Ngày thanh toán",
   order_id: "Mã đơn hàng",
+  ref: "Nguồn Aff",
   status_checkin: "Check-in",
   checkin_time: "Ngày check-in",
   create_time: "Ngày tạo",
@@ -161,13 +162,14 @@ function OrdersDataTable({ data: initialData = [] }: { data?: Channel[] }) {
   const [filterGender, setFilterGender] = React.useState("__all__");
   const [filterStatus, setFilterStatus] = React.useState("__all__");
   const [filterCheckin, setFilterCheckin] = React.useState("__all__");
+  const [filterAffSource, setFilterAffSource] = React.useState("__all__");
 
   React.useEffect(() => { setData(initialData); }, [initialData]);
 
   // Reset page to 0 when filters change
   React.useEffect(() => {
     setPagination((prev) => ({ ...prev, pageIndex: 0 }));
-  }, [searchTerm, dateRange, filterTier, filterGender, filterStatus, filterCheckin]);
+  }, [searchTerm, dateRange, filterTier, filterGender, filterStatus, filterCheckin, filterAffSource]);
 
   const tierOptions = React.useMemo(() => {
     const set = new Set<string>();
@@ -178,12 +180,22 @@ function OrdersDataTable({ data: initialData = [] }: { data?: Channel[] }) {
     return Array.from(set).sort().map((v) => ({ label: v, value: v }));
   }, [data]);
 
+  const affSourceOptions = React.useMemo(() => {
+    const set = new Set<string>();
+    for (const ch of data) {
+      const v = String(ch.ref ?? "").trim();
+      if (v) set.add(v);
+    }
+    return Array.from(set).sort((a, b) => a.localeCompare(b, "vi")).map((v) => ({ label: v, value: v }));
+  }, [data]);
+
   const activeFilterCount = [
     dateRange.from || dateRange.to,
     filterTier !== "__all__",
     filterGender !== "__all__",
     filterStatus !== "__all__",
     filterCheckin !== "__all__",
+    filterAffSource !== "__all__",
   ].filter(Boolean).length;
 
   const handleResetFilters = () => {
@@ -192,6 +204,7 @@ function OrdersDataTable({ data: initialData = [] }: { data?: Channel[] }) {
     setFilterGender("__all__");
     setFilterStatus("__all__");
     setFilterCheckin("__all__");
+    setFilterAffSource("__all__");
     setSearchTerm("");
   };
 
@@ -227,7 +240,7 @@ function OrdersDataTable({ data: initialData = [] }: { data?: Channel[] }) {
     let result = data;
     if (searchTerm) {
       result = result.filter((item) =>
-        matchesSearchTerm(searchTerm, [item.ordercode, item.name, item.phone, item.email, item.class, item.hope, item.voucher]),
+        matchesSearchTerm(searchTerm, [item.ordercode, item.order_id, item.ref, item.name, item.phone, item.email, item.class, item.hope, item.voucher]),
       );
     }
     if (dateRange.from || dateRange.to) {
@@ -251,8 +264,11 @@ function OrdersDataTable({ data: initialData = [] }: { data?: Channel[] }) {
       if (filterCheckin === "checked") result = result.filter((item) => (item.is_checkin ?? 0) > 0);
       else result = result.filter((item) => (item.is_checkin ?? 0) === 0);
     }
+    if (filterAffSource !== "__all__") {
+      result = result.filter((item) => String(item.ref ?? "").trim() === filterAffSource);
+    }
     return result;
-  }, [data, searchTerm, dateRange, filterTier, filterGender, filterStatus, filterCheckin]);
+  }, [data, searchTerm, dateRange, filterTier, filterGender, filterStatus, filterCheckin, filterAffSource]);
 
   const getRowId = React.useCallback((row: Channel) => toOrderRowKey(row), []);
 
@@ -371,6 +387,7 @@ function OrdersDataTable({ data: initialData = [] }: { data?: Channel[] }) {
         <FilterSelect placeholder="Giới tính" value={filterGender} options={[{ label: "Nam", value: "Nam" }, { label: "Nữ", value: "Nữ" }]} onChange={setFilterGender} />
         <FilterSelect placeholder="Thanh toán" value={filterStatus} options={[{ label: "Đã thanh toán", value: "paydone" }, { label: "Chưa thanh toán", value: "new" }]} onChange={setFilterStatus} />
         <FilterSelect placeholder="Check-in" value={filterCheckin} options={[{ label: "Đã check-in", value: "checked" }, { label: "Chưa check-in", value: "not_checked" }]} onChange={setFilterCheckin} />
+        <FilterSelect placeholder="Nguồn Aff" value={filterAffSource} options={affSourceOptions} onChange={setFilterAffSource} />
         {activeFilterCount > 0 && (
           <Button variant="ghost" size="sm" className="h-9 gap-1.5 text-xs text-muted-foreground" onClick={handleResetFilters}>
             <X className="size-3.5" /> Xóa {activeFilterCount} bộ lọc

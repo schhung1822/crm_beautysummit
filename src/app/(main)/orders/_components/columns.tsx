@@ -256,6 +256,18 @@ export const dashboardColumns = (onRowUpdated?: OnRowUpdated, onDeleteRow?: OnDe
   },
 
   {
+    accessorKey: "ref",
+    header: ({ column }) => <DataTableColumnHeader column={column} title="Nguồn Aff" />,
+    cell: ({ row }) => (
+      <span className="block max-w-[140px] truncate" title={row.original.ref || undefined}>
+        {getDisplayValue(row.original.ref)}
+      </span>
+    ),
+    enableSorting: false,
+    size: 140,
+  },
+
+  {
     accessorKey: "status_checkin",
     header: ({ column }) => <DataTableColumnHeader column={column} title="Check-in" />,
     cell: ({ row }) => <Badge variant="secondary">{row.original.status_checkin}</Badge>,

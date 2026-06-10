@@ -15,6 +15,7 @@ export const channelSchema = z.object({
   career: z.string(),
   hope: z.string().optional().default(""),
   voucher: z.string().optional().default(""),
+  ref: z.string().optional().default(""),
   is_gift: z.number().default(0),
   is_checkin: z.number().default(0),
   number_checkin: z.number().default(0),

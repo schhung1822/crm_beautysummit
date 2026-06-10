@@ -37,8 +37,8 @@ type OrderRow = RowDataPacket & {
   is_checkin: number | string | null;
   number_checkin: number | string | null;
   checkin_time: Date | string | null;
-    order_id: string | null;
-
+  order_id: string | null;
+  ref: string | null;
 };
 
 function parseString(value: unknown): string {
@@ -86,6 +86,7 @@ function mapRowToChannel(row: OrderRow): Channel {
     status_checkin: buildCheckinStatusLabel(isCheckin),
     checkin_time: parseDate(row.checkin_time),
     order_id: parseString(row.order_id),
+    ref: parseString(row.ref),
 
   });
 }
@@ -136,7 +137,8 @@ export async function getChannels(options?: GetChannelsOptions): Promise<Channel
       COALESCE(is_checkin, 0) AS is_checkin,
       COALESCE(number_checkin, 0) AS number_checkin,
       checkin_time,
-      COALESCE(order_id, '') AS order_id
+      COALESCE(order_id, '') AS order_id,
+      COALESCE(ref, '') AS ref
     FROM orders
     ${whereSql}
     ORDER BY create_time DESC

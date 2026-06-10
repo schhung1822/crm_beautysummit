@@ -4,7 +4,7 @@ import * as React from "react";
 
 import { useSearchParams } from "next/navigation";
 
-import { Cell, Pie, PieChart, Tooltip, Legend, ResponsiveContainer } from "recharts";
+import { Cell, Pie, PieChart, Tooltip, ResponsiveContainer } from "recharts";
 
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { fetchChannelsByDateRange } from "@/server/server-actions";
@@ -50,6 +50,22 @@ function normalizeGender(raw: string): string {
   const v = raw.trim().toLowerCase();
   if (!v) return "Không xác định";
   return GENDER_MAP[v] ?? raw.trim();
+}
+
+function isCompletedStatus(status: string) {
+  const normalized = status.trim().toLowerCase();
+
+  return (
+    normalized === "paydone" ||
+    normalized === "paid" ||
+    normalized === "completed" ||
+    normalized.includes("hoàn thành") ||
+    normalized.includes("thành công") ||
+    normalized.includes("đã thanh toán") ||
+    normalized.includes("hoÃ n thÃ nh") ||
+    normalized.includes("thÃ nh cÃ´ng") ||
+    normalized.includes("Ä‘Ã£ thanh toÃ¡n")
+  );
 }
 
 // ─── Donut card ───────────────────────────────────────────────────────────────
@@ -138,6 +154,61 @@ function DonutCard({ title, description, data }: DonutProps) {
 
 // ─── Main export ──────────────────────────────────────────────────────────────
 
+function HorizontalBarCard({ title, description, data }: DonutProps) {
+  const total = data.reduce((s, d) => s + d.value, 0);
+  const maxValue = Math.max(...data.map((d) => d.value), 0);
+  const isEmpty = total === 0;
+
+  return (
+    <Card className="flex flex-col">
+      <CardHeader className="pb-0">
+        <CardTitle className="pt-4 text-sm font-semibold">{title}</CardTitle>
+        <CardDescription className="text-xs">{description}</CardDescription>
+      </CardHeader>
+      <CardContent className="flex flex-1 flex-col py-4">
+        {isEmpty ? (
+          <div className="flex min-h-[260px] items-center justify-center text-xs text-muted-foreground">
+            Không có dữ liệu
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {data.map((entry, i) => {
+              const percentOfTotal = total ? (entry.value / total) * 100 : 0;
+              const percentOfMax = maxValue ? (entry.value / maxValue) * 100 : 0;
+
+              return (
+                <div key={`${entry.name}-${i}`} className="grid gap-1.5">
+                  <div className="flex items-center gap-2 text-xs">
+                    <span
+                      className="inline-block h-2 w-2 shrink-0 rounded-full"
+                      style={{ background: PALETTE[i % PALETTE.length] }}
+                    />
+                    <span className="min-w-0 flex-1 truncate font-medium text-foreground" title={entry.name}>
+                      {entry.name}
+                    </span>
+                    <span className="shrink-0 tabular-nums text-muted-foreground">
+                      {entry.value} · {percentOfTotal.toFixed(0)}%
+                    </span>
+                  </div>
+                  <div className="h-2.5 overflow-hidden rounded-full bg-muted">
+                    <div
+                      className="h-full rounded-full transition-all duration-500"
+                      style={{
+                        width: `${Math.max(percentOfMax, 4)}%`,
+                        background: PALETTE[i % PALETTE.length],
+                      }}
+                    />
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
 export function DashboardAnalytics({ initialData }: { initialData: Channel[] }) {
   const searchParams = useSearchParams();
   const [data, setData] = React.useState<Channel[]>(initialData);
@@ -173,6 +244,11 @@ export function DashboardAnalytics({ initialData }: { initialData: Channel[] }) 
     [data],
   );
 
+  const affSourceData = React.useMemo(
+    () => buildPieData(data.filter((d) => isCompletedStatus(d.status ?? "")).map((d) => d.ref ?? ""), 8),
+    [data],
+  );
+
   return (
     <div
       className={`flex flex-col gap-6 transition-opacity duration-200 ${isLoading ? "pointer-events-none opacity-50" : ""
@@ -197,8 +273,14 @@ export function DashboardAnalytics({ initialData }: { initialData: Channel[] }) 
         />
       </div>
 
-      {/* Tier stats table */}
-      <TierStatsTable data={data} />
+      <div className="grid grid-cols-1 gap-4 xl:grid-cols-[360px_minmax(0,1fr)]">
+        <HorizontalBarCard
+          title="Thống kê theo Nguồn Aff"
+          description="Số đơn hàng theo mã nguồn affiliate"
+          data={affSourceData}
+        />
+        <TierStatsTable data={data} />
+      </div>
     </div>
   );
 }

@@ -39,9 +39,7 @@ export type MiniappDashboardData = {
     spentPoints: number;
   }>;
   survey: {
-    jobs: LabelCount[];
-    sizes: LabelCount[];
-    interests: LabelCount[];
+    questions: Array<{ key: string; title: string; rows: LabelCount[] }>;
   };
 };
 
@@ -427,19 +425,16 @@ export default function MiniappDashboardClient({ data }: { data: MiniappDashboar
             )}
           </div>
         </div>
-        <div className="grid grid-cols-1 gap-[20px] lg:grid-cols-3">
-          <div className={panelClass}>
-            <SectionTitle title="Nghề nghiệp" color={C.pink} />
-            <MiniDonut rows={data.survey.jobs} />
-          </div>
-          <div className={panelClass}>
-            <SectionTitle title="Quy mô cơ sở" color={C.cyan} />
-            <MiniDonut rows={data.survey.sizes} />
-          </div>
-          <div className={panelClass}>
-            <SectionTitle title="Mối quan tâm" color={C.green} />
-            <MiniDonut rows={data.survey.interests} />
-          </div>
+        <div className="grid grid-cols-1 gap-[20px] lg:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-5">
+          {data.survey.questions.map((question, index) => (
+            <div key={question.key} className={panelClass}>
+              <SectionTitle
+                title={question.title}
+                color={[C.pink, C.cyan, C.green, C.purpleLight, C.red][index % 5]}
+              />
+              <MiniDonut rows={question.rows} />
+            </div>
+          ))}
         </div>
       </div>
     </div>

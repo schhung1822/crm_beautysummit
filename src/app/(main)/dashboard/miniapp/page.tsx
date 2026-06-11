@@ -17,6 +17,13 @@ type StatRow = RowDataPacket & {
 };
 type TaskSummaryRow = RowDataPacket & Record<string, number | string | null>;
 type LabelRow = RowDataPacket & { label: string | null; count: number | string | null };
+type BeforeSurveyQuestionRow = RowDataPacket & {
+  cau_1b: string | null;
+  cau_2b: string | null;
+  cau_3b: string | null;
+  cau_4b: string | null;
+  cau_5b: string | null;
+};
 type RewardCustomerRow = RowDataPacket & {
   name: string | null;
   phone: string | null;
@@ -141,6 +148,54 @@ function parseStringArray(value: string | null | undefined) {
   return [];
 }
 
+function parseSurveyAnswers(value: string | null | undefined) {
+  const rawValue = String(value ?? "").trim();
+  if (!rawValue) return [];
+
+  try {
+    const parsed = JSON.parse(rawValue) as unknown;
+    if (Array.isArray(parsed)) {
+      return parsed.map((item) => String(item ?? "").trim()).filter(Boolean);
+    }
+    if (typeof parsed === "string") {
+      const answer = parsed.trim();
+      return answer ? [answer] : [];
+    }
+  } catch {
+    return [rawValue];
+  }
+
+  return [rawValue];
+}
+
+function buildSurveyQuestionRows(rows: BeforeSurveyQuestionRow[]) {
+  const questions = [
+    { key: "cau_1b", title: "Biết về BS 2026 qua đâu" },
+    { key: "cau_2b", title: "Điều Thu hút ở BS" },
+    { key: "cau_3b", title: "Dự định sau BS" },
+    { key: "cau_4b", title: "Cập nhật nhật làm đẹp ở đâu khác" },
+    { key: "cau_5b", title: "Sẽ giới thiệu BS cho ai" },
+  ] as const;
+
+  return questions.map((question) => {
+    const counts = new Map<string, number>();
+
+    rows.forEach((row) => {
+      parseSurveyAnswers(row[question.key]).forEach((answer) => {
+        counts.set(answer, (counts.get(answer) ?? 0) + 1);
+      });
+    });
+
+    return {
+      ...question,
+      rows: Array.from(counts.entries())
+        .map(([label, count]) => ({ label, count }))
+        .sort((left, right) => right.count - left.count || left.label.localeCompare(right.label, "vi"))
+        .slice(0, 8),
+    };
+  });
+}
+
 function maskPhone(value: string | null) {
   const phone = String(value ?? "").trim();
   if (phone.length < 7) return phone || "--";
@@ -186,9 +241,7 @@ export default async function MiniappDashboardPage() {
     [topGiftRows],
     [topBoothRows],
     [topCustomerRows],
-    [jobRows],
-    [sizeRows],
-    [interestRows],
+    [beforeSurveyQuestionRows],
   ] = await Promise.all([
     db.query<StatRow[]>(`
       SELECT
@@ -261,26 +314,14 @@ export default async function MiniappDashboardPage() {
          OR COALESCE(TRIM(name), '') <> ''
          OR COALESCE(TRIM(ordercode), '') <> ''
     `),
-    db.query<LabelRow[]>(`
-      SELECT COALESCE(NULLIF(TRIM(nghe_nghiep), ''), '(trống)') AS label, COUNT(*) AS count
+    db.query<BeforeSurveyQuestionRow[]>(`
+      SELECT cau_1b, cau_2b, cau_3b, cau_4b, cau_5b
       FROM khaosat_before
-      GROUP BY label
-      ORDER BY count DESC
-      LIMIT 8
-    `),
-    db.query<LabelRow[]>(`
-      SELECT COALESCE(NULLIF(TRIM(quy_mo), ''), '(trống)') AS label, COUNT(*) AS count
-      FROM khaosat_before
-      GROUP BY label
-      ORDER BY count DESC
-      LIMIT 8
-    `),
-    db.query<LabelRow[]>(`
-      SELECT COALESCE(NULLIF(TRIM(moi_quan_tam), ''), '(trống)') AS label, COUNT(*) AS count
-      FROM khaosat_before
-      GROUP BY label
-      ORDER BY count DESC
-      LIMIT 8
+      WHERE COALESCE(TRIM(cau_1b), '') <> ''
+         OR COALESCE(TRIM(cau_2b), '') <> ''
+         OR COALESCE(TRIM(cau_3b), '') <> ''
+         OR COALESCE(TRIM(cau_4b), '') <> ''
+         OR COALESCE(TRIM(cau_5b), '') <> ''
     `),
   ]);
 
@@ -332,9 +373,7 @@ export default async function MiniappDashboardPage() {
     topBooths: normalizeLabelRows(topBoothRows, 10),
     topCustomers: buildTopCustomers(topCustomerRows),
     survey: {
-      jobs: normalizeLabelRows(jobRows),
-      sizes: normalizeLabelRows(sizeRows),
-      interests: normalizeLabelRows(interestRows),
+      questions: buildSurveyQuestionRows(beforeSurveyQuestionRows),
     },
   };
 

@@ -14,6 +14,7 @@ type VoteOptionRow = RowDataPacket & {
   category: string | null;
   product: string | null;
   voted: string | null;
+  checkin_code: string | null;
   logo_url: string | null;
   link: string | null;
 };
@@ -28,6 +29,7 @@ export type VoteOptionRecord = {
   brandId: string;
   category: string;
   product: string;
+  checkinCode: string;
   logo: string;
   productImage: string;
   summary: string;
@@ -57,6 +59,7 @@ type VoteOptionInput = {
   brandId?: string;
   category: string;
   product: string;
+  checkinCode?: string;
   logo?: string;
   productImage?: string;
   summary?: string;
@@ -66,6 +69,7 @@ type NormalizedVoteOptionInput = {
   brandId: string;
   category: string;
   product: string;
+  checkinCode: string;
   logo: string;
   productImage: string;
   summary: string;
@@ -110,6 +114,7 @@ function mapVoteOptionRow(row: VoteOptionRow): VoteOptionRecord {
     brandId: parseString(row.brand_id),
     category: parseString(row.category),
     product: buildVoteOptionRowLabel(row),
+    checkinCode: parseString(row.checkin_code),
     logo,
     productImage,
     summary: parseString(row.voted),
@@ -121,6 +126,7 @@ function normalizeVoteOptionInput(input: VoteOptionInput): NormalizedVoteOptionI
     brandId: parseString(input.brandId),
     category: parseString(input.category),
     product: parseString(input.product),
+    checkinCode: parseString(input.checkinCode),
     logo: parseString(input.logo),
     productImage: parseString(input.productImage),
     summary: parseString(input.summary),
@@ -150,6 +156,7 @@ async function queryVoteOptionRows(): Promise<VoteOptionRow[]> {
       category,
       product,
       voted,
+      checkin_code,
       logo_url,
       link
     FROM brand
@@ -333,10 +340,11 @@ export async function createVoteOption(input: VoteOptionInput): Promise<VoteOpti
         category,
         product,
         voted,
+        checkin_code,
         logo_url,
         link
       )
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `,
     [
       now,
@@ -349,6 +357,7 @@ export async function createVoteOption(input: VoteOptionInput): Promise<VoteOpti
       normalizedInput.category,
       normalizedInput.product,
       normalizedInput.summary.length > 0 ? normalizedInput.summary : null,
+      normalizedInput.checkinCode.length > 0 ? normalizedInput.checkinCode : null,
       logo.length > 0 ? logo : null,
       productImage.length > 0 ? productImage : null,
     ],
@@ -383,6 +392,7 @@ export async function updateVoteOption(optionId: number, input: VoteOptionInput)
       category = ?,
       product = ?,
       voted = ?,
+      checkin_code = ?,
       logo_url = ?,
       link = ?,
       updated_at = ?,
@@ -395,6 +405,7 @@ export async function updateVoteOption(optionId: number, input: VoteOptionInput)
       normalizedInput.category,
       normalizedInput.product,
       normalizedInput.summary.length > 0 ? normalizedInput.summary : null,
+      normalizedInput.checkinCode.length > 0 ? normalizedInput.checkinCode : null,
       logo.length > 0 ? logo : null,
       productImage.length > 0 ? productImage : null,
       now,

@@ -63,8 +63,8 @@ export const sidebarItems: NavGroup[] = [
     id: 3,
     label: "Quản lý miniapp",
     items: [
-      { title: "Sản phẩm bình chọn", url: "/vote-options", icon: PackageIcon },
-      { title: "Bình chọn", url: "/votes", icon: Calendar1Icon },
+      { title: "Thiết lập bình chọn", url: "/vote-options", icon: PackageIcon },
+      { title: "Lượt bình chọn", url: "/votes", icon: Calendar1Icon },
       { title: "Quà tặng", url: "/vouchers", icon: Gift },
       { title: "Địa điểm Check-in", url: "/checkin-locations", icon: MapPin },
       { title: "Zalo OA", url: "/zalo-oa", icon: User, comingSoon: true },

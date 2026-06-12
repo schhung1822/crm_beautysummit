@@ -23,6 +23,7 @@ type VoteOptionFormState = {
   id: number | null;
   category: string;
   product: string;
+  checkinCode: string;
   logo: string;
   productImage: string;
   summary: string;
@@ -46,6 +47,7 @@ const DEFAULT_FORM: VoteOptionFormState = {
   id: null,
   category: "",
   product: "",
+  checkinCode: "",
   logo: "",
   productImage: "",
   summary: "",
@@ -96,6 +98,7 @@ function buildFormState(item?: VoteOptionRecord | null): VoteOptionFormState {
     id: item.id,
     category: item.category,
     product: item.product,
+    checkinCode: item.checkinCode,
     logo: item.logo,
     productImage: item.productImage,
     summary: item.summary,
@@ -503,6 +506,7 @@ export function VoteOptionManager({ initialData }: VoteOptionManagerProps) {
           id: form.id,
           category: form.category,
           product: form.product,
+          checkinCode: form.checkinCode,
           logo: form.logo,
           productImage: form.productImage,
           summary: form.summary,
@@ -616,6 +620,7 @@ export function VoteOptionManager({ initialData }: VoteOptionManagerProps) {
               <th className="px-5 py-3.5 font-bold uppercase tracking-wider text-[11px]">Logo</th>
               <th className="px-5 py-3.5 font-bold uppercase tracking-wider text-[11px]">Thể loại</th>
               <th className="px-5 py-3.5 font-bold uppercase tracking-wider text-[11px]">Sản phẩm</th>
+              <th className="px-5 py-3.5 font-bold uppercase tracking-wider text-[11px]">Mã QR</th>
               <th className="px-5 py-3.5 font-bold uppercase tracking-wider text-[11px]">Giới thiệu</th>
               <th className="px-5 py-3.5 text-right font-bold uppercase tracking-wider text-[11px]">Thao tác</th>
             </tr>
@@ -623,7 +628,7 @@ export function VoteOptionManager({ initialData }: VoteOptionManagerProps) {
           <tbody>
             {filteredData.length === 0 ? (
               <tr>
-                <td colSpan={5} className="text-muted-foreground px-4 py-16 text-center w-full">
+                <td colSpan={6} className="text-muted-foreground px-4 py-16 text-center w-full">
                   <div className="flex flex-col items-center justify-center gap-3">
                     <Search className="size-8 text-muted-foreground/30" />
                     <span>Không tìm thấy sản phẩm nào.</span>
@@ -638,6 +643,7 @@ export function VoteOptionManager({ initialData }: VoteOptionManagerProps) {
                   </td>
                   <td className="px-4 py-3">{item.category}</td>
                   <td className="px-4 py-3 font-medium">{item.product}</td>
+                  <td className="px-4 py-3 font-mono text-xs text-muted-foreground">{item.checkinCode || "--"}</td>
                   <td className="text-muted-foreground max-w-[360px] px-4 py-3">
                     <div className="line-clamp-2">{item.summary || "--"}</div>
                   </td>
@@ -678,12 +684,23 @@ export function VoteOptionManager({ initialData }: VoteOptionManagerProps) {
               <div className="flex flex-col gap-5">
                 <div className="flex flex-col gap-4 sm:flex-row sm:items-start">
                   <div className="space-y-2 sm:flex-1">
-                    <Label className="text-base font-semibold text-foreground">Thể loại</Label>
+                    <Label className="text-base text-[15px] font-semibold text-foreground">Tên nhãn hàng/sản phẩm</Label>
+                    <Input
+                      type="text"
+                      value={form.product}
+                      onChange={(event) => setForm((current) => ({ ...current, product: event.target.value }))}
+                      placeholder="Beauty Summit"
+                      className="h-12 rounded-[10px] border-input bg-background px-4 text-sm text-foreground shadow-sm"
+                    />
+                  </div>
+
+                  <div className="space-y-2 sm:flex-1">
+                    <Label className="text-base text-[15px]  font-semibold text-foreground">Danh mục</Label>
                     <CreatableSearchSelect
                       value={form.category}
                       options={categoryOptions}
-                      placeholder="Chọn hoặc thêm thể loại"
-                      searchPlaceholder="Tìm thể loại..."
+                      placeholder="Chọn hoặc thêm danh mục"
+                      searchPlaceholder="Tìm thể danh mục..."
                       onValueChange={(value) => setForm((current) => ({ ...current, category: value }))}
                       onCreate={handleCreateCategory}
                       onDelete={handleDeleteCategory}
@@ -691,13 +708,13 @@ export function VoteOptionManager({ initialData }: VoteOptionManagerProps) {
                   </div>
 
                   <div className="space-y-2 sm:flex-1">
-                    <Label className="text-base font-semibold text-foreground">Tên Sản phẩm</Label>
+                    <Label className="text-base text-[15px]  font-semibold text-foreground">Mã QR code gian hàng</Label>
                     <Input
                       type="text"
-                      value={form.product}
-                      onChange={(event) => setForm((current) => ({ ...current, product: event.target.value }))}
-                      placeholder="Nhập tên sản phẩm"
-                      className="h-12 rounded-[1rem] border-input bg-background px-4 text-sm text-foreground shadow-sm"
+                      value={form.checkinCode}
+                      onChange={(event) => setForm((current) => ({ ...current, checkinCode: event.target.value }))}
+                      placeholder="BS-GIANHANGXX"
+                      className="h-12 rounded-[10px] border-input bg-background px-4 text-sm text-foreground shadow-sm"
                     />
                   </div>
                 </div>
@@ -780,7 +797,7 @@ export function VoteOptionManager({ initialData }: VoteOptionManagerProps) {
                     rows={6}
                     value={form.summary}
                     onChange={(event) => setForm((current) => ({ ...current, summary: event.target.value }))}
-                      className="max-h-[200px] w-full min-w-0 resize-none break-words overflow-y-auto custom-scrollbar rounded-[12px] border-input bg-background px-4 py-3 text-[15px] leading-7 shadow-sm ![field-sizing:fixed]"
+                      className="max-h-[240px] w-full min-w-0 resize-none break-words overflow-y-auto custom-scrollbar rounded-[12px] border-input bg-background px-4 py-3 text-[15px] leading-7 shadow-sm ![field-sizing:fixed]"
                     placeholder="Nhập mô tả ngắn cho item vote..."
                   />
                 </div>

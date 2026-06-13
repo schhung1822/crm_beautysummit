@@ -74,6 +74,100 @@ function isEnabled(value: unknown): boolean {
   return normalized === "1" || normalized === "true" || normalized === "yes" || normalized === "open";
 }
 
+function readEnvFlag(value: string | undefined): boolean | null {
+  const normalized = String(value ?? "").trim().toLowerCase();
+  if (!normalized) {
+    return null;
+  }
+
+  if (["1", "true", "yes", "on", "open"].includes(normalized)) {
+    return true;
+  }
+
+  if (["0", "false", "no", "off", "closed", "close"].includes(normalized)) {
+    return false;
+  }
+
+  return null;
+}
+
+function buildAwardGateState(input: {
+  settingOpen: boolean;
+  startTime: string | null;
+  endTime: string | null;
+  now: number;
+}): AwardGateState {
+  const startMs = input.startTime ? new Date(input.startTime).getTime() : null;
+  const endMs = input.endTime ? new Date(input.endTime).getTime() : null;
+  const hasFutureStart = startMs !== null && !Number.isNaN(startMs) && input.now < startMs;
+  const hasEnded = endMs !== null && !Number.isNaN(endMs) && input.now >= endMs;
+
+  if (!input.settingOpen) {
+    return {
+      isOpen: false,
+      status: hasFutureStart ? "pending" : "closed",
+      startTime: input.startTime,
+      endTime: input.endTime,
+      serverTime: new Date(input.now).toISOString(),
+      message: hasFutureStart ? "Cổng bình chọn chưa mở" : "Cổng bình chọn đã đóng",
+    };
+  }
+
+  if (hasFutureStart) {
+    return {
+      isOpen: false,
+      status: "pending",
+      startTime: input.startTime,
+      endTime: input.endTime,
+      serverTime: new Date(input.now).toISOString(),
+      message: "Cổng bình chọn chưa mở",
+    };
+  }
+
+  if (hasEnded) {
+    return {
+      isOpen: false,
+      status: "closed",
+      startTime: input.startTime,
+      endTime: input.endTime,
+      serverTime: new Date(input.now).toISOString(),
+      message: "Cổng bình chọn đã đóng",
+    };
+  }
+
+  return {
+    isOpen: true,
+    status: "open",
+    startTime: input.startTime,
+    endTime: input.endTime,
+    serverTime: new Date(input.now).toISOString(),
+    message: "Cổng bình chọn đang mở",
+  };
+}
+
+function getEnvAwardGateState(now: number): AwardGateState | null {
+  const envOpen = readEnvFlag(process.env.MINIAPP_AWARD_GATE_ENABLED);
+  if (envOpen === null) {
+    return null;
+  }
+
+  if (envOpen) {
+    return buildAwardGateState({
+      settingOpen: true,
+      startTime: null,
+      endTime: null,
+      now,
+    });
+  }
+
+  return buildAwardGateState({
+    settingOpen: false,
+    startTime: toIsoString(process.env.MINIAPP_AWARD_GATE_START_TIME),
+    endTime: toIsoString(process.env.MINIAPP_AWARD_GATE_END_TIME),
+    now,
+  });
+}
+
 async function getAwardSettingsColumns(): Promise<Set<string>> {
   const db = getDB();
   const [rows] = await db.query<TableColumnRow[]>("SHOW COLUMNS FROM award_settings");
@@ -81,6 +175,12 @@ async function getAwardSettingsColumns(): Promise<Set<string>> {
 }
 
 export async function getAwardGateState(): Promise<AwardGateState> {
+  const now = Date.now();
+  const envGate = getEnvAwardGateState(now);
+  if (envGate) {
+    return envGate;
+  }
+
   await ensureAwardSettingsTable();
 
   const db = getDB();
@@ -94,25 +194,25 @@ export async function getAwardGateState(): Promise<AwardGateState> {
   `);
 
   const row = rows[0];
-  const now = Date.now();
   const startMs = parseTime(row?.start_time);
   const endMs = parseTime(row?.end_time);
   const startTime = toIsoString(row?.start_time);
   const endTime = toIsoString(row?.end_time);
   const settingOpen = row ? isEnabled(row.is_open) : true;
+  const hasFutureStart = startMs !== null && now < startMs;
 
   if (!settingOpen) {
     return {
       isOpen: false,
-      status: "closed",
+      status: hasFutureStart ? "pending" : "closed",
       startTime,
       endTime,
       serverTime: new Date(now).toISOString(),
-      message: "Cổng bình chọn đã đóng",
+      message: hasFutureStart ? "Cổng bình chọn chưa mở" : "Cổng bình chọn đã đóng",
     };
   }
 
-  if (startMs !== null && now < startMs) {
+  if (hasFutureStart) {
     return {
       isOpen: false,
       status: "pending",

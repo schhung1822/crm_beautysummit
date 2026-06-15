@@ -278,22 +278,6 @@ function VotePreviewCard({
           </div>
         </div>
 
-        <div className="mb-6">
-          <div className="mb-2 flex items-center justify-between text-xs">
-            <span className="text-white/86">Tỷ lệ vote</span>
-            <span className="font-semibold text-white">50%</span>
-          </div>
-          <div className="h-2 rounded-full bg-white/24">
-            <div
-              className="h-2 rounded-full"
-              style={{
-                width: "50%",
-                background: `linear-gradient(90deg,#ffffff 0%,${accentColor}80 56%,#ffffff 100%)`,
-              }}
-            />
-          </div>
-        </div>
-
         <div className="flex w-full items-center justify-center gap-2 rounded-[12px] border border-white/35 bg-[linear-gradient(180deg,#ff2b8d_0%,#ea0f7e_100%)] px-4 py-3 text-sm font-bold text-white shadow-[0_12px_24px_rgba(255,49,150,0.26)]">
           <ThumbsUp className="size-4" />
           Vote cho {productLabel}
@@ -613,7 +597,7 @@ export function VoteOptionManager({ initialData }: VoteOptionManagerProps) {
         </div>
       ) : null}
 
-      <div className="nice-scroll max-h-[620px] overflow-y-auto rounded-lg border shadow-sm">
+      <div className="nice-scroll max-h-[80vh] overflow-y-auto rounded-lg border shadow-sm">
         <table className="relative w-full text-sm">
           <thead className="bg-muted sticky top-0 z-10 shadow-[0_1px_2px_rgba(0,0,0,0.05)]">
             <tr className="text-left text-muted-foreground">
@@ -672,19 +656,19 @@ export function VoteOptionManager({ initialData }: VoteOptionManagerProps) {
       </div>
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="max-w-[calc(100%-2rem)] rounded-[14px] border border-border bg-background p-0 text-foreground shadow-xl sm:max-w-[1100px]">
-          <div className="border-b border-border bg-background px-8 py-7 rounded-t-[14px]">
+        <DialogContent className="flex max-h-[90vh] max-w-[calc(100%-2rem)] flex-col overflow-hidden rounded-[14px] border border-border bg-background p-0 text-foreground shadow-xl sm:max-w-[1100px]">
+          <div className="shrink-0 rounded-t-[14px] border-b border-border bg-background px-8 py-4">
             <DialogHeader className="space-y-2 text-left">
-              <DialogTitle className="text-[2rem] text-foreground">{form.id ? "Sửa sản phẩm bình chọn" : "Thêm sản phẩm bình chọn"}</DialogTitle>
+              <DialogTitle className="text-[28px] text-foreground">{form.id ? "Sửa sản phẩm bình chọn" : "Thêm sản phẩm bình chọn"}</DialogTitle>
             </DialogHeader>
           </div>
 
-          <div className="flex flex-col gap-6 px-8 lg:flex-row lg:items-start pt-6">
+          <div className="nice-scroll flex min-h-0 flex-1 flex-col gap-6 overflow-y-auto px-8 pt-6 pb-6 lg:flex-row lg:items-start">
             <div className="min-w-0 flex-1">
               <div className="flex flex-col gap-5">
                 <div className="flex flex-col gap-4 sm:flex-row sm:items-start">
                   <div className="space-y-2 sm:flex-1">
-                    <Label className="text-base text-[15px] font-semibold text-foreground">Tên nhãn hàng/sản phẩm</Label>
+                    <Label className="text-base text-[15px] font-semibold text-foreground">Nhãn hàng/sản phẩm</Label>
                     <Input
                       type="text"
                       value={form.product}
@@ -815,7 +799,7 @@ export function VoteOptionManager({ initialData }: VoteOptionManagerProps) {
             </div>
           </div>
 
-          <DialogFooter className="border-t border-border px-8 py-6 pb-8">
+          <DialogFooter className="shrink-0 border-t border-border px-8 py-4">
             <Button variant="outline" className="rounded-[1rem] px-6" onClick={() => setDialogOpen(false)}>
               Hủy
             </Button>

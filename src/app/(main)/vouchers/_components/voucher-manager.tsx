@@ -221,6 +221,11 @@ export default function VoucherManager({ initialData }: VoucherManagerProps) {
   );
 
   const isEditing = Boolean(form.voucherId);
+  const canSave = Boolean(
+    form.brand.trim() &&
+      form.discount.trim() &&
+      (form.kind !== "free" || form.code.trim()),
+  );
 
   const filteredData = React.useMemo(() => {
     const keyword = normalizeSearchValue(search);
@@ -391,6 +396,10 @@ export default function VoucherManager({ initialData }: VoucherManagerProps) {
     setIsSaving(true);
 
     try {
+      if (!canSave) {
+        throw new Error(form.kind === "free" ? "Vui lòng nhập mã voucher" : "Vui lòng nhập đầy đủ thông tin");
+      }
+
       const payload = {
         voucherId: form.voucherId,
         kind: form.kind,
@@ -402,6 +411,7 @@ export default function VoucherManager({ initialData }: VoucherManagerProps) {
         cost: form.kind === "bpoint" && !form.isGrand ? Number(form.cost || 0) : null,
         isGrand: form.isGrand,
         isActive: form.isActive,
+        code: form.kind === "free" ? form.code.trim() : undefined,
       };
 
       const response = await fetch("/api/vouchers", {
@@ -438,7 +448,7 @@ export default function VoucherManager({ initialData }: VoucherManagerProps) {
     } finally {
       setIsSaving(false);
     }
-  }, [form, isEditing]);
+  }, [canSave, form, isEditing]);
 
   const handleDelete = React.useCallback(async (voucher: MiniAppVoucherRecord) => {
     const confirmed = window.confirm(`Xoa voucher ${voucher.brand}?`);
@@ -680,11 +690,11 @@ export default function VoucherManager({ initialData }: VoucherManagerProps) {
       </div>
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="border-border bg-background text-foreground sm:max-w-2xl">
-          <DialogHeader>
+        <DialogContent className="flex max-h-[90vh] flex-col overflow-hidden border-border bg-background p-0 text-foreground sm:max-w-2xl">
+          <DialogHeader className="shrink-0 border-b border-border px-6 py-4">
             <DialogTitle>{isEditing ? "Sửa quà tặng" : "Thêm quà tặng"}</DialogTitle>
           </DialogHeader>
-          <div className="grid gap-4 sm:grid-cols-2">
+          <div className="nice-scroll grid min-h-0 flex-1 gap-4 overflow-y-auto px-6 py-4 sm:grid-cols-2">
             <div className="grid gap-4 sm:col-span-2 sm:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)_auto] sm:items-end">
               <div className="space-y-1.5">
                 <Label>Loại voucher</Label>
@@ -696,6 +706,7 @@ export default function VoucherManager({ initialData }: VoucherManagerProps) {
                       kind: value as MiniAppVoucherKind,
                       cost: value === "bpoint" ? current.cost || "0" : "",
                       isGrand: value === "bpoint" ? current.isGrand : false,
+                      code: value === "free" ? current.code : "",
                     }))
                   }
                 >
@@ -709,11 +720,11 @@ export default function VoucherManager({ initialData }: VoucherManagerProps) {
                 </Select>
               </div>
               <div className="space-y-1.5">
-                <Label>Brand</Label>
+                <Label>Thương thiệu</Label>
                 <CreatableSearchSelect
                   value={form.brand}
                   options={brandOptions}
-                  placeholder="Chon hoac them brand"
+                  placeholder="VD: Beauty Summit"
                   searchPlaceholder="Tim brand..."
                   triggerClassName="h-9 rounded-md border-input px-3 shadow-xs"
                   onValueChange={(value) => setForm((current) => ({ ...current, brand: value }))}
@@ -795,24 +806,22 @@ export default function VoucherManager({ initialData }: VoucherManagerProps) {
               <div className="grid gap-4">
                 <div className="space-y-1.5">
                   <Label>Mã voucher</Label>
-                  <Input value={form.code || "Sẽ tự động tạo khi lưu"} readOnly />
+                  <Input
+                    value={form.kind === "free" ? form.code : form.code || "Sẽ tự động tạo khi lưu"}
+                    readOnly={form.kind !== "free"}
+                    placeholder={form.kind === "free" ? "Nhập mã voucher" : "Sẽ tự động tạo khi lưu"}
+                    onChange={(event) => setForm((current) => ({ ...current, code: event.target.value }))}
+                  />
                 </div>
-                <div className="space-y-1.5">
-                  <Label>Grand prize</Label>
-                  <div className="flex items-center justify-between rounded-lg border px-3 py-2">
-                    <div className="text-muted-foreground text-xs">Giải đặc biệt</div>
-                    <Switch
-                      checked={form.isGrand}
-                      onCheckedChange={(checked) =>
-                        setForm((current) => ({
-                          ...current,
-                          isGrand: checked,
-                          cost: checked ? "" : current.cost || "0",
-                        }))
-                      }
-                    />
-                  </div>
-                </div>
+                <label className="inline-flex h-9 items-center gap-2 rounded-[8px] border px-3 text-xs font-medium">
+                  Màu tuỳ chỉnh
+                  <input
+                    type="color"
+                    value={form.color}
+                    onChange={(event) => setForm((current) => ({ ...current, color: event.target.value }))}
+                    className="h-6 w-6 cursor-pointer rounded-full border-0 bg-transparent p-0"
+                  />
+                </label>
               </div>
             </div>
 
@@ -845,34 +854,6 @@ export default function VoucherManager({ initialData }: VoucherManagerProps) {
                     </Button>
                   ) : null}
                 </div>
-              </div>
-            </div>
-
-            <div className="space-y-2 sm:col-span-2">
-              <Label>Màu sắc voucher</Label>
-              <div className="flex flex-wrap gap-2">
-                {COLOR_OPTIONS.map((color) => {
-                  const active = form.color.toLowerCase() === color.toLowerCase();
-                  return (
-                    <button
-                      key={color}
-                      type="button"
-                      onClick={() => setForm((current) => ({ ...current, color }))}
-                      className={`h-9 w-9 rounded-full border-2 transition ${active ? "scale-105 border-[#111827]" : "border-white/70"}`}
-                      style={{ backgroundColor: color }}
-                      aria-label={`Chon mau ${color}`}
-                    />
-                  );
-                })}
-                <label className="inline-flex h-9 items-center gap-2 rounded-full border px-3 text-xs font-medium">
-                  Màu tuỳ chỉnh
-                  <input
-                    type="color"
-                    value={form.color}
-                    onChange={(event) => setForm((current) => ({ ...current, color: event.target.value }))}
-                    className="h-6 w-6 cursor-pointer rounded-full border-0 bg-transparent p-0"
-                  />
-                </label>
               </div>
             </div>
 
@@ -918,11 +899,11 @@ export default function VoucherManager({ initialData }: VoucherManagerProps) {
             </div>
           </div>
 
-          <DialogFooter>
+          <DialogFooter className="shrink-0 border-t border-border px-6 py-4">
             <Button variant="outline" onClick={() => setDialogOpen(false)}>
               Hủy
             </Button>
-            <Button onClick={() => void handleSave()} disabled={isSaving}>
+            <Button onClick={() => void handleSave()} disabled={isSaving || !canSave}>
               {isSaving ? "Đang lưu..." : isEditing ? "Lưu thay đổi" : "Tạo voucher"}
             </Button>
           </DialogFooter>

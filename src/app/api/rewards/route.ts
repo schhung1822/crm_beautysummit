@@ -48,8 +48,33 @@ function requireString(value: unknown): string {
   return String(value ?? '').trim();
 }
 
-const EVENT_DAY1_DATE_KEY = '2026-06-19';
-const EVENT_DAY2_DATE_KEY = '2026-06-20';
+const DEFAULT_EVENT_DAY1_DATE_KEY = '2026-06-19';
+const DEFAULT_EVENT_DAY2_DATE_KEY = '2026-06-20';
+const readDateKey = (value: string | undefined, fallback: string): string => {
+  const normalizedValue = value?.trim() ?? '';
+  return /^\d{4}-\d{2}-\d{2}$/.test(normalizedValue) ? normalizedValue : fallback;
+};
+const addDaysToDateKey = (value: string, days: number): string | null => {
+  const [year, month, day] = value.split('-').map((part) => Number(part));
+  if (!year || !month || !day) {
+    return null;
+  }
+
+  const date = new Date(Date.UTC(year, month - 1, day + days));
+  return Number.isNaN(date.getTime()) ? null : date.toISOString().slice(0, 10);
+};
+const formatDateKeyForDisplay = (value: string): string => {
+  const [year, month, day] = value.split('-');
+  return day && month && year ? `${day}.${month}.${year}` : value;
+};
+const EVENT_DAY1_DATE_KEY = readDateKey(
+  process.env.BEAUTY_EVENT_DAY1_DATE,
+  DEFAULT_EVENT_DAY1_DATE_KEY
+);
+const EVENT_DAY2_DATE_KEY = readDateKey(
+  process.env.BEAUTY_EVENT_DAY2_DATE,
+  addDaysToDateKey(EVENT_DAY1_DATE_KEY, 1) ?? DEFAULT_EVENT_DAY2_DATE_KEY
+);
 const BEFORE_EVENT_EARLY_MISSION_CLOSE_DATE_KEY = '2026-06-14';
 const EVENT_TIME_ZONE = 'Asia/Ho_Chi_Minh';
 
@@ -79,11 +104,15 @@ function getMissionActionLockMessage(missionId: string): string {
   }
 
   if (/-d2-/.test(normalizedMissionId)) {
-    return today >= EVENT_DAY2_DATE_KEY ? '' : 'Nhiệm vụ ngày 2 bắt đầu vào ngày 20.06.2026';
+    return today >= EVENT_DAY2_DATE_KEY
+      ? ''
+      : `Nhiệm vụ ngày 2 bắt đầu vào ngày ${formatDateKeyForDisplay(EVENT_DAY2_DATE_KEY)}`;
   }
 
   if (/-d1-/.test(normalizedMissionId)) {
-    return today >= EVENT_DAY1_DATE_KEY ? '' : 'Nhiệm vụ ngày 1 bắt đầu vào ngày 19.06.2026';
+    return today >= EVENT_DAY1_DATE_KEY
+      ? ''
+      : `Nhiệm vụ ngày 1 bắt đầu vào ngày ${formatDateKeyForDisplay(EVENT_DAY1_DATE_KEY)}`;
   }
 
   return '';

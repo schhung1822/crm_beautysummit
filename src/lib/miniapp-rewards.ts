@@ -177,6 +177,7 @@ type AdminVoucherInput = {
   cost?: number | null;
   isGrand?: boolean;
   isActive?: boolean;
+  code?: string;
 };
 
 const MINIAPP_MISSION_TIERS = ['GOLD', 'RUBY', 'VIP'] as const;
@@ -1348,7 +1349,7 @@ function clearMiniAppVoucherCache(): void {
 
 function normalizeAdminVoucherInput(value: AdminVoucherInput): AdminVoucherInput {
   const kind = normalizeVoucherKind(value.kind);
-  const isGrand = Boolean(value.isGrand);
+  const isGrand = kind === 'bpoint' && Boolean(value.isGrand);
   return {
     kind,
     brand: parseString(value.brand),
@@ -1359,6 +1360,7 @@ function normalizeAdminVoucherInput(value: AdminVoucherInput): AdminVoucherInput
     cost: normalizeOptionalCost(value.cost, kind, isGrand),
     isGrand,
     isActive: value.isActive !== false,
+    code: parseString(value.code),
   };
 }
 
@@ -1373,6 +1375,10 @@ function validateAdminVoucherInput(value: AdminVoucherInput): string | null {
 
   if (value.kind === 'bpoint' && !value.isGrand && (value.cost == null || value.cost < 0)) {
     return 'Cost must be zero or greater';
+  }
+
+  if (value.kind === 'free' && !value.code) {
+    return 'Voucher code is required';
   }
 
   return null;
@@ -2580,7 +2586,11 @@ export async function createMiniAppVoucher(
   );
   const nextOrder = parseNumber(orderRows[0]?.next_order) || 1;
   const voucherId = buildVoucherId();
-  const code = normalizedInput.isGrand ? null : buildVoucherCode();
+  const code = normalizedInput.isGrand
+    ? null
+    : normalizedInput.kind === 'free'
+      ? normalizedInput.code
+      : buildVoucherCode();
   const logo = await normalizeStoredImageUrl(normalizedInput.logo ?? '', 'voucher-logo');
 
   await db.query(
@@ -2655,7 +2665,11 @@ export async function updateMiniAppVoucher(
 
   const db = getDB();
   const now = new Date();
-  const nextCode = normalizedInput.isGrand ? null : (existingVoucher.code ?? buildVoucherCode());
+  const nextCode = normalizedInput.isGrand
+    ? null
+    : normalizedInput.kind === 'free'
+      ? normalizedInput.code
+      : (existingVoucher.code ?? buildVoucherCode());
   const logo = await normalizeStoredImageUrl(normalizedInput.logo ?? '', 'voucher-logo');
   await db.query(
     `

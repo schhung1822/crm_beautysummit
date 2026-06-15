@@ -20,6 +20,7 @@ type VoucherPayload = {
   cost?: number | null;
   isGrand?: boolean;
   isActive?: boolean;
+  code?: string;
 };
 
 function normalizePayload(body: VoucherPayload) {
@@ -33,6 +34,7 @@ function normalizePayload(body: VoucherPayload) {
     cost: body.cost == null ? null : Number(body.cost),
     isGrand: body.isGrand === true,
     isActive: body.isActive !== false,
+    code: String(body.code ?? "").trim(),
   } as const;
 }
 

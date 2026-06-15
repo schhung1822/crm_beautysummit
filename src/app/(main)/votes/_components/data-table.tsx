@@ -16,18 +16,32 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useDataTableInstance } from "@/hooks/use-data-table-instance";
 import { exportData } from "@/lib/export-utils";
 import { matchesSearchTerm } from "@/lib/search-utils";
-import { formatGender } from "@/lib/utils";
 import type { VoteOptionRecord } from "@/lib/vote-options";
 
 import { dashboardColumns } from "./columns";
 import { EventsSummary } from "./events-summary";
 import { Academy } from "./schema";
 
-const colorPalette = ["#22c55e", "#3b82f6", "#f59e0b", "#a855f7", "#ec4899", "#14b8a6", "#f97316"];
-
 function toVoteRowKey(row: Pick<Academy, "ordercode" | "phone" | "brand_id" | "time_vote">) {
   return `${row.ordercode}__${row.phone}__${row.brand_id}__${row.time_vote ? new Date(row.time_vote).toISOString() : ""}`;
 }
+
+function normalizeCategory(value: string) {
+  return value
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/đ/g, "d")
+    .replace(/Đ/g, "D")
+    .replace(/[^\w\s]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .toLowerCase();
+}
+
+const CATEGORY_RANKING_TARGETS = [
+  { title: "Gian hàng yêu thích", normalized: normalizeCategory("Gian hàng yêu thích") },
+  { title: "Sản phẩm, công nghệ ấn tượng", normalized: normalizeCategory("Sản phẩm, công nghệ ấn tượng") },
+] as const;
 
 export function DataTable({
   data: initialData,
@@ -67,49 +81,34 @@ export function DataTable({
     return nextData;
   }, [data, searchTerm, selectedBrand]);
 
-  const totalVotes = data.length;
+  const categoryRankings = React.useMemo(
+    () =>
+      CATEGORY_RANKING_TARGETS.map((target) => {
+        const counts = new Map<string, number>();
 
-  const summaryDataFactory = React.useCallback(
-    (getter: (item: Academy) => string) => {
-      const counts = new Map<string, number>();
+        initialVoteOptions
+          .filter((option) => normalizeCategory(option.category) === target.normalized)
+          .forEach((option) => {
+            const name = (option.product || option.brandId || "Không rõ").trim();
+            counts.set(name, counts.get(name) ?? 0);
+          });
 
-      data.forEach((item) => {
-        const key = (getter(item) || "Không rõ").trim() || "Không rõ";
-        counts.set(key, (counts.get(key) ?? 0) + 1);
-      });
+        data
+          .filter((item) => normalizeCategory(item.category) === target.normalized)
+          .forEach((item) => {
+            const name = (item.product || item.brand_name || item.brand_id || "Không rõ").trim();
+            counts.set(name, (counts.get(name) ?? 0) + 1);
+          });
 
-      const rows = Array.from(counts.entries())
-        .map(([name, value]) => ({ name, value }))
-        .sort((a, b) => b.value - a.value);
-
-      const topRows = rows.slice(0, 6);
-      const restValue = rows.slice(6).reduce((sum, item) => sum + item.value, 0);
-
-      if (restValue > 0) {
-        topRows.push({ name: "Khác", value: restValue });
-      }
-
-      return topRows.map((item, index) => ({
-        ...item,
-        fill: colorPalette[index % colorPalette.length],
-      }));
-    },
-    [data],
+        return {
+          title: target.title,
+          items: Array.from(counts.entries())
+            .map(([name, value]) => ({ name, value }))
+            .sort((a, b) => b.value - a.value || a.name.localeCompare(b.name)),
+        };
+      }),
+    [data, initialVoteOptions],
   );
-
-  const leaderboardData = React.useMemo(() => {
-    const counts = new Map<string, number>();
-    data.forEach((item) => {
-      const key = (item.brand_name || "Không rõ").trim();
-      counts.set(key, (counts.get(key) ?? 0) + 1);
-    });
-    return Array.from(counts.entries())
-      .map(([name, value]) => ({ name, value }))
-      .sort((a, b) => b.value - a.value);
-  }, [data]);
-
-  const genderData = React.useMemo(() => summaryDataFactory((item) => formatGender(item.gender)), [summaryDataFactory]);
-  const brandRatioData = React.useMemo(() => summaryDataFactory((item) => item.brand_name), [summaryDataFactory]);
 
   const handleDeleteRow = React.useCallback(async (row: Academy) => {
     try {
@@ -158,11 +157,11 @@ export function DataTable({
 
   const handleDeleteSelected = React.useCallback(async () => {
     if (!selectedItems.length) {
-      toast.warning("Vui long chon vote can xoa");
+      toast.warning("Vui lòng chọn vote cần xóa");
       return;
     }
 
-    if (!window.confirm(`Xoa ${selectedItems.length} ban ghi vote da chon?`)) {
+    if (!window.confirm(`Xóa ${selectedItems.length} bản ghi vote đã chọn?`)) {
       return;
     }
 
@@ -183,15 +182,15 @@ export function DataTable({
 
       if (!response.ok) {
         const result = await response.json().catch(() => ({}));
-        throw new Error(result?.error ?? "Khong the xoa vote");
+        throw new Error(result?.error ?? "Không thể xóa vote");
       }
 
       const deletedSet = new Set(records.map((record) => toVoteRowKey(record)));
       setData((previous) => previous.filter((item) => !deletedSet.has(toVoteRowKey(item))));
       table.resetRowSelection();
-      toast.success(`Da xoa ${records.length} vote`);
+      toast.success(`Đã xóa ${records.length} vote`);
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Khong the xoa vote");
+      toast.error(error instanceof Error ? error.message : "Không thể xóa vote");
     } finally {
       setIsDeleting(false);
     }
@@ -258,27 +257,8 @@ export function DataTable({
   }, []);
 
   return (
-    <div className="flex flex-col gap-6">
-      <div className="bg-card flex w-fit items-center gap-3 rounded-lg border px-4 py-3">
-        <div>
-          <div className="text-sm font-semibold">Ngày 1 sự kiện</div>
-        </div>
-        <DatePicker
-          value={pendingEventDay1}
-          onChange={setPendingEventDay1}
-          onEnter={handleEventDay1Change}
-          onSelectDate={handleEventDay1Change}
-          className="w-[190px]"
-        />
-      </div>
-
-      <EventsSummary
-        totalVotes={totalVotes}
-        genderData={genderData}
-        brandRatioData={brandRatioData}
-        leaderboardData={leaderboardData}
-        voteOptions={initialVoteOptions}
-      />
+    <div className="flex flex-col gap-4">
+      <EventsSummary categoryRankings={categoryRankings} voteOptions={initialVoteOptions} />
 
       <div className="flex items-center justify-between gap-4">
         <div className="flex flex-1 items-center gap-2">
@@ -316,7 +296,7 @@ export function DataTable({
         <div className="flex items-center gap-2">
           {selectedItems.length > 0 ? (
             <Button size="sm" variant="destructive" onClick={handleDeleteSelected} disabled={isDeleting}>
-              {isDeleting ? "Dang xoa..." : `Xoa (${selectedItems.length})`}
+              {isDeleting ? "Đang xóa..." : `Xóa (${selectedItems.length})`}
             </Button>
           ) : null}
 

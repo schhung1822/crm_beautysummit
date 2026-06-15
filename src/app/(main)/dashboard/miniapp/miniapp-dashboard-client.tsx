@@ -26,18 +26,12 @@ export type MiniappDashboardData = {
   funnel: Array<{ stage: string; value: number }>;
   taskPhases: Array<{ phase: string; completed: number; possible: number; rate: number; tasks: number }>;
   taskMatrix: Array<{ key: string; label: string; phase: string; completed: number; total: number; rate: number }>;
-  topVotes: LabelCount[];
+  topVotes: {
+    favoriteBooths: LabelCount[];
+    impressiveProducts: LabelCount[];
+  };
   topGifts: Array<{ label: string; count: number; redeemed: number; rate: number }>;
   topBooths: LabelCount[];
-  topCustomers: Array<{
-    name: string;
-    phone: string;
-    ordercode: string;
-    completedCount: number;
-    totalPoints: number;
-    availablePoints: number;
-    spentPoints: number;
-  }>;
   survey: {
     questions: Array<{ key: string; title: string; rows: LabelCount[] }>;
   };
@@ -83,12 +77,10 @@ function StatCard({
   label,
   value,
   sub,
-  color = C.purpleLight,
 }: {
   label: string;
   value: number | string;
   sub?: string;
-  color?: string;
 }) {
   return (
     <div className={`${panelClass} min-h-[120px] min-w-[150px] flex-1 px-[18px] py-5`}>
@@ -105,13 +97,11 @@ function ProgressRow({
   label,
   value,
   total,
-  color,
   suffix,
 }: {
   label: string;
   value: number;
   total: number;
-  color: string;
   suffix?: string;
 }) {
   const rate = pct(value, total);
@@ -122,10 +112,7 @@ function ProgressRow({
         {label}
       </div>
       <div className="bg-muted relative h-6 flex-1 overflow-hidden rounded-md">
-        <div
-          className="h-full rounded-md bg-primary transition-[width] duration-700"
-          style={{ width: `${rate}%` }}
-        />
+        <div className="h-full rounded-md bg-primary transition-[width] duration-700" style={{ width: `${rate}%` }} />
         <span className="absolute top-1 right-2 text-[10px] font-bold text-white">{fmt(value)}</span>
       </div>
       <div className="text-muted-foreground w-14 text-right text-[11px] font-bold">
@@ -143,9 +130,47 @@ function EmptyList() {
   );
 }
 
+function RankingCard({
+  title,
+  rows,
+  max,
+  color = C.gold,
+}: {
+  title: string;
+  rows: LabelCount[];
+  max: number;
+  color?: string;
+}) {
+  return (
+    <div className={panelClass}>
+      <SectionTitle title={title} color={color} />
+      {rows.length === 0 ? (
+        <EmptyList />
+      ) : (
+        <div className="nice-scroll flex max-h-[420px] flex-col gap-2 overflow-y-auto pr-1">
+          {rows.map((row, index) => (
+            <div key={`${row.label}-${index}`} className="border-border bg-muted/35 rounded-xl border px-3 py-2.5">
+              <div className="mb-2 flex items-center justify-between gap-3">
+                <div className="min-w-0 truncate text-sm font-bold" title={row.label}>
+                  #{index + 1} {row.label}
+                </div>
+                <div className="text-foreground text-sm font-bold">{fmt(row.count)}</div>
+              </div>
+              <div className="bg-muted h-2 overflow-hidden rounded-full">
+                <div className="h-full rounded-full bg-primary" style={{ width: `${pct(row.count, max)}%` }} />
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function MiniappDashboardClient({ data }: { data: MiniappDashboardData }) {
   const maxFunnel = Math.max(1, data.funnel[0]?.value ?? 0);
-  const maxVote = Math.max(1, ...data.topVotes.map((row) => row.count));
+  const maxFavoriteBoothVote = Math.max(1, ...data.topVotes.favoriteBooths.map((row) => row.count));
+  const maxImpressiveProductVote = Math.max(1, ...data.topVotes.impressiveProducts.map((row) => row.count));
   const maxGift = Math.max(1, ...data.topGifts.map((row) => row.count));
   const maxBooth = Math.max(1, ...data.topBooths.map((row) => row.count));
   const surveySubmittedTotal = data.stats.beforeSurvey + data.stats.afterSurvey;
@@ -165,36 +190,28 @@ export default function MiniappDashboardClient({ data }: { data: MiniappDashboar
 
       <div className="flex flex-col gap-6 pt-6">
         <div className="flex flex-wrap items-start gap-3">
-          <StatCard label="Miniapp users" value={data.stats.miniappUsers} color={C.cyan} />
+          <StatCard label="Miniapp users" value={data.stats.miniappUsers} />
           <StatCard
             label="User làm nhiệm vụ"
             value={data.stats.taskActiveUsers}
             sub={`${pct(data.stats.taskActiveUsers, data.stats.miniappUsers)}% miniapp users`}
-            color={C.green}
           />
-          <StatCard label="Bình chọn" value={data.stats.votedUsers} color={C.gold} />
-          <StatCard label="Check-in booth" value={data.stats.boothUsers} color={C.pink} />
+          <StatCard label="Bình chọn" value={data.stats.votedUsers} />
+          <StatCard label="Check-in booth" value={data.stats.boothUsers} />
           <StatCard
             label="Đổi quà"
             value={data.stats.giftsRedeemed}
             sub={`${pct(data.stats.giftsRedeemed, data.stats.giftsTotal)}% đã đổi`}
-            color={C.purpleLight}
           />
-          <StatCard label="Khảo sát" value={surveySubmittedTotal} sub="trước + sau sự kiện" color={C.indigo} />
+          <StatCard label="Khảo sát" value={surveySubmittedTotal} sub="trước + sau sự kiện" />
         </div>
 
         <div className="grid grid-cols-1 gap-[20px] xl:grid-cols-3">
           <div className={panelClass}>
             <SectionTitle title="Funnel miniapp" />
             <div className="flex flex-col gap-2">
-              {data.funnel.map((row, index) => (
-                <ProgressRow
-                  key={row.stage}
-                  label={row.stage}
-                  value={row.value}
-                  total={maxFunnel}
-                  color={[C.cyan, C.green, C.indigo, C.gold, C.pink, C.purpleLight, C.purple][index % 7]}
-                />
+              {data.funnel.map((row) => (
+                <ProgressRow key={row.stage} label={row.stage} value={row.value} total={maxFunnel} />
               ))}
             </div>
           </div>
@@ -209,7 +226,7 @@ export default function MiniappDashboardClient({ data }: { data: MiniappDashboar
                     <span className="text-muted-foreground text-xs font-bold">{phase.rate}%</span>
                   </div>
                   <div className="text-muted-foreground mb-2 text-[11px]">
-                    {fmt(phase.completed)}/{fmt(phase.possible)} lượt hoàn thành · {phase.tasks} nhiệm vụ
+                    {fmt(phase.completed)}/{fmt(phase.possible)} lượt hoàn thành - {phase.tasks} nhiệm vụ
                   </div>
                   <div className="bg-muted h-2 overflow-hidden rounded">
                     <div className="h-full rounded bg-primary" style={{ width: `${phase.rate}%` }} />
@@ -223,9 +240,7 @@ export default function MiniappDashboardClient({ data }: { data: MiniappDashboar
             <SectionTitle title="Hiệu quả đổi quà" color={C.purpleLight} />
             <div className="mb-4 grid grid-cols-3 gap-2">
               <div className="bg-muted/40 rounded-lg border p-3 text-center">
-                <div className="text-foreground text-lg font-bold">
-                  {fmt(data.stats.giftsTotal)}
-                </div>
+                <div className="text-foreground text-lg font-bold">{fmt(data.stats.giftsTotal)}</div>
                 <div className="text-muted-foreground text-[10px]">Tổng quà</div>
               </div>
               <div className="bg-muted/40 rounded-lg border p-3 text-center">
@@ -242,10 +257,7 @@ export default function MiniappDashboardClient({ data }: { data: MiniappDashboar
             ) : (
               <div className="flex max-h-[250px] flex-col gap-2 overflow-y-auto pr-1">
                 {data.topGifts.map((row, index) => (
-                  <div
-                    key={`${row.label}-${index}`}
-                    className="border-border bg-muted/35 rounded-xl border px-3 py-2.5"
-                  >
+                  <div key={`${row.label}-${index}`} className="border-border bg-muted/35 rounded-xl border px-3 py-2.5">
                     <div className="mb-2 flex items-center justify-between gap-3">
                       <div className="min-w-0 truncate text-sm font-bold" title={row.label}>
                         {row.label}
@@ -253,10 +265,7 @@ export default function MiniappDashboardClient({ data }: { data: MiniappDashboar
                       <div className="text-muted-foreground text-xs">{row.rate}% đổi</div>
                     </div>
                     <div className="bg-muted h-2 overflow-hidden rounded-full">
-                      <div
-                        className="h-full rounded-full bg-primary"
-                        style={{ width: `${pct(row.count, maxGift)}%` }}
-                      />
+                      <div className="h-full rounded-full bg-primary" style={{ width: `${pct(row.count, maxGift)}%` }} />
                     </div>
                     <div className="text-muted-foreground mt-1 text-[10px]">
                       {fmt(row.redeemed)}/{fmt(row.count)} đã đổi
@@ -277,36 +286,25 @@ export default function MiniappDashboardClient({ data }: { data: MiniappDashboar
                   <div>
                     <div className="text-foreground text-sm font-bold">{phase.phase}</div>
                     <div className="text-muted-foreground mt-1 text-xs">
-                      {fmt(phase.completed)}/{fmt(phase.possible)} lượt hoàn thành · {phase.rate}%
+                      {fmt(phase.completed)}/{fmt(phase.possible)} lượt hoàn thành - {phase.rate}%
                     </div>
                   </div>
-                  <div
-                    className="bg-background rounded-full border px-3 py-1 text-right text-xs font-bold"
-                    style={{ color: "var(--muted-foreground)" }}
-                  >
+                  <div className="bg-background rounded-full border px-3 py-1 text-right text-xs font-bold text-muted-foreground">
                     {phase.tasks.length} nhiệm vụ
                   </div>
                 </div>
 
                 <div className="grid grid-cols-[repeat(auto-fit,minmax(170px,1fr))] gap-2">
                   {phase.tasks.map((task) => (
-                    <div
-                      key={task.key}
-                      className="bg-card flex min-h-[112px] flex-col justify-between rounded-lg border p-3"
-                    >
+                    <div key={task.key} className="bg-card flex min-h-[112px] flex-col justify-between rounded-lg border p-3">
                       <div className="mb-2 flex items-start justify-between gap-3">
                         <span className="text-foreground line-clamp-2 min-w-0 text-sm leading-snug font-bold">
                           {task.label}
                         </span>
-                        <span className="text-muted-foreground shrink-0 text-[12px] font-bold">
-                          {task.rate}%
-                        </span>
+                        <span className="text-muted-foreground shrink-0 text-[12px] font-bold">{task.rate}%</span>
                       </div>
                       <div className="bg-muted h-2 overflow-hidden rounded-full">
-                        <div
-                          className="h-full rounded-full bg-primary"
-                          style={{ width: `${task.rate}%` }}
-                        />
+                        <div className="h-full rounded-full bg-primary" style={{ width: `${task.rate}%` }} />
                       </div>
                       <div className="text-muted-foreground mt-2 flex justify-between text-[11px]">
                         <span>{fmt(task.completed)} hoàn thành</span>
@@ -321,110 +319,26 @@ export default function MiniappDashboardClient({ data }: { data: MiniappDashboar
         </div>
 
         <div className="grid grid-cols-1 gap-[20px] xl:grid-cols-3">
-          <div className={panelClass}>
-            <SectionTitle title="Xếp hạng theo lượt bình chọn" color={C.gold} />
-            {data.topVotes.length === 0 ? (
-              <EmptyList />
-            ) : (
-              <div className="flex max-h-[420px] flex-col gap-2 overflow-y-auto pr-1 nice-scroll">
-                {data.topVotes.map((row, index) => (
-                  <div
-                    key={`${row.label}-${index}`}
-                    className="border-border bg-muted/35 rounded-xl border px-3 py-2.5"
-                  >
-                    <div className="mb-2 flex items-center justify-between gap-3">
-                      <div className="min-w-0 truncate text-sm font-bold">
-                        #{index + 1} {row.label}
-                      </div>
-                      <div className="text-foreground text-sm font-bold">
-                        {fmt(row.count)}
-                      </div>
-                    </div>
-                    <div className="bg-muted h-2 overflow-hidden rounded-full">
-                      <div
-                        className="h-full rounded-full bg-primary"
-                        style={{ width: `${pct(row.count, maxVote)}%` }}
-                      />
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-
-          <div className={panelClass}>
-            <SectionTitle title="Gian hàng có lượt check-in cao" color={C.pink} />
-            {data.topBooths.length === 0 ? (
-              <EmptyList />
-            ) : (
-              <div className="flex max-h-[420px] flex-col gap-2 overflow-y-auto pr-1 nice-scroll">
-                {data.topBooths.map((row, index) => (
-                  <div
-                    key={`${row.label}-${index}`}
-                    className="border-border bg-muted/35 rounded-xl border px-3 py-2.5"
-                  >
-                    <div className="mb-2 flex items-center justify-between gap-3">
-                      <div className="min-w-0 truncate text-sm font-bold" title={row.label}>
-                        #{index + 1} {row.label}
-                      </div>
-                      <div className="text-foreground text-sm font-bold">
-                        {fmt(row.count)}
-                      </div>
-                    </div>
-                    <div className="bg-muted h-2 overflow-hidden rounded-full">
-                      <div
-                        className="h-full rounded-full bg-primary"
-                        style={{ width: `${pct(row.count, maxBooth)}%` }}
-                      />
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-
-          <div className={panelClass}>
-            <SectionTitle title="Top 20 khách hàng" color={C.green} />
-            {data.topCustomers.length === 0 ? (
-              <EmptyList />
-            ) : (
-              <div className="flex max-h-[420px] flex-col gap-2 overflow-y-auto pr-1 nice-scroll">
-                {data.topCustomers.map((row, index) => (
-                  <div
-                    key={`${row.ordercode || row.phone || row.name}-${index}`}
-                    className="border-border bg-muted/35 rounded-xl border px-3 py-2.5"
-                  >
-                    <div className="mb-2 flex items-start justify-between gap-3">
-                      <div className="min-w-0">
-                        <div className="text-foreground truncate text-sm font-bold">
-                          #{index + 1} {row.name}
-                        </div>
-                        <div className="text-muted-foreground mt-1 flex flex-wrap gap-x-2 gap-y-1 text-[11px]">
-                          <span>{row.phone}</span>
-                          {row.ordercode ? <span className="font-mono">{row.ordercode}</span> : null}
-                        </div>
-                      </div>
-                      <div className="shrink-0 text-right">
-                        <div className="text-foreground text-sm font-bold">{row.completedCount} nhiệm vụ</div>
-                        <div className="text-muted-foreground mt-1 text-[11px]">{fmt(row.totalPoints)} điểm</div>
-                      </div>
-                    </div>
-                    <div className="grid grid-cols-2 gap-2 text-[11px]">
-                      <div className="bg-background rounded-md border px-2 py-1">
-                        <span className="text-muted-foreground">Còn lại </span>
-                        <span className="text-foreground font-bold">{fmt(row.availablePoints)}</span>
-                      </div>
-                      <div className="bg-background rounded-md border px-2 py-1">
-                        <span className="text-muted-foreground">Đã tiêu </span>
-                        <span className="text-foreground font-bold">{fmt(row.spentPoints)}</span>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
+          <RankingCard
+            title="Xếp hạng bình chọn gian hàng yêu thích"
+            rows={data.topVotes.favoriteBooths}
+            max={maxFavoriteBoothVote}
+            color={C.gold}
+          />
+          <RankingCard
+            title="Xếp hạng bình chọn sản phẩm, công nghệ ấn tượng"
+            rows={data.topVotes.impressiveProducts}
+            max={maxImpressiveProductVote}
+            color={C.gold}
+          />
+          <RankingCard
+            title="Gian hàng có lượt check-in cao"
+            rows={data.topBooths}
+            max={maxBooth}
+            color={C.pink}
+          />
         </div>
+
         <div className="grid grid-cols-1 gap-[20px] lg:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-5">
           {data.survey.questions.map((question, index) => (
             <div key={question.key} className={panelClass}>

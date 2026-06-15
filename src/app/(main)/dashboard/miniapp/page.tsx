@@ -17,6 +17,13 @@ type StatRow = RowDataPacket & {
 };
 type TaskSummaryRow = RowDataPacket & Record<string, number | string | null>;
 type LabelRow = RowDataPacket & { label: string | null; count: number | string | null };
+type VoteRankingRow = RowDataPacket & {
+  brandId: string | null;
+  brandName: string | null;
+  product: string | null;
+  category: string | null;
+  count: number | string | null;
+};
 type BeforeSurveyQuestionRow = RowDataPacket & {
   cau_1b: string | null;
   cau_2b: string | null;
@@ -130,6 +137,45 @@ function normalizeLabelRows(rows: LabelRow[], limit = 8) {
     .slice(0, limit);
 }
 
+function normalizeCategory(value: string | null | undefined) {
+  return String(value ?? "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/đ/g, "d")
+    .replace(/Đ/g, "D")
+    .replace(/[^\w\s]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .toLowerCase();
+}
+
+const VOTE_RANKING_CATEGORIES = {
+  favoriteBooths: normalizeCategory("Gian hàng yêu thích"),
+  impressiveProducts: normalizeCategory("Sản phẩm, công nghệ ấn tượng"),
+};
+
+function buildVoteRankingRows(rows: VoteRankingRow[], categoryKey: keyof typeof VOTE_RANKING_CATEGORIES) {
+  const target = VOTE_RANKING_CATEGORIES[categoryKey];
+
+  return rows
+    .filter((row) => normalizeCategory(row.category) === target)
+    .map((row) => {
+      const brandName = String(row.brandName ?? "").trim();
+      const product = String(row.product ?? "").trim();
+      const brandId = String(row.brandId ?? "").trim();
+      return {
+        label:
+          categoryKey === "favoriteBooths"
+            ? brandName || product || brandId || "(trống)"
+            : product || brandName || brandId || "(trống)",
+        count: toNumber(row.count),
+      };
+    })
+    .filter((row) => row.count > 0)
+    .sort((left, right) => right.count - left.count || left.label.localeCompare(right.label, "vi"))
+    .slice(0, 10);
+}
+
 function parseStringArray(value: string | null | undefined) {
   if (!value) return [];
 
@@ -240,7 +286,6 @@ export default async function MiniappDashboardPage() {
     [topVoteRows],
     [topGiftRows],
     [topBoothRows],
-    [topCustomerRows],
     [beforeSurveyQuestionRows],
   ] = await Promise.all([
     db.query<StatRow[]>(`
@@ -276,12 +321,17 @@ export default async function MiniappDashboardPage() {
         SUM(CASE WHEN COALESCE(status, 0) <> 1 THEN 1 ELSE 0 END) AS pending
       FROM gifts
     `),
-    db.query<LabelRow[]>(`
-      SELECT COALESCE(NULLIF(TRIM(brand_id), ''), '(trống)') AS label, COUNT(*) AS count
-      FROM voted
-      GROUP BY label
+    db.query<VoteRankingRow[]>(`
+      SELECT
+        COALESCE(NULLIF(TRIM(v.brand_id), ''), '(trống)') AS brandId,
+        b.brand_name AS brandName,
+        b.product AS product,
+        b.category AS category,
+        COUNT(*) AS count
+      FROM voted v
+      LEFT JOIN brand b ON b.brand_id COLLATE utf8mb4_unicode_ci = v.brand_id COLLATE utf8mb4_unicode_ci
+      GROUP BY brandId, b.brand_name, b.product, b.category
       ORDER BY count DESC
-      LIMIT 10
     `),
     db.query<(LabelRow & { redeemed: number | string | null })[]>(`
       SELECT
@@ -299,20 +349,6 @@ export default async function MiniappDashboardPage() {
       GROUP BY label
       ORDER BY count DESC
       LIMIT 10
-    `),
-    db.query<RewardCustomerRow[]>(`
-      SELECT
-        name,
-        phone,
-        ordercode,
-        completed_mission_ids,
-        total_points,
-        available_points,
-        spent_points
-      FROM miniapp_user_reward_state
-      WHERE COALESCE(TRIM(phone), '') <> ''
-         OR COALESCE(TRIM(name), '') <> ''
-         OR COALESCE(TRIM(ordercode), '') <> ''
     `),
     db.query<BeforeSurveyQuestionRow[]>(`
       SELECT cau_1b, cau_2b, cau_3b, cau_4b, cau_5b
@@ -363,7 +399,10 @@ export default async function MiniappDashboardPage() {
     ],
     taskPhases: taskSummary.phases,
     taskMatrix: taskSummary.tasks,
-    topVotes: normalizeLabelRows(topVoteRows, 10),
+    topVotes: {
+      favoriteBooths: buildVoteRankingRows(topVoteRows, "favoriteBooths"),
+      impressiveProducts: buildVoteRankingRows(topVoteRows, "impressiveProducts"),
+    },
     topGifts: topGiftRows.map((row) => ({
       label: String(row.label ?? "").trim() || "(trống)",
       count: toNumber(row.count),
@@ -371,7 +410,6 @@ export default async function MiniappDashboardPage() {
       rate: pct(toNumber(row.redeemed), toNumber(row.count)),
     })),
     topBooths: normalizeLabelRows(topBoothRows, 10),
-    topCustomers: buildTopCustomers(topCustomerRows),
     survey: {
       questions: buildSurveyQuestionRows(beforeSurveyQuestionRows),
     },

@@ -3,7 +3,7 @@ import type { ResultSetHeader, RowDataPacket } from "mysql2/promise";
 import { getDB } from "@/lib/db";
 
 export const SALES_VOUCHER_CLASSY_VALUES = ["monet", "money", "rate"] as const;
-export const SALES_VOUCHER_CLASS_VALUES = ["STANDARD", "GOLD", "RUBY"] as const;
+export const SALES_VOUCHER_CLASS_VALUES = ["GOLD", "RUBY", "VIP"] as const;
 
 export type SalesVoucherClassy = (typeof SALES_VOUCHER_CLASSY_VALUES)[number];
 export type SalesVoucherClass = (typeof SALES_VOUCHER_CLASS_VALUES)[number];

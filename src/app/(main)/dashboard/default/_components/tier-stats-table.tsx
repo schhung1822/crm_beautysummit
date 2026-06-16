@@ -8,6 +8,7 @@ type TierRow = {
   tier: string;
   registered: number;
   sold: number;
+  purchased: number;
   gifted: number;
   rate: number;
   revenue: number;
@@ -48,12 +49,12 @@ function isCompleted(status: string) {
 function buildTierRows(channels: Channel[]): TierRow[] {
   const map = new Map<
     string,
-    { registered: number; sold: number; gifted: number; revenue: number }
+    { registered: number; sold: number; purchased: number; gifted: number; revenue: number }
   >();
 
   for (const ch of channels) {
     const tier = String(ch.class ?? "").trim().toUpperCase() || "KHÁC";
-    const existing = map.get(tier) ?? { registered: 0, sold: 0, gifted: 0, revenue: 0 };
+    const existing = map.get(tier) ?? { registered: 0, sold: 0, purchased: 0, gifted: 0, revenue: 0 };
     existing.registered += 1;
 
     const completed = isCompleted(ch.status);
@@ -62,6 +63,7 @@ function buildTierRows(channels: Channel[]): TierRow[] {
       existing.revenue += Number(ch.money) || 0;
     }
 
+    if (Number(ch.is_gift ?? 0) === 0) existing.purchased += 1;
     if (Number(ch.is_gift ?? 0) === 1) existing.gifted += 1;
 
     map.set(tier, existing);
@@ -93,10 +95,11 @@ function buildTierRows(channels: Channel[]): TierRow[] {
     (acc, r) => ({
       registered: acc.registered + r.registered,
       sold: acc.sold + r.sold,
+      purchased: acc.purchased + r.purchased,
       gifted: acc.gifted + r.gifted,
       revenue: acc.revenue + r.revenue,
     }),
-    { registered: 0, sold: 0, gifted: 0, revenue: 0 },
+    { registered: 0, sold: 0, purchased: 0, gifted: 0, revenue: 0 },
   );
   rows.push({
     tier: "__TOTAL__",
@@ -142,6 +145,9 @@ export function TierStatsTable({ data }: { data: Channel[] }) {
               </th>
               <th className="px-4 py-3 text-left font-semibold text-muted-foreground whitespace-nowrap">
                 Vé bán ra
+              </th>
+              <th className="px-4 py-3 text-left font-semibold text-muted-foreground whitespace-nowrap">
+                Vé mua
               </th>
               <th className="px-4 py-3 text-left font-semibold text-muted-foreground whitespace-nowrap">
                 Vé tặng
@@ -193,6 +199,11 @@ export function TierStatsTable({ data }: { data: Channel[] }) {
                   {/* Vé bán ra */}
                   <td className="px-4 py-3.5 text-left tabular-nums text-foreground">
                     {fmt(row.sold)}
+                  </td>
+
+                  {/* Vé mua */}
+                  <td className="px-4 py-3.5 text-left tabular-nums text-foreground">
+                    {fmt(row.purchased)}
                   </td>
 
                   {/* Vé tặng */}

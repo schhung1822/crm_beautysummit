@@ -32,9 +32,9 @@ export const CLASSY_OPTIONS: Array<{ value: SalesVoucherClassy; label: string }>
 
 export const VOUCHER_CLASS_OPTIONS: Array<{ value: SalesVoucherClass | "all"; label: string }> = [
   { value: "all", label: "Tất cả hạng vé" },
-  { value: "STANDARD", label: "STANDARD" },
   { value: "GOLD", label: "GOLD" },
   { value: "RUBY", label: "RUBY" },
+  { value: "VIP", label: "VIP" },
 ];
 
 export function formatNumber(value: number | null) {

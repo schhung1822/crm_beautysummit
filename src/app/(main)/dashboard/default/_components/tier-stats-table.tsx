@@ -10,6 +10,7 @@ type TierRow = {
   sold: number;
   purchased: number;
   gifted: number;
+  totalTickets: number;
   rate: number;
   revenue: number;
 };
@@ -49,22 +50,40 @@ function isCompleted(status: string) {
 function buildTierRows(channels: Channel[]): TierRow[] {
   const map = new Map<
     string,
-    { registered: number; sold: number; purchased: number; gifted: number; revenue: number }
+    { registered: number; sold: number; purchased: number; gifted: number; totalTickets: number; revenue: number }
   >();
 
   for (const ch of channels) {
     const tier = String(ch.class ?? "").trim().toUpperCase() || "KHÁC";
-    const existing = map.get(tier) ?? { registered: 0, sold: 0, purchased: 0, gifted: 0, revenue: 0 };
-    existing.registered += 1;
+    const existing = map.get(tier) ?? {
+      registered: 0,
+      sold: 0,
+      purchased: 0,
+      gifted: 0,
+      totalTickets: 0,
+      revenue: 0,
+    };
+    const money = Number(ch.money) || 0;
+    const isGift = Number(ch.is_gift ?? 0);
+    const isPaidRegistration = isGift === 0 && money !== 0;
+    const isGiftTicket = isGift === 1 && money === 0;
 
     const completed = isCompleted(ch.status);
-    if (completed) {
-      existing.sold += 1;
-      existing.revenue += Number(ch.money) || 0;
+    if (isPaidRegistration) {
+      existing.registered += 1;
+      existing.purchased += 1;
+      existing.totalTickets += 1;
     }
 
-    if (Number(ch.is_gift ?? 0) === 0) existing.purchased += 1;
-    if (Number(ch.is_gift ?? 0) === 1) existing.gifted += 1;
+    if (isPaidRegistration && completed) {
+      existing.sold += 1;
+      existing.revenue += money;
+    }
+
+    if (isGiftTicket) {
+      existing.gifted += 1;
+      existing.totalTickets += 1;
+    }
 
     map.set(tier, existing);
   }
@@ -97,9 +116,10 @@ function buildTierRows(channels: Channel[]): TierRow[] {
       sold: acc.sold + r.sold,
       purchased: acc.purchased + r.purchased,
       gifted: acc.gifted + r.gifted,
+      totalTickets: acc.totalTickets + r.totalTickets,
       revenue: acc.revenue + r.revenue,
     }),
-    { registered: 0, sold: 0, purchased: 0, gifted: 0, revenue: 0 },
+    { registered: 0, sold: 0, purchased: 0, gifted: 0, totalTickets: 0, revenue: 0 },
   );
   rows.push({
     tier: "__TOTAL__",
@@ -128,7 +148,7 @@ export function TierStatsTable({ data }: { data: Channel[] }) {
           </div>
         </div>
         <div className="text-xs text-muted-foreground tabular-nums">
-          {rows.find((r) => r.tier === "__TOTAL__")?.registered ?? 0} vé tổng
+          {rows.find((r) => r.tier === "__TOTAL__")?.totalTickets ?? 0} vé tổng
         </div>
       </div>
 
@@ -149,14 +169,17 @@ export function TierStatsTable({ data }: { data: Channel[] }) {
               <th className="px-4 py-3 text-left font-semibold text-muted-foreground whitespace-nowrap">
                 Vé mua
               </th>
-              <th className="px-4 py-3 text-left font-semibold text-muted-foreground whitespace-nowrap">
-                Vé tặng
-              </th>
               <th className="px-4 py-3 text-center font-semibold text-muted-foreground whitespace-nowrap w-40">
                 Tỷ lệ chuyển đổi
               </th>
               <th className="px-5 py-3 text-right font-semibold text-muted-foreground whitespace-nowrap">
                 Doanh thu
+              </th>
+              <th className="px-4 py-3 text-right font-semibold text-muted-foreground whitespace-nowrap">
+                Vé tặng
+              </th>
+              <th className="px-5 py-3 text-right font-semibold text-muted-foreground whitespace-nowrap">
+                Tổng số vé
               </th>
             </tr>
           </thead>
@@ -206,18 +229,6 @@ export function TierStatsTable({ data }: { data: Channel[] }) {
                     {fmt(row.purchased)}
                   </td>
 
-                  {/* Vé tặng */}
-                  <td className="px-4 py-3.5 text-left tabular-nums text-foreground">
-                    {row.gifted > 0 ? (
-                      <span className="inline-flex items-center gap-1">
-                        <span className="inline-block h-1.5 w-1.5 rounded-full bg-amber-400" />
-                        {fmt(row.gifted)}
-                      </span>
-                    ) : (
-                      <span className="text-muted-foreground/50">—</span>
-                    )}
-                  </td>
-
                   {/* Tỷ lệ */}
                   <td className="px-4 py-3.5">
                     <div className="flex flex-col items-center gap-1.5">
@@ -237,6 +248,23 @@ export function TierStatsTable({ data }: { data: Channel[] }) {
                   <td className="px-5 py-3.5 text-right tabular-nums font-semibold text-foreground">
                     {fmt(row.revenue)}
                     <span className="ml-1 text-[10px] font-normal text-muted-foreground">₫</span>
+                  </td>
+
+                  {/* Vé tặng */}
+                  <td className="px-4 py-3.5 text-right tabular-nums text-foreground">
+                    {row.gifted > 0 ? (
+                      <span className="inline-flex items-center gap-1">
+                        <span className="inline-block h-1.5 w-1.5 rounded-full bg-amber-400" />
+                        {fmt(row.gifted)}
+                      </span>
+                    ) : (
+                      <span className="text-muted-foreground/50">—</span>
+                    )}
+                  </td>
+
+                  {/* Tổng số vé */}
+                  <td className="px-5 py-3.5 text-right tabular-nums font-semibold text-foreground">
+                    {fmt(row.totalTickets)}
                   </td>
                 </tr>
               );

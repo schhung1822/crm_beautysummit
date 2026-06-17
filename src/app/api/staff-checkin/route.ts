@@ -37,8 +37,10 @@ type TicketOrderRow = RowDataPacket & {
   latest_checkin_time: Date | string | null;
   latest_zone_id: string | null;
   source: string | null;
+  utm_source: string | null;
   checked_zones: string | null;
   checkin_count: number | string | null;
+  zone_checkin_count: number | string | null;
 };
 
 type HistoryRow = RowDataPacket & {
@@ -68,6 +70,9 @@ type StaffCheckinGuest = {
   zoneName: string;
   checkedIn: boolean;
   checkinTime: string | null;
+  zoneCheckinCount: number;
+  utmSource: string;
+  hasWorkshopTicket: boolean;
 };
 
 const PAYDONE_STATUS_CONDITION = "LOWER(TRIM(COALESCE(o.status, ''))) = 'paydone'";
@@ -97,6 +102,7 @@ function maskPhoneString(phoneValue: string | null | undefined): string {
 function buildGuest(ticket: TicketOrderRow, zone: StaffCheckinZone): StaffCheckinGuest {
   const checkedZoneArray = getCheckedZoneIds(ticket);
   const hasCheckedInCurrentZone = checkedZoneArray.includes(String(zone.id));
+  const utmSource = String(ticket.utm_source ?? "").trim();
 
   return {
     code: normalizeTicketCode(ticket.ordercode),
@@ -108,6 +114,9 @@ function buildGuest(ticket: TicketOrderRow, zone: StaffCheckinZone): StaffChecki
     zoneName: zone.name,
     checkedIn: hasCheckedInCurrentZone,
     checkinTime: toIsoString(ticket.latest_checkin_time ?? ticket.checkin_time),
+    zoneCheckinCount: Number(ticket.zone_checkin_count ?? 0),
+    utmSource,
+    hasWorkshopTicket: utmSource.toLowerCase() === "dangkyhoithao",
   };
 }
 
@@ -150,7 +159,10 @@ async function ensureStaffAccess(): Promise<{ user?: JWTPayload; response?: Next
   return { user: currentUser };
 }
 
-async function findTicketOrder(ticketCode: string, phone: string | null): Promise<TicketOrderRow | null> {
+async function findTicketOrder(
+  ticketCode: string,
+  phone: string | null,
+): Promise<TicketOrderRow | null> {
   const db = getDB();
   const normalizedCode = normalizeTicketCode(ticketCode);
   const phoneVariants = phone ? buildPhoneVariants(phone) : [];
@@ -172,8 +184,10 @@ async function findTicketOrder(ticketCode: string, phone: string | null): Promis
       checkin_summary.latest_checkin_time,
       COALESCE(checkin_summary.latest_zone_id, '') AS latest_zone_id,
       COALESCE(o.source, '') AS source,
+      COALESCE(o.utm_source, '') AS utm_source,
       COALESCE(checkin_summary.checked_zones, '') AS checked_zones,
-      COALESCE(checkin_summary.checkin_count, 0) AS checkin_count
+      COALESCE(checkin_summary.checkin_count, 0) AS checkin_count,
+      0 AS zone_checkin_count
     FROM orders o
     LEFT JOIN (
       SELECT
@@ -190,21 +204,35 @@ async function findTicketOrder(ticketCode: string, phone: string | null): Promis
       GROUP BY l.order_id
     ) checkin_summary
       ON checkin_summary.order_id = o.id
-    WHERE o.ordercode = ?
+    WHERE (
+        o.ordercode = ?
+        OR UPPER(TRIM(COALESCE(o.ordercode, ''))) = ?
+      )
       AND ${PAYDONE_STATUS_CONDITION}
       ${phoneCondition}
     LIMIT 1
     `,
-    [normalizedCode, ...phoneVariants],
+    [normalizedCode, normalizedCode, ...phoneVariants],
   );
 
   return rows.length > 0 ? rows[0] : null;
+}
+
+async function getZoneCheckinCount(orderId: number, zoneId: string): Promise<number> {
+  const db = getDB();
+  const [rows] = await db.query<Array<RowDataPacket & { count: number | string }>>(
+    "SELECT COUNT(*) AS count FROM checkin_log WHERE order_id = ? AND zone_id = ?",
+    [orderId, zoneId],
+  );
+
+  return Number(rows[0]?.count ?? 0);
 }
 
 async function markTicketCheckedIn(ticket: TicketOrderRow, currentUser: JWTPayload, zone: StaffCheckinZone) {
   const db = getDB();
   const now = new Date();
   const nextNumberCheckin = Math.max(1, Number(ticket.checkin_count ?? 0) + 1);
+  const nextZoneCheckinCount = Math.max(1, Number(ticket.zone_checkin_count ?? 0) + 1);
   const preservedSource = String(ticket.source ?? "").trim();
 
   await db.query(
@@ -236,6 +264,7 @@ async function markTicketCheckedIn(ticket: TicketOrderRow, currentUser: JWTPaylo
     latest_checkin_time: now,
     latest_zone_id: zone.id,
     source: ticket.source,
+    utm_source: ticket.utm_source,
     checked_zones: String(ticket.checked_zones ?? "")
       .split(",")
       .map((value) => value.trim())
@@ -244,6 +273,7 @@ async function markTicketCheckedIn(ticket: TicketOrderRow, currentUser: JWTPaylo
       .filter((value, index, values) => values.indexOf(value) === index)
       .join(","),
     checkin_count: nextNumberCheckin,
+    zone_checkin_count: nextZoneCheckinCount,
   };
 }
 
@@ -409,6 +439,7 @@ export async function POST(request: NextRequest) {
     if (!ticket) {
       return json({ data: { status: "error", message: "Không tìm thấy vé hợp lệ trong hệ thống" } }, { status: 200 });
     }
+    ticket.zone_checkin_count = await getZoneCheckinCount(ticket.id, zone.id);
 
     const guest = buildGuest(ticket, zone);
 

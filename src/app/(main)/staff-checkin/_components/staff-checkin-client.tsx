@@ -66,6 +66,9 @@ type StaffGuest = {
   zoneName: string;
   checkedIn: boolean;
   checkinTime: string | null;
+  zoneCheckinCount: number;
+  utmSource: string;
+  hasWorkshopTicket: boolean;
 };
 
 type StaffHistoryItem = {
@@ -359,6 +362,28 @@ export default function StaffCheckinClient({ areaMode = "checkin" }: { areaMode?
     const pendingIds = new Set(giftLookup.gifts.filter((item) => item.status !== 1).map((item) => item.id));
     return Array.from(giftSelectedIds).filter((id) => pendingIds.has(id));
   }, [giftLookup, giftSelectedIds]);
+  const resultRows = React.useMemo(() => {
+    if (!result) {
+      return [];
+    }
+
+    const rows = [
+      { label: "Tên", value: result.guest?.name ?? "--" },
+      { label: "Mã vé", value: result.guest?.code ?? result.ticketCode ?? "--", mono: true },
+      { label: "Trạng thái", value: getStatusLabel(result.status) },
+      {
+        label: "Số lần check-in cổng này",
+        value: `${Number(result.guest?.zoneCheckinCount ?? 0)} lần`,
+      },
+      { label: "Thời gian check-in", value: formatDateTimeLabel(result.time) },
+    ];
+
+    if (result.guest?.hasWorkshopTicket) {
+      rows.push({ label: "Vé hội thảo", value: "Có" });
+    }
+
+    return rows;
+  }, [result]);
 
   const loadSnapshot = React.useCallback(async () => {
     setLoadingSnapshot(true);
@@ -1104,12 +1129,7 @@ export default function StaffCheckinClient({ areaMode = "checkin" }: { areaMode?
                     getResultTheme(result.status).panelClass,
                   )}
                 >
-                  {[
-                    { label: "Tên", value: result.guest?.name ?? "--" },
-                    { label: "Mã vé", value: result.guest?.code ?? result.ticketCode ?? "--", mono: true },
-                    { label: "Trạng thái", value: getStatusLabel(result.status) },
-                    { label: "Thời gian check-in", value: formatDateTimeLabel(result.time) },
-                  ].map((item) => (
+                  {resultRows.map((item) => (
                     <div
                       key={item.label}
                       className="flex items-center justify-between gap-3 rounded-lg bg-white/10 px-3 py-2 ring-1 ring-white/10"

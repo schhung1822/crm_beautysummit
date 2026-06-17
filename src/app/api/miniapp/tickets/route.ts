@@ -8,6 +8,7 @@ import { applyCorsHeaders, buildCorsHeaders } from "@/lib/cors";
 import { getDB } from "@/lib/db";
 import {
   hasMiniAppUserAccess as sharedHasMiniAppUserAccess,
+  isMiniAppOrderCodeLockedByDifferentUser,
   lockMiniAppRewardStateOrderCode,
 } from "@/lib/miniapp-rewards";
 import {
@@ -219,6 +220,24 @@ export async function POST(request: NextRequest) {
       return jsonWithCors(
         request,
         { message: "Ticket already checked in", data: mappedTicket },
+        { status: 409 },
+      );
+    }
+
+    const ticketLockedByOtherUser = await trace.step("check_ticket_reward_state_owner", () =>
+      isMiniAppOrderCodeLockedByDifferentUser(
+        {
+          zid,
+          phone,
+        },
+        ticketCode,
+      ),
+    );
+    if (ticketLockedByOtherUser) {
+      trace.mark("ticket_already_claimed_by_other_user", { ticketId: ticket.id });
+      return jsonWithCors(
+        request,
+        { message: "Mã vé này đã được kích hoạt bởi tài khoản khác", data: mappedTicket },
         { status: 409 },
       );
     }

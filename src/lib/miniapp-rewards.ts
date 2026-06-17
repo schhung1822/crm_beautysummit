@@ -1,4 +1,4 @@
-﻿/* eslint-disable max-lines, complexity, @typescript-eslint/prefer-nullish-coalescing */
+/* eslint-disable max-lines, complexity, @typescript-eslint/prefer-nullish-coalescing */
 import { randomBytes, randomUUID } from 'node:crypto';
 
 import type { PoolConnection, ResultSetHeader, RowDataPacket } from 'mysql2/promise';
@@ -150,6 +150,12 @@ type MiniAppGiftCodeRedemptionIndexRow = RowDataPacket & {
 
 type UserAccessRow = RowDataPacket & {
   id: number;
+};
+
+type MiniAppOrderCodeOwnerRow = RowDataPacket & {
+  id: number;
+  zid: string | null;
+  phone: string | null;
 };
 
 type RewardIdentity = {
@@ -1567,6 +1573,46 @@ export async function hasMiniAppUserAccess(zid: string, phone: string): Promise<
   return hasAccess;
 }
 
+export async function isMiniAppOrderCodeLockedByDifferentUser(
+  identity: RewardIdentity,
+  orderCode: string
+): Promise<boolean> {
+  const db = getDB();
+  await ensureRewardStateOrderCodeColumn(db);
+  const normalizedOrderCode = normalizeOrderCode(orderCode);
+  const normalizedZid = parseString(identity.zid);
+  const phoneVariants = buildPhoneVariants(identity.phone);
+  if (!normalizedOrderCode || !normalizedZid) {
+    return false;
+  }
+
+  const [rows] = await db.query<MiniAppOrderCodeOwnerRow[]>(
+    `
+    SELECT id, zid, phone
+    FROM miniapp_user_reward_state
+    WHERE ordercode = ?
+      AND ordercode IS NOT NULL
+      AND TRIM(ordercode) <> ''
+    ORDER BY update_time DESC, id DESC
+    LIMIT 1
+    `,
+    [normalizedOrderCode]
+  );
+
+  const owner = rows[0];
+  if (!owner) {
+    return false;
+  }
+
+  const ownerZid = parseString(owner.zid);
+  if (ownerZid) {
+    return ownerZid !== normalizedZid;
+  }
+
+  const ownerPhone = toDatabasePhone(owner.phone) ?? parseString(owner.phone);
+  return Boolean(ownerPhone && !phoneVariants.includes(ownerPhone));
+}
+
 async function queryVoucherRows(includeInactive: boolean): Promise<MiniAppVoucherRow[]> {
   const cacheKey: 'active' | 'all' = includeInactive ? 'all' : 'active';
   const cachedRows = readTimedCache(voucherRowCache.get(cacheKey));
@@ -1851,6 +1897,10 @@ export async function lockMiniAppRewardStateOrderCode(
   const normalizedOrderCode = normalizeOrderCode(orderCode);
   if (!normalizedOrderCode) {
     throw new Error('Mã vé là bắt buộc');
+  }
+
+  if (await isMiniAppOrderCodeLockedByDifferentUser(identity, normalizedOrderCode)) {
+    throw new Error('Mã vé này đã được kích hoạt bởi tài khoản khác');
   }
 
   const current = await ensureMiniAppRewardState(identity, { orderCode: normalizedOrderCode });

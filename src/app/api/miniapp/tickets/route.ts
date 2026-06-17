@@ -162,7 +162,7 @@ export async function GET(request: NextRequest) {
     return jsonWithCors(request, { data: tickets }, { status: 200 });
   } catch (error) {
     trace.fail(error);
-    return jsonWithCors(request, { message: "Unable to load ticket orders", data: [] }, { status: 500 });
+    return jsonWithCors(request, { message: "Không thể tải đơn đặt vé", data: [] }, { status: 500 });
   }
 }
 
@@ -203,7 +203,7 @@ export async function POST(request: NextRequest) {
     const ticketCode = normalizeTicketCode(body.code);
     if (action !== "claim" || !ticketCode) {
       trace.mark("invalid_claim_request");
-      return jsonWithCors(request, { message: "code is required for ticket claim" }, { status: 400 });
+      return jsonWithCors(request, { message: "Cần có mã để yêu cầu vé." }, { status: 400 });
     }
 
     const db = getDB();
@@ -211,7 +211,7 @@ export async function POST(request: NextRequest) {
 
     if (!ticket) {
       trace.mark("ticket_not_found");
-      return jsonWithCors(request, { message: "Ticket code not found" }, { status: 404 });
+      return jsonWithCors(request, { message: "Không tìm thấy vé" }, { status: 404 });
     }
 
     const mappedTicket = mapMiniAppTicketRow(ticket);
@@ -219,7 +219,7 @@ export async function POST(request: NextRequest) {
       trace.mark("ticket_already_checked_in", { ticketId: ticket.id });
       return jsonWithCors(
         request,
-        { message: "Ticket already checked in", data: mappedTicket },
+        { message: "Mã vé này đã được kích hoạt bởi tài khoản khác", data: mappedTicket },
         { status: 409 },
       );
     }

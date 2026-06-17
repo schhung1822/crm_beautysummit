@@ -15,9 +15,20 @@ type TierRow = {
   revenue: number;
 };
 
+type TierStats = Omit<TierRow, "tier" | "rate">;
+
 const TIER_ORDER = ["GOLD", "RUBY", "VIP"];
 
-const TIER_STYLE: Record<string, { label: string; dotClass: string; badgeClass: string }> = {
+const EMPTY_TIER_STATS: TierStats = {
+  registered: 0,
+  sold: 0,
+  purchased: 0,
+  gifted: 0,
+  totalTickets: 0,
+  revenue: 0,
+};
+
+const TIER_STYLE: Partial<Record<string, { label: string; dotClass: string; badgeClass: string }>> = {
   GOLD: {
     label: "Gold",
     dotClass: "bg-[#d5b48c]",
@@ -43,74 +54,50 @@ function isCompleted(status: string) {
     s === "completed" ||
     s.includes("hoàn thành") ||
     s.includes("thành công") ||
-    s.includes("đã thanh toán")
+    s.includes("đã thanh toán") ||
+    s.includes("hoÃ n thÃ nh") ||
+    s.includes("thÃ nh cÃ´ng") ||
+    s.includes("Ä‘Ã£ thanh toÃ¡n")
   );
 }
 
-function buildTierRows(channels: Channel[]): TierRow[] {
-  const map = new Map<
-    string,
-    { registered: number; sold: number; purchased: number; gifted: number; totalTickets: number; revenue: number }
-  >();
+function normalizeTier(ticketClass: string) {
+  return ticketClass.trim().toUpperCase() || "KHÁC";
+}
 
-  for (const ch of channels) {
-    const tier = String(ch.class ?? "").trim().toUpperCase() || "KHÁC";
-    const existing = map.get(tier) ?? {
-      registered: 0,
-      sold: 0,
-      purchased: 0,
-      gifted: 0,
-      totalTickets: 0,
-      revenue: 0,
-    };
-    const money = Number(ch.money) || 0;
-    const isGift = Number(ch.is_gift ?? 0);
-    const isPaidRegistration = isGift === 0 && money !== 0;
-    const isGiftTicket = isGift === 1 && money === 0;
+function rowFromStats(tier: string, stats: TierStats): TierRow {
+  return {
+    tier,
+    ...stats,
+    rate: stats.registered > 0 ? (stats.sold / stats.registered) * 100 : 0,
+  };
+}
 
-    const completed = isCompleted(ch.status);
-    if (isPaidRegistration) {
-      existing.registered += 1;
-      existing.purchased += 1;
-      existing.totalTickets += 1;
-    }
+function applyChannelToStats(stats: TierStats, ch: Channel) {
+  const money = Number(ch.money) || 0;
+  const isGift = Number(ch.is_gift);
+  const isPaidRegistration = isGift === 0 && money !== 0;
+  const isGiftTicket = isGift === 1 && money === 0;
 
-    if (isPaidRegistration && completed) {
-      existing.sold += 1;
-      existing.revenue += money;
-    }
-
-    if (isGiftTicket) {
-      existing.gifted += 1;
-      existing.totalTickets += 1;
-    }
-
-    map.set(tier, existing);
+  if (isPaidRegistration) {
+    stats.registered += 1;
+    stats.purchased += 1;
+    stats.totalTickets += 1;
   }
 
-  // Sort: known tiers first
-  const rows: TierRow[] = [];
-  for (const tier of TIER_ORDER) {
-    if (map.has(tier)) {
-      const d = map.get(tier)!;
-      rows.push({
-        tier,
-        ...d,
-        rate: d.registered > 0 ? (d.sold / d.registered) * 100 : 0,
-      });
-      map.delete(tier);
-    }
-  }
-  for (const [tier, d] of map.entries()) {
-    rows.push({
-      tier,
-      ...d,
-      rate: d.registered > 0 ? (d.sold / d.registered) * 100 : 0,
-    });
+  if (isPaidRegistration && isCompleted(ch.status)) {
+    stats.sold += 1;
+    stats.revenue += money;
   }
 
-  // Totals row
-  const total = rows.reduce(
+  if (isGiftTicket) {
+    stats.gifted += 1;
+    stats.totalTickets += 1;
+  }
+}
+
+function buildTotalRow(rows: TierRow[]): TierRow {
+  const total = rows.reduce<TierStats>(
     (acc, r) => ({
       registered: acc.registered + r.registered,
       sold: acc.sold + r.sold,
@@ -119,14 +106,36 @@ function buildTierRows(channels: Channel[]): TierRow[] {
       totalTickets: acc.totalTickets + r.totalTickets,
       revenue: acc.revenue + r.revenue,
     }),
-    { registered: 0, sold: 0, purchased: 0, gifted: 0, totalTickets: 0, revenue: 0 },
+    { ...EMPTY_TIER_STATS },
   );
-  rows.push({
-    tier: "__TOTAL__",
-    ...total,
-    rate: total.registered > 0 ? (total.sold / total.registered) * 100 : 0,
-  });
 
+  return rowFromStats("__TOTAL__", total);
+}
+
+function buildTierRows(channels: Channel[]): TierRow[] {
+  const map = new Map<string, TierStats>();
+
+  for (const ch of channels) {
+    const tier = normalizeTier(ch.class);
+    const existing = map.get(tier) ?? { ...EMPTY_TIER_STATS };
+    applyChannelToStats(existing, ch);
+    map.set(tier, existing);
+  }
+
+  const rows: TierRow[] = [];
+  for (const tier of TIER_ORDER) {
+    const stats = map.get(tier);
+    if (stats) {
+      rows.push(rowFromStats(tier, stats));
+      map.delete(tier);
+    }
+  }
+
+  for (const [tier, stats] of map.entries()) {
+    rows.push(rowFromStats(tier, stats));
+  }
+
+  rows.push(buildTotalRow(rows));
   return rows;
 }
 
@@ -134,143 +143,183 @@ function fmt(n: number) {
   return n.toLocaleString("vi-VN");
 }
 
+function TierCell({ row }: { row: TierRow }) {
+  const isTotal = row.tier === "__TOTAL__";
+  const style = TIER_STYLE[row.tier];
+
+  if (isTotal) {
+    return <span className="text-foreground font-bold">Tổng cộng</span>;
+  }
+
+  if (style) {
+    return (
+      <span
+        className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-xs font-bold ${style.badgeClass}`}
+      >
+        <span className={`inline-block h-1.5 w-1.5 rounded-full ${style.dotClass}`} />
+        {style.label}
+      </span>
+    );
+  }
+
+  return <span className="text-foreground">{row.tier}</span>;
+}
+
+function RateCell({ rate }: { rate: number }) {
+  return (
+    <div className="flex min-w-32 flex-col items-center gap-1.5">
+      <span className="text-foreground text-xs font-semibold tabular-nums">{rate.toFixed(1)}%</span>
+      <div className="bg-muted h-1.5 w-full overflow-hidden rounded-full">
+        <div
+          className="bg-primary h-full rounded-full transition-all duration-500"
+          style={{ width: `${Math.min(rate, 100)}%` }}
+        />
+      </div>
+    </div>
+  );
+}
+
+function EmptyValue() {
+  return <span className="text-muted-foreground/50">-</span>;
+}
+
 export function TierStatsTable({ data }: { data: Channel[] }) {
   const rows = React.useMemo(() => buildTierRows(data), [data]);
+  const totalRow = rows.find((r) => r.tier === "__TOTAL__");
 
   return (
-    <div className="rounded-xl border border-border bg-card overflow-hidden">
-      {/* Header */}
-      <div className="flex items-center justify-between gap-4 border-b border-border px-5 py-4">
-        <div>
-          <div className="text-sm font-semibold text-foreground text-[18px]">Thống kê theo hạng vé</div>
-          <div className="mt-0.5 text-xs text-muted-foreground">
-            Tổng hợp vé đăng ký, vé bán, vé tặng và doanh thu theo từng hạng
+    <div className="grid grid-cols-1 gap-4 2xl:grid-cols-2">
+      <div className="border-border bg-card overflow-hidden rounded-xl border">
+        <div className="border-border flex items-start justify-between gap-4 border-b px-5 py-4">
+          <div>
+            <div className="text-foreground text-[18px] font-semibold">Thống kê vé bán</div>
+          </div>
+          <div className="text-muted-foreground shrink-0 text-xs tabular-nums">
+            {fmt(totalRow?.sold ?? 0)} vé thanh toán
           </div>
         </div>
-        <div className="text-xs text-muted-foreground tabular-nums">
-          {rows.find((r) => r.tier === "__TOTAL__")?.totalTickets ?? 0} vé tổng
+
+        <div className="nice-scroll overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-border bg-muted/30 border-b">
+                <th className="text-muted-foreground px-5 py-3 text-left font-semibold whitespace-nowrap">Hạng vé</th>
+                <th className="text-muted-foreground px-4 py-3 text-left font-semibold whitespace-nowrap">
+                  Vé đăng ký
+                </th>
+                <th className="text-muted-foreground px-4 py-3 text-left font-semibold whitespace-nowrap">
+                  Vé thanh toán
+                </th>
+                <th className="text-muted-foreground px-4 py-3 text-left font-semibold whitespace-nowrap">
+                  Vé chưa thanh toán
+                </th>
+                <th className="text-muted-foreground w-40 px-4 py-3 text-center font-semibold whitespace-nowrap">
+                  Tỷ lệ chuyển đổi
+                </th>
+                <th className="text-muted-foreground px-5 py-3 text-right font-semibold whitespace-nowrap">
+                  Doanh thu
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((row, i) => {
+                const isTotal = row.tier === "__TOTAL__";
+                const unpaid = Math.max(row.registered - row.sold, 0);
+
+                return (
+                  <tr
+                    key={row.tier}
+                    className={
+                      isTotal
+                        ? "border-border bg-muted/20 border-t-2 font-bold"
+                        : i % 2 === 0
+                          ? "border-border/50 border-b"
+                          : "border-border/50 bg-muted/10 border-b"
+                    }
+                  >
+                    <td className="px-5 py-3.5">
+                      <TierCell row={row} />
+                    </td>
+                    <td className="text-foreground px-4 py-3.5 text-left tabular-nums">{fmt(row.registered)}</td>
+                    <td className="text-foreground px-4 py-3.5 text-left tabular-nums">{fmt(row.sold)}</td>
+                    <td className="text-foreground px-4 py-3.5 text-left tabular-nums">
+                      {unpaid > 0 ? fmt(unpaid) : <EmptyValue />}
+                    </td>
+                    <td className="px-4 py-3.5">
+                      <RateCell rate={row.rate} />
+                    </td>
+                    <td className="text-foreground px-5 py-3.5 text-right font-semibold tabular-nums">
+                      {fmt(row.revenue)}
+                      <span className="text-muted-foreground ml-1 text-[10px] font-normal">VND</span>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
         </div>
       </div>
 
-      {/* Table */}
-      <div className="overflow-x-auto">
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="border-b border-border bg-muted/30">
-              <th className="px-5 py-3 text-left font-semibold text-muted-foreground whitespace-nowrap">
-                Hạng vé
-              </th>
-              <th className="px-4 py-3 text-left font-semibold text-muted-foreground whitespace-nowrap">
-                Vé đăng ký
-              </th>
-              <th className="px-4 py-3 text-left font-semibold text-muted-foreground whitespace-nowrap">
-                Vé bán ra
-              </th>
-              <th className="px-4 py-3 text-left font-semibold text-muted-foreground whitespace-nowrap">
-                Vé mua
-              </th>
-              <th className="px-4 py-3 text-center font-semibold text-muted-foreground whitespace-nowrap w-40">
-                Tỷ lệ chuyển đổi
-              </th>
-              <th className="px-5 py-3 text-right font-semibold text-muted-foreground whitespace-nowrap">
-                Doanh thu
-              </th>
-              <th className="px-4 py-3 text-right font-semibold text-muted-foreground whitespace-nowrap">
-                Vé tặng
-              </th>
-              <th className="px-5 py-3 text-right font-semibold text-muted-foreground whitespace-nowrap">
-                Tổng số vé
-              </th>
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map((row, i) => {
-              const isTotal = row.tier === "__TOTAL__";
-              const style = TIER_STYLE[row.tier];
-              return (
-                <tr
-                  key={row.tier}
-                  className={
-                    isTotal
-                      ? "border-t-2 border-border bg-muted/20 font-bold"
-                      : i % 2 === 0
-                        ? "border-b border-border/50"
-                        : "border-b border-border/50 bg-muted/10"
-                  }
-                >
-                  {/* Hạng vé */}
-                  <td className="px-5 py-3.5">
-                    {isTotal ? (
-                      <span className="text-foreground font-bold">Tổng cộng</span>
-                    ) : style ? (
-                      <span
-                        className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-xs font-bold ${style.badgeClass}`}
-                      >
-                        <span className={`inline-block h-1.5 w-1.5 rounded-full ${style.dotClass}`} />
-                        {style.label}
-                      </span>
-                    ) : (
-                      <span className="text-foreground">{row.tier}</span>
-                    )}
-                  </td>
+      <div className="border-border bg-card overflow-hidden rounded-xl border">
+        <div className="border-border flex items-start justify-between gap-4 border-b px-5 py-4">
+          <div>
+            <div className="text-foreground text-[18px] font-semibold">Thống kê tổng số vé</div>
+          </div>
+          <div className="text-muted-foreground shrink-0 text-xs tabular-nums">
+            {fmt(totalRow?.totalTickets ?? 0)} vé tổng
+          </div>
+        </div>
 
-                  {/* Vé đăng ký */}
-                  <td className="px-4 py-3.5 text-left tabular-nums text-foreground">
-                    {fmt(row.registered)}
-                  </td>
+        <div className="nice-scroll overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-border bg-muted/30 border-b">
+                <th className="text-muted-foreground px-5 py-3 text-left font-semibold whitespace-nowrap">Hạng vé</th>
+                <th className="text-muted-foreground px-4 py-3 text-right font-semibold whitespace-nowrap">Vé mua</th>
+                <th className="text-muted-foreground px-4 py-3 text-right font-semibold whitespace-nowrap">Vé tặng</th>
+                <th className="text-muted-foreground px-5 py-3 text-right font-semibold whitespace-nowrap">
+                  Tổng số vé
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((row, i) => {
+                const isTotal = row.tier === "__TOTAL__";
 
-                  {/* Vé bán ra */}
-                  <td className="px-4 py-3.5 text-left tabular-nums text-foreground">
-                    {fmt(row.sold)}
-                  </td>
-
-                  {/* Vé mua */}
-                  <td className="px-4 py-3.5 text-left tabular-nums text-foreground">
-                    {fmt(row.purchased)}
-                  </td>
-
-                  {/* Tỷ lệ */}
-                  <td className="px-4 py-3.5">
-                    <div className="flex flex-col items-center gap-1.5">
-                      <span className="text-xs font-semibold text-foreground tabular-nums">
-                        {row.rate.toFixed(1)}%
-                      </span>
-                      <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted">
-                        <div
-                          className="h-full rounded-full bg-primary transition-all duration-500"
-                          style={{ width: `${Math.min(row.rate, 100)}%` }}
-                        />
-                      </div>
-                    </div>
-                  </td>
-
-                  {/* Doanh thu */}
-                  <td className="px-5 py-3.5 text-right tabular-nums font-semibold text-foreground">
-                    {fmt(row.revenue)}
-                    <span className="ml-1 text-[10px] font-normal text-muted-foreground">₫</span>
-                  </td>
-
-                  {/* Vé tặng */}
-                  <td className="px-4 py-3.5 text-right tabular-nums text-foreground">
-                    {row.gifted > 0 ? (
-                      <span className="inline-flex items-center gap-1">
-                        <span className="inline-block h-1.5 w-1.5 rounded-full bg-amber-400" />
-                        {fmt(row.gifted)}
-                      </span>
-                    ) : (
-                      <span className="text-muted-foreground/50">—</span>
-                    )}
-                  </td>
-
-                  {/* Tổng số vé */}
-                  <td className="px-5 py-3.5 text-right tabular-nums font-semibold text-foreground">
-                    {fmt(row.totalTickets)}
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
+                return (
+                  <tr
+                    key={row.tier}
+                    className={
+                      isTotal
+                        ? "border-border bg-muted/20 border-t-2 font-bold"
+                        : i % 2 === 0
+                          ? "border-border/50 border-b"
+                          : "border-border/50 bg-muted/10 border-b"
+                    }
+                  >
+                    <td className="px-5 py-3.5">
+                      <TierCell row={row} />
+                    </td>
+                    <td className="text-foreground px-4 py-3.5 text-right tabular-nums">{fmt(row.purchased)}</td>
+                    <td className="text-foreground px-4 py-3.5 text-right tabular-nums">
+                      {row.gifted > 0 ? (
+                        <span className="inline-flex items-center gap-1">
+                          <span className="inline-block h-1.5 w-1.5 rounded-full bg-amber-400" />
+                          {fmt(row.gifted)}
+                        </span>
+                      ) : (
+                        <EmptyValue />
+                      )}
+                    </td>
+                    <td className="text-foreground px-5 py-3.5 text-right font-semibold tabular-nums">
+                      {fmt(row.totalTickets)}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
   );

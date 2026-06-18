@@ -12,14 +12,16 @@ export const runtime = "nodejs";
 
 const MAX_IMAGE_BYTES = 16 * 1024 * 1024;
 const DATA_IMAGE_URL_PATTERN = /^data:(image\/[a-zA-Z0-9.+-]+);base64,(.+)$/i;
-const FORM_DATA_FILE_FIELDS = ["file", "image", "card", "blob", "invitationCard"] as const;
-const FORM_DATA_STRING_FIELDS = ["dataUrl", "imageData", "base64"] as const;
+const FORM_DATA_FILE_FIELDS = ["file", "image", "card", "blob", "invitationCard", "cardImage", "invitationImage"] as const;
+const FORM_DATA_STRING_FIELDS = ["dataUrl", "imageData", "base64", "cardImage", "invitationImage"] as const;
 const JSON_IMAGE_FIELDS = [
   "file",
   "image",
   "card",
   "blob",
   "invitationCard",
+  "cardImage",
+  "invitationImage",
   "dataUrl",
   "imageData",
   "base64",
@@ -88,6 +90,26 @@ function resolveExtension(mimeType: unknown, fileName: unknown): string | null {
   return null;
 }
 
+function startsWithBytes(buffer: Buffer, bytes: number[]): boolean {
+  return bytes.every((byte, index) => buffer[index] === byte);
+}
+
+function resolveExtensionFromMagicBytes(buffer: Buffer): string | null {
+  if (startsWithBytes(buffer, [0xff, 0xd8, 0xff])) {
+    return "jpg";
+  }
+
+  if (startsWithBytes(buffer, [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a])) {
+    return "png";
+  }
+
+  if (buffer.toString("ascii", 0, 4) === "RIFF" && buffer.toString("ascii", 8, 12) === "WEBP") {
+    return "webp";
+  }
+
+  return null;
+}
+
 function parseBase64Upload(value: unknown, mimeType: unknown, fileName: unknown): ResolvedUpload | null {
   const normalizedValue = String(value ?? "").trim();
   if (!normalizedValue) {
@@ -95,26 +117,16 @@ function parseBase64Upload(value: unknown, mimeType: unknown, fileName: unknown)
   }
 
   const dataUrlMatch = normalizedValue.match(DATA_IMAGE_URL_PATTERN);
-  if (dataUrlMatch) {
-    const [, matchedMimeType, base64Payload] = dataUrlMatch;
-    const extension = resolveExtension(matchedMimeType, fileName);
-    if (!extension) {
-      return null;
-    }
-
-    return {
-      buffer: Buffer.from(base64Payload, "base64"),
-      extension,
-    };
-  }
-
-  const extension = resolveExtension(mimeType, fileName);
+  const base64Payload = dataUrlMatch ? dataUrlMatch[2] : normalizedValue;
+  const resolvedMimeType = dataUrlMatch ? dataUrlMatch[1] : mimeType;
+  const buffer = Buffer.from(base64Payload, "base64");
+  const extension = resolveExtension(resolvedMimeType, fileName) ?? resolveExtensionFromMagicBytes(buffer);
   if (!extension) {
     return null;
   }
 
   return {
-    buffer: Buffer.from(normalizedValue, "base64"),
+    buffer,
     extension,
   };
 }
@@ -169,13 +181,14 @@ async function resolveFileUploadFromFormData(formData: FormData): Promise<Resolv
   for (const fieldName of FORM_DATA_FILE_FIELDS) {
     const file = formData.get(fieldName);
     if (file instanceof File) {
-      const extension = resolveExtension(file.type, file.name);
+      const buffer = Buffer.from(await file.arrayBuffer());
+      const extension = resolveExtension(file.type, file.name) ?? resolveExtensionFromMagicBytes(buffer);
       if (!extension) {
         return null;
       }
 
       return {
-        buffer: Buffer.from(await file.arrayBuffer()),
+        buffer,
         extension,
       };
     }
@@ -207,35 +220,7 @@ async function resolveUploadFromFormData(request: NextRequest): Promise<Resolved
 }
 
 function readJsonImageField(body: Record<string, unknown>, fieldName: (typeof JSON_IMAGE_FIELDS)[number]): unknown {
-  switch (fieldName) {
-    case "file": {
-      return body.file;
-    }
-    case "image": {
-      return body.image;
-    }
-    case "card": {
-      return body.card;
-    }
-    case "blob": {
-      return body.blob;
-    }
-    case "invitationCard": {
-      return body.invitationCard;
-    }
-    case "dataUrl": {
-      return body.dataUrl;
-    }
-    case "imageData": {
-      return body.imageData;
-    }
-    case "base64": {
-      return body.base64;
-    }
-    default: {
-      return undefined;
-    }
-  }
+  return body[fieldName];
 }
 
 async function resolveUploadFromJson(request: NextRequest): Promise<ResolvedUpload | null> {
@@ -283,8 +268,8 @@ export async function POST(request: NextRequest) {
   try {
     const upload = await resolveUploadFromRequest(request);
     const uploadError = validateUpload(upload);
-    if (uploadError) {
-      return jsonWithCors(request, { error: uploadError }, { status: 400 });
+    if (uploadError || !upload) {
+      return jsonWithCors(request, { error: uploadError ?? "Missing invitation image file" }, { status: 400 });
     }
 
     const uploadDir = path.join(process.cwd(), "public", "images");
@@ -298,7 +283,7 @@ export async function POST(request: NextRequest) {
 
     return jsonWithCors(request, buildResponsePayload(request, fileName));
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Unable to upload invitation image";
-    return jsonWithCors(request, { error: message }, { status: 500 });
+    console.error("Miniapp invitation card upload error:", error);
+    return jsonWithCors(request, { error: "Unable to upload invitation image" }, { status: 500 });
   }
 }

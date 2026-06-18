@@ -16,6 +16,7 @@ import {
   MapPin,
   QrCode,
   ScanLine,
+  Ticket,
   Upload,
   Loader2,
 } from "lucide-react";
@@ -377,10 +378,6 @@ export default function StaffCheckinClient({ areaMode = "checkin" }: { areaMode?
       },
       { label: "Thời gian check-in", value: formatDateTimeLabel(result.time) },
     ];
-
-    if (result.guest?.hasWorkshopTicket) {
-      rows.push({ label: "Vé hội thảo", value: "Có" });
-    }
 
     return rows;
   }, [result]);
@@ -1146,6 +1143,15 @@ export default function StaffCheckinClient({ areaMode = "checkin" }: { areaMode?
                     </div>
                   ))}
                 </div>
+
+                {result.guest?.hasWorkshopTicket ? (
+                  <div className="mt-4 flex justify-center">
+                    <div className="inline-flex max-w-full items-center justify-center gap-2 rounded-full border border-cyan-200/60 bg-cyan-300/15 px-4 py-2 text-center text-sm font-black text-cyan-50 shadow-[0_0_28px_rgba(103,232,249,0.32)] ring-1 ring-cyan-100/20">
+                      <Ticket className="h-4 w-4 shrink-0" />
+                      <span className="truncate">Vé hội thảo chuyên đề</span>
+                    </div>
+                  </div>
+                ) : null}
               </div>
 
               <DialogFooter className="relative z-10 border-t border-white/10 px-6 py-4">

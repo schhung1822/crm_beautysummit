@@ -4,6 +4,7 @@ export type StaffCheckinTier = "GOLD" | "RUBY" | "VIP";
 
 export type StaffCheckinZone = {
   id: string;
+  locationCode?: string;
   name: string;
   color: string;
   tiers: StaffCheckinTier[];

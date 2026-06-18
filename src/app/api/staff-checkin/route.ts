@@ -60,6 +60,15 @@ type StatsRow = RowDataPacket & {
   totalCount: number | string | null;
 };
 
+type CheckinLocationRow = RowDataPacket & {
+  id: number | string;
+  location_code: string | null;
+  name: string;
+  allowed_tiers: string | null;
+  prerequisite: string | null;
+  event_date: Date | string | null;
+};
+
 type StaffCheckinGuest = {
   code: string;
   name: string;
@@ -76,6 +85,7 @@ type StaffCheckinGuest = {
 };
 
 const PAYDONE_STATUS_CONDITION = "LOWER(TRIM(COALESCE(o.status, ''))) = 'paydone'";
+const ENTRY_CHECKIN_LOCATION_CODE = "checkin_event";
 
 function json(body: unknown, init?: ResponseInit): NextResponse {
   return NextResponse.json(body, init);
@@ -99,10 +109,19 @@ function maskPhoneString(phoneValue: string | null | undefined): string {
   return "***";
 }
 
+function isEntryCheckinZone(zone: StaffCheckinZone): boolean {
+  return String(zone.locationCode ?? "")
+    .trim()
+    .toLowerCase() === ENTRY_CHECKIN_LOCATION_CODE;
+}
+
 function buildGuest(ticket: TicketOrderRow, zone: StaffCheckinZone): StaffCheckinGuest {
   const checkedZoneArray = getCheckedZoneIds(ticket);
   const hasCheckedInCurrentZone = checkedZoneArray.includes(String(zone.id));
   const utmSource = String(ticket.utm_source ?? "").trim();
+  const zoneCheckinCount = isEntryCheckinZone(zone)
+    ? Number(ticket.number_checkin ?? 0)
+    : Number(ticket.zone_checkin_count ?? 0);
 
   return {
     code: normalizeTicketCode(ticket.ordercode),
@@ -114,7 +133,7 @@ function buildGuest(ticket: TicketOrderRow, zone: StaffCheckinZone): StaffChecki
     zoneName: zone.name,
     checkedIn: hasCheckedInCurrentZone,
     checkinTime: toIsoString(ticket.latest_checkin_time ?? ticket.checkin_time),
-    zoneCheckinCount: Number(ticket.zone_checkin_count ?? 0),
+    zoneCheckinCount,
     utmSource,
     hasWorkshopTicket: utmSource.toLowerCase() === "dangkyhoithao",
   };
@@ -231,8 +250,12 @@ async function getZoneCheckinCount(orderId: number, zoneId: string): Promise<num
 async function markTicketCheckedIn(ticket: TicketOrderRow, currentUser: JWTPayload, zone: StaffCheckinZone) {
   const db = getDB();
   const now = new Date();
-  const nextNumberCheckin = Math.max(1, Number(ticket.checkin_count ?? 0) + 1);
-  const nextZoneCheckinCount = Math.max(1, Number(ticket.zone_checkin_count ?? 0) + 1);
+  const shouldIncrementEntryCheckin = isEntryCheckinZone(zone);
+  let nextNumberCheckin = Number(ticket.number_checkin ?? 0);
+  const nextLogCheckinCount = Math.max(1, Number(ticket.checkin_count ?? 0) + 1);
+  const nextZoneCheckinCount = shouldIncrementEntryCheckin
+    ? nextNumberCheckin + 1
+    : Math.max(1, Number(ticket.zone_checkin_count ?? 0) + 1);
   const preservedSource = String(ticket.source ?? "").trim();
 
   await db.query(
@@ -245,22 +268,38 @@ async function markTicketCheckedIn(ticket: TicketOrderRow, currentUser: JWTPaylo
     `
     UPDATE orders
     SET
-      is_checkin = 1,
-      number_checkin = ?,
-      checkin_time = ?,
+      is_checkin = CASE WHEN ? THEN 1 ELSE is_checkin END,
+      number_checkin = CASE WHEN ? THEN COALESCE(number_checkin, 0) + 1 ELSE COALESCE(number_checkin, 0) END,
+      checkin_time = CASE WHEN ? THEN ? ELSE checkin_time END,
       updated_by = ?,
       updated_at = ?
     WHERE id = ?
     LIMIT 1
     `,
-    [nextNumberCheckin, now, currentUser.username, now, ticket.id],
+    [
+      shouldIncrementEntryCheckin,
+      shouldIncrementEntryCheckin,
+      shouldIncrementEntryCheckin,
+      now,
+      currentUser.username,
+      now,
+      ticket.id,
+    ],
   );
+
+  if (shouldIncrementEntryCheckin) {
+    const [rows] = await db.query<Array<RowDataPacket & { number_checkin: number | string | null }>>(
+      "SELECT COALESCE(number_checkin, 0) AS number_checkin FROM orders WHERE id = ? LIMIT 1",
+      [ticket.id],
+    );
+    nextNumberCheckin = Number(rows[0]?.number_checkin ?? nextZoneCheckinCount);
+  }
 
   return {
     ...ticket,
-    is_checkin: 1,
+    is_checkin: shouldIncrementEntryCheckin ? 1 : ticket.is_checkin,
     number_checkin: nextNumberCheckin,
-    checkin_time: now,
+    checkin_time: shouldIncrementEntryCheckin ? now : ticket.checkin_time,
     latest_checkin_time: now,
     latest_zone_id: zone.id,
     source: ticket.source,
@@ -272,8 +311,8 @@ async function markTicketCheckedIn(ticket: TicketOrderRow, currentUser: JWTPaylo
       .concat(zone.id)
       .filter((value, index, values) => values.indexOf(value) === index)
       .join(","),
-    checkin_count: nextNumberCheckin,
-    zone_checkin_count: nextZoneCheckinCount,
+    checkin_count: nextLogCheckinCount,
+    zone_checkin_count: shouldIncrementEntryCheckin ? nextNumberCheckin : nextZoneCheckinCount,
   };
 }
 
@@ -374,16 +413,17 @@ async function loadSnapshot() {
     statusLabel: buildCheckinStatusLabel(1),
   }));
 
-  const [zonesRows] = await db.query(
-    "SELECT id, name, allowed_tiers, prerequisite, event_date FROM checkin_locations WHERE is_active = 1 ORDER BY nc_order ASC, id ASC"
-  ) as any[];
+  const [zonesRows] = await db.query<CheckinLocationRow[]>(
+    "SELECT id, location_code, name, allowed_tiers, prerequisite, event_date FROM checkin_locations WHERE is_active = 1 ORDER BY nc_order ASC, id ASC"
+  );
 
   const colors = ["#C41E7F", "#8B5CF6", "#0EA5E9", "#F59E0B", "#10B981", "#EF4444"];
-  const zones: StaffCheckinZone[] = zonesRows.map((r: any, i: number) => ({
+  const zones: StaffCheckinZone[] = zonesRows.map((r, i) => ({
     id: String(r.id),
+    locationCode: String(r.location_code ?? "").trim(),
     name: r.name,
-    color: colors[i % colors.length] as string,
-    tiers: String(r.allowed_tiers || "").split(",").map(t => t.trim()) as StaffCheckinTier[],
+    color: colors[i % colors.length],
+    tiers: String(r.allowed_tiers ?? "").split(",").map(t => t.trim()) as StaffCheckinTier[],
     prerequisite: r.prerequisite ? String(r.prerequisite) : null,
     eventDate: r.event_date ? toIsoString(r.event_date) : null,
   }));
@@ -417,10 +457,10 @@ export async function POST(request: NextRequest) {
 
   try {
     const body = (await request.json()) as StaffCheckinPayload;
-    
+
     // fetch snapshot ahead to get zones and also reuse for return
     let currentSnapshot = await loadSnapshot();
-    const zoneIdStr = String(body.zoneId || "");
+    const zoneIdStr = String(body.zoneId ?? "");
     const zone = currentSnapshot.zones.find(z => z.id === zoneIdStr) ?? currentSnapshot.zones[0];
     if (!zone) {
       return json({ data: { status: "error", message: "Không tìm thấy thông tin địa điểm check-in" } }, { status: 200 });
@@ -491,6 +531,23 @@ export async function POST(request: NextRequest) {
     }
 
     if (guest.checkedIn) {
+      if (isEntryCheckinZone(zone)) {
+        const updatedTicket = await markTicketCheckedIn(ticket, access.user, zone);
+        currentSnapshot = await loadSnapshot();
+
+        return json(
+          {
+            data: {
+              status: "repeat",
+              message: "Khách đã checkin trước đó",
+              guest: buildGuest(updatedTicket, zone),
+              ...currentSnapshot,
+            },
+          },
+          { status: 200 },
+        );
+      }
+
       return json(
         {
           data: {

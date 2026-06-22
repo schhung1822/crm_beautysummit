@@ -1,6 +1,7 @@
 ﻿import {
   Calendar1Icon,
   ChartBar,
+  ClipboardList,
   Gift,
   LayoutDashboard,
   MapPin,
@@ -46,7 +47,15 @@ export const sidebarItems: NavGroup[] = [
     items: [
       { title: "Tổng quan", url: "/dashboard/default", icon: LayoutDashboard },
       { title: "CRM", url: "/dashboard/crm", icon: ChartBar },
-      { title: "Miniapp", url: "/dashboard/miniapp", icon: PackageIcon },
+      {
+        title: "Miniapp",
+        url: "/dashboard/miniapp",
+        icon: PackageIcon,
+        subItems: [
+          { title: "Dashboard", url: "/dashboard/miniapp", icon: LayoutDashboard },
+          { title: "Khảo sát sau", url: "/dashboard/miniapp/survey-after", icon: ClipboardList },
+        ],
+      },
     ],
   },
   {

@@ -255,7 +255,7 @@ export default function MiniappDashboardClient({ data }: { data: MiniappDashboar
             {data.topGifts.length === 0 ? (
               <EmptyList />
             ) : (
-              <div className="flex max-h-[250px] flex-col gap-2 overflow-y-auto pr-1">
+              <div className="flex max-h-[250px] flex-col gap-2 overflow-y-auto pr-1 nice-scroll">
                 {data.topGifts.map((row, index) => (
                   <div key={`${row.label}-${index}`} className="border-border bg-muted/35 rounded-xl border px-3 py-2.5">
                     <div className="mb-2 flex items-center justify-between gap-3">

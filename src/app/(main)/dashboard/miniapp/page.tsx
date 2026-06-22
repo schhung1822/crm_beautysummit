@@ -40,6 +40,9 @@ type RewardCustomerRow = RowDataPacket & {
   available_points: number | string | null;
   spent_points: number | string | null;
 };
+type ColumnRow = RowDataPacket & { Field: string };
+
+const EXCLUDED_GIFT_HEX_PREFIX = "4769E1BAA36D20323025";
 
 const TASKS = [
   { key: "b1", label: "Kích hoạt vé", phase: "Trước sự kiện", kind: "number" },
@@ -94,6 +97,23 @@ function buildTaskSummarySql() {
       SUM(CASE WHEN (${anyDone}) > 0 THEN 1 ELSE 0 END) AS active
       ${taskParts.length ? `, ${taskParts.join(", ")}` : ""}
     FROM task
+  `;
+}
+
+async function getTableColumnNames(tableName: string) {
+  const db = getDB();
+  const [rows] = await db.query<ColumnRow[]>(`SHOW COLUMNS FROM \`${tableName}\``);
+
+  return new Set(rows.map((row) => row.Field));
+}
+
+function buildDistinctCountSql(tableName: string, candidateColumns: string[]) {
+  const expressions = candidateColumns.map((column) => `NULLIF(TRIM(\`${column}\`), '')`);
+  expressions.push("CAST(id AS CHAR)");
+
+  return `
+    SELECT COUNT(DISTINCT COALESCE(${expressions.join(", ")})) AS count
+    FROM \`${tableName}\`
   `;
 }
 
@@ -274,6 +294,8 @@ function buildTopCustomers(rows: RewardCustomerRow[]) {
 
 export default async function MiniappDashboardPage() {
   const db = getDB();
+  const checkinBoothColumns = await getTableColumnNames("checkin_booth");
+  const checkinBoothIdentityColumns = ["zid", "phone", "ordercode"].filter((column) => checkinBoothColumns.has(column));
 
   const [
     [rewardStatsRows],
@@ -305,21 +327,22 @@ export default async function MiniappDashboardPage() {
     db.query<CountRow[]>(`
       SELECT COUNT(DISTINCT COALESCE(NULLIF(TRIM(zid), ''), NULLIF(TRIM(phone), ''), NULLIF(TRIM(order_code), ''), CAST(id AS CHAR))) AS count
       FROM khaosat
+      WHERE COALESCE(TRIM(cau_1), '') <> ''
     `),
     db.query<CountRow[]>(`
       SELECT COUNT(DISTINCT COALESCE(NULLIF(TRIM(phone), ''), NULLIF(TRIM(ordercode), ''), CAST(id AS CHAR))) AS count
       FROM voted
     `),
     db.query<CountRow[]>(`
-      SELECT COUNT(DISTINCT COALESCE(NULLIF(TRIM(zid), ''), NULLIF(TRIM(ordercode), ''), CAST(id AS CHAR))) AS count
-      FROM checkin_booth
+      ${buildDistinctCountSql("checkin_booth", checkinBoothIdentityColumns)}
     `),
     db.query<(CountRow & { redeemed: number | string | null; pending: number | string | null })[]>(`
       SELECT
         COUNT(*) AS count,
-        SUM(CASE WHEN COALESCE(status, 0) = 1 THEN 1 ELSE 0 END) AS redeemed,
-        SUM(CASE WHEN COALESCE(status, 0) <> 1 THEN 1 ELSE 0 END) AS pending
+        COUNT(*) AS redeemed,
+        0 AS pending
       FROM gifts
+      WHERE COALESCE(HEX(TRIM(gift_name)), '') NOT LIKE '${EXCLUDED_GIFT_HEX_PREFIX}%'
     `),
     db.query<VoteRankingRow[]>(`
       SELECT
@@ -337,8 +360,9 @@ export default async function MiniappDashboardPage() {
       SELECT
         COALESCE(NULLIF(TRIM(gift_name), ''), '(trống)') AS label,
         COUNT(*) AS count,
-        SUM(CASE WHEN COALESCE(status, 0) = 1 THEN 1 ELSE 0 END) AS redeemed
+        COUNT(*) AS redeemed
       FROM gifts
+      WHERE COALESCE(HEX(TRIM(gift_name)), '') NOT LIKE '${EXCLUDED_GIFT_HEX_PREFIX}%'
       GROUP BY label
       ORDER BY count DESC
       LIMIT 10
